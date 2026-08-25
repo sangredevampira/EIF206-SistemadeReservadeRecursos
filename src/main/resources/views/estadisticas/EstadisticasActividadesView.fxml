@@ -52,7 +52,15 @@
                   <DatePicker fx:id="dpDesdeActividades" prefWidth="130.0" promptText="Fecha inicial" />
                   <Label text="Hasta:" />
                   <DatePicker fx:id="dpHastaActividades" prefWidth="130.0" promptText="Fecha final" />
-                  <Button fx:id="btnCargarActividades" mnemonicParsing="false" text="Cargar" />
+                  <Button fx:id="btnCargarActividades" mnemonicParsing="false" text="Cargar">
+                     <graphic>
+                        <ImageView fitHeight="16.0" fitWidth="16.0" pickOnBounds="true" preserveRatio="true">
+                           <image>
+                              <Image url="@../../images/icons/cargar.png" />
+                           </image>
+                        </ImageView>
+                     </graphic>
+                  </Button>
                </children>
             </HBox>
          </children>
