@@ -28,7 +28,7 @@
             </font>
         </Label>
 
-        <!-- Filtros -->
+
         <VBox spacing="8.0" style="-fx-border-color: #C8CDD3; -fx-border-radius: 4; -fx-background-color: #FAFBFC; -fx-background-radius: 4;">
             <padding>
                 <Insets bottom="10.0" left="10.0" right="10.0" top="8.0" />
@@ -75,7 +75,7 @@
             </children>
         </VBox>
 
-        <!-- Formulario Recurso -->
+
         <VBox prefHeight="173.0" prefWidth="459.0" spacing="8.0" style="-fx-border-color: #C8CDD3; -fx-border-radius: 4; -fx-background-color: #FAFBFC; -fx-background-radius: 4;">
             <padding>
                 <Insets bottom="10.0" left="10.0" right="10.0" top="8.0" />
@@ -161,7 +161,7 @@
             </VBox.margin>
         </VBox>
 
-        <!-- Tabla -->
+
         <VBox spacing="6.0" style="-fx-border-color: #C8CDD3; -fx-border-radius: 4; -fx-background-color: #FAFBFC; -fx-background-radius: 4;" VBox.vgrow="ALWAYS">
             <padding>
                 <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
