@@ -14,7 +14,7 @@ public class Main extends Application {
     public void start(Stage escenarioPrincipal) throws Exception {
 
         //temporal
-        SessionManager.getInstancia().iniciarSesion("admin", "ADMINISTRADOR");
+        SessionManager.getInstancia().iniciarSesion("111", "FUNCIONARIO");
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("view/MainView.fxml"));
         loader.setController(new MainController());
