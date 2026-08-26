@@ -30,18 +30,26 @@
                      <graphic>
                         <ImageView fitHeight="16.0" fitWidth="16.0" pickOnBounds="true" preserveRatio="true">
                            <image>
-                              <Image url="@../../images/icons/cargar.png" />
+                              <Image url="@../images/cargar.png" />
                            </image>
                         </ImageView>
                      </graphic>
                   </Button>
-                  <Button fx:id="btnLimpiar" mnemonicParsing="false" text="Limpiar" />
+                  <Button fx:id="btnLimpiar" mnemonicParsing="false" text="Limpiar">
+                     <graphic>
+                        <ImageView fitHeight="16.0" fitWidth="16.0" pickOnBounds="true" preserveRatio="true">
+                           <image>
+                              <Image url="@../images/escoba.png" />
+                           </image>
+                        </ImageView>
+                     </graphic>
+                  </Button>
                   <Region prefHeight="200.0" prefWidth="200.0" HBox.hgrow="ALWAYS" />
                   <Button fx:id="btnGenerarPdf" mnemonicParsing="false" text="Generar PDF">
                      <graphic>
                         <ImageView fitHeight="16.0" fitWidth="16.0" pickOnBounds="true" preserveRatio="true">
                            <image>
-                              <Image url="@../../images/icons/pdf.png" />
+                              <Image url="@../images/pdf.png" />
                            </image>
                         </ImageView>
                      </graphic>
