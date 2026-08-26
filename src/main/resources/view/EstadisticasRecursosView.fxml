@@ -23,17 +23,17 @@
    <children>
       <HBox alignment="CENTER_LEFT" prefWidth="200.0" spacing="8.0">
          <children>
-            <Label text="Actividadades">
+            <Label text="Recursos">
                <font>
                   <Font name="System Bold" size="17.0" />
                </font>
             </Label>
             <Region prefHeight="200.0" prefWidth="200.0" HBox.hgrow="ALWAYS" />
-            <Button fx:id="btnGenerarPdfActividades" mnemonicParsing="false" text="Generar PDF">
+            <Button fx:id="btnGenerarPdfRecursos" mnemonicParsing="false" text="Generar PDF">
                <graphic>
                   <ImageView fitHeight="16.0" fitWidth="16.0" pickOnBounds="true" preserveRatio="true">
                      <image>
-                        <Image url="@../../images/icons/pdf.png" />
+                        <Image url="@../images/pdf.png" />
                      </image>
                   </ImageView>
                </graphic>
@@ -49,10 +49,10 @@
             <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="7.0">
                <children>
                   <Label text="Desde:" />
-                  <DatePicker fx:id="dpDesdeActividades" prefWidth="130.0" promptText="Fecha inicial" />
+                  <DatePicker fx:id="dpDesdeRecursos" prefWidth="130.0" promptText="Fecha inicial" />
                   <Label text="Hasta:" />
-                  <DatePicker fx:id="dpHastaActividades" prefWidth="130.0" promptText="Fecha final" />
-                  <Button fx:id="btnCargarActividades" mnemonicParsing="false" text="Cargar" />
+                  <DatePicker fx:id="dpHastaRecursos" prefWidth="130.0" promptText="Fecha final" />
+                  <Button fx:id="btnCargarRecursos" mnemonicParsing="false" text="Cargar" />
                </children>
             </HBox>
          </children>
@@ -63,10 +63,10 @@
          </padding>
          <children>
             <Label text="Estadísticas" />
-            <TableView fx:id="tvEstadisticasActividades" minHeight="120.0" prefHeight="145.0" prefWidth="200.0">
+            <TableView fx:id="tvEstadisticasRecursos" minHeight="120.0" prefHeight="145.0" prefWidth="200.0">
               <columns>
-                <TableColumn fx:id="colSemana" prefWidth="120.0" sortable="false" text="Semana" />
-                <TableColumn fx:id="colCantidad" prefWidth="120.0" sortable="false" text="Cantidad" />
+                <TableColumn fx:id="colCategoria" prefWidth="120.0" sortable="false" text="Categoria" />
+                <TableColumn fx:id="colCantidadRecursos" prefWidth="120.0" sortable="false" text="Cantidad" />
               </columns>
                <columnResizePolicy>
                   <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
@@ -80,15 +80,15 @@
          </padding>
          <children>
             <Label text="Gráfico" />
-            <BarChart fx:id="barChartActividades" animated="false" categoryGap="20.0" legendVisible="false" prefHeight="250.0" title="Actividades Realizadas" VBox.vgrow="ALWAYS">
+            <BarChart fx:id="barChartRecursos" animated="false" categoryGap="20.0" legendVisible="false" prefHeight="250.0" title="Recursos Usados" VBox.vgrow="ALWAYS">
               <xAxis>
-                <CategoryAxis fx:id="ejeSemanas" label="Semana" side="BOTTOM" />
+                <CategoryAxis fx:id="ejeRecurso" label="Recurso" side="BOTTOM" />
               </xAxis>
               <yAxis>
-                <NumberAxis fx:id="ejeCantidad" label="Cantidad" side="LEFT" />
+                <NumberAxis fx:id="ejeCantidadRecursos" label="Cantidad" side="LEFT" />
               </yAxis>
             </BarChart>
-            <Label fx:id="lblEstadoActividades" text="Seleccione las fechas para consultar las actividades programadas." textFill="#555555" wrapText="true" />
+            <Label fx:id="lblEstadoRecursos" text="Seleccione las fechas para consultar las actividades programadas." textFill="#555555" wrapText="true" />
          </children>
       </VBox>
    </children>
