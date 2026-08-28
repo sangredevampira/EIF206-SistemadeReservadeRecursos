@@ -1,4 +1,4 @@
-package Sistema.service;
+package Sistema.Service;
 
 public class prueba1 {
     //prueba 5
