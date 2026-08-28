@@ -1,4 +1,4 @@
-package Sistema.controller;
+package Sistema.Controller;
 
 public class ReservasController {
 }

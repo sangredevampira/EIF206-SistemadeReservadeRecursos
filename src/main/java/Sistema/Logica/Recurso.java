@@ -1,4 +1,4 @@
-package Sistema.model;
+package Sistema.Logica;
 
 public class Recurso {
     private String id;
