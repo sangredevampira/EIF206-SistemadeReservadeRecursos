@@ -1,4 +1,4 @@
-package Sistema.Logica;
+package Sistema.DTO;
 
 public class Recurso {
     private String id;
