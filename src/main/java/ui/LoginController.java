@@ -1,5 +1,6 @@
-package Sistema.Controller;
+package ui;
 
+import Sistema.Controller.MainController;
 import Sistema.Logica.UsuarioLogica;
 import Sistema.Service.AuthService;
 import Sistema.util.SessionManager;
