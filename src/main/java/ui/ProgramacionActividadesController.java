@@ -39,6 +39,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Objects;
 
+import com.lowagie.text.Image;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.image.WritableImage;
+
+import javax.imageio.ImageIO;
+import java.io.ByteArrayOutputStream;
+
 public class ProgramacionActividadesController {
 
     // Controles para seleccionar y cargar la semana
