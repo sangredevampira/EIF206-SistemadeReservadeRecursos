@@ -106,7 +106,7 @@ public class RecursoDatos {
         return false;
     }
 
-    public boolean recursoExistente(String id){     // comprobar si es necesario usarlo
+    public boolean recursoExistente(String id){
         List<RecursoDTO> recursos = deserializar();
         for(RecursoDTO r : recursos)
             if(r.getId().equals(id))

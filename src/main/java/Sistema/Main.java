@@ -16,8 +16,8 @@ public class Main extends Application {
         //temporal
         SessionManager.getInstancia().iniciarSesion("111", "FUNCIONARIO");
 
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("view/MainView.fxml"));
-        loader.setController(new MainController());
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sistema/view/MainView.fxml"));
+
         Parent raiz = loader.load();
 
         String titulo = "SISTEMA DE RESERVAS - "
@@ -26,10 +26,11 @@ public class Main extends Application {
 
         escenarioPrincipal.setTitle(titulo);
         escenarioPrincipal.setScene(new Scene(raiz, 1150, 720));
+        escenarioPrincipal.setResizable(false); escenarioPrincipal.centerOnScreen();
         escenarioPrincipal.show();
     }
+
     public static void main(String[] args) {
         launch(args);
     }
-
 }
