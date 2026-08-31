@@ -8,7 +8,15 @@
 <?import javafx.scene.control.SplitPane?>
 
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="650.0" prefWidth="1100.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane maxHeight="-Infinity"
+            maxWidth="-Infinity"
+            minHeight="-Infinity"
+            minWidth="-Infinity"
+            prefHeight="650.0"
+            prefWidth="1100.0"
+            xmlns="http://javafx.com/javafx/26"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="ui.EstadisticasViewController">
    <top>
       <VBox prefWidth="100.0" spacing="5.0" BorderPane.alignment="CENTER">
          <padding>

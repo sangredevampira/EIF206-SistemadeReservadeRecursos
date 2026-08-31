@@ -39,13 +39,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Objects;
 
-import com.lowagie.text.Image;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.scene.image.WritableImage;
-
-import javax.imageio.ImageIO;
-import java.io.ByteArrayOutputStream;
-
 public class ProgramacionActividadesController {
 
     // Controles para seleccionar y cargar la semana
@@ -148,9 +141,8 @@ public class ProgramacionActividadesController {
             return;
         }
         calcularRangoSemana(dpFechaReferencia.getValue());
-        cargarHorasDelDia();
         actividadesPorFecha.clear();
-        // Pendiente hasta que exista ReservaService.
+        cargarHorasDelDia();
         // cargarActividadesDesdeJson();
         tvActividades.refresh();
         lblEstado.setText("Estructura semanal preparada. Pendiente cargar las reservaciones desde JSON.");

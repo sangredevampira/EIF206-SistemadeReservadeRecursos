@@ -219,6 +219,20 @@ public class EstadisticasActividadesController {
                 tablaPdf.addCell(celdaCantidad);
             }
             documento.add(tablaPdf);
+            documento.add(new Paragraph(" "));
+
+            documento.add(
+                    new Paragraph(
+                            "Gráfico de actividades por semana",
+                            fuenteEncabezado
+                    )
+            );
+
+            documento.add(new Paragraph(" "));
+
+            Image imagenGrafico = crearImagenGrafico();
+            documento.add(imagenGrafico);
+
             documento.close();
             lblEstadoActividades.setText("El reporte PDF fue generado correctamente.");
         } catch (Exception excepcion) {
