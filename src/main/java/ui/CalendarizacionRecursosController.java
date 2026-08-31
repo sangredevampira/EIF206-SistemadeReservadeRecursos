@@ -3,22 +3,20 @@ package ui;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.stage.FileChooser;
-
-import java.awt.Color;
+import Sistema.util.SelectorArchivoPdfUtil;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 
-//imports para los PDF
-import com.lowagie.text.*;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfWriter;
+//Imports para los PDF CLASES
+import Sistema.DTO.ReportHeaderDTO;
+import Sistema.DTO.ReportTableDTO;
+import Sistema.Logica.ReportExceptionLogica;
+import java.util.ArrayList;
+import Sistema.Service.PdfReportService;
 
 public class CalendarizacionRecursosController {
 
@@ -33,6 +31,9 @@ public class CalendarizacionRecursosController {
 
     private LocalDate fechaCargada;
     private String categoriaCargada;
+
+    private final PdfReportService pdfReportService =
+            new PdfReportService();
 
     @FXML
     private void initialize() {
@@ -173,81 +174,42 @@ public class CalendarizacionRecursosController {
         return valorObservable.getValue().toString();
     }
 
-    //Pendiente de terminar, por ahora solo valida informacion
     private void generarPdf() {
+
         if (tvCalendarizacion.getItems().isEmpty()) {
-            lblEstado.setText("Debe cargar la calendarización antes de generar el PDF.");
+            lblEstado.setText("Debe cargar la calendarización " + "antes de generar el PDF.");
             return;
         }
-        if (!Objects.equals(fechaCargada, dpFecha.getValue())
-                || !Objects.equals(categoriaCargada, cbCategoria.getValue())) {
-            lblEstado.setText("Los filtros cambiaron. Presione Cargar antes de generar el PDF.");
+        if (!Objects.equals(fechaCargada, dpFecha.getValue()) || !Objects.equals(categoriaCargada, cbCategoria.getValue())) {
+            lblEstado.setText("Los filtros cambiaron. " + "Presione Cargar antes de generar el PDF.");
             return;
         }
-
-        FileChooser selectorArchivo = new FileChooser();
-        selectorArchivo.setTitle("Guardar reporte de calendarización");
-        selectorArchivo.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documento PDF", "*.pdf"));
-        selectorArchivo.setInitialFileName("Calendarizacion_" + fechaCargada + ".pdf");
-
-        File archivoSeleccionado = selectorArchivo.showSaveDialog(btnGenerarPdf.getScene().getWindow());
-        // El usuario cerró la ventana sin seleccionar un archivo
+        File archivoSeleccionado = SelectorArchivoPdfUtil.seleccionar(btnGenerarPdf.getScene().getWindow(),
+                "Guardar reporte de calendarización", "Calendarizacion_" + fechaCargada + ".pdf");
         if (archivoSeleccionado == null) {
             lblEstado.setText("Generación del PDF cancelada.");
             return;
         }
-        if (!archivoSeleccionado.getName().toLowerCase().endsWith(".pdf"))
-            archivoSeleccionado = new File(archivoSeleccionado.getAbsolutePath() + ".pdf");
+        DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        String usuarioGenerador = System.getProperty("user.name", "Usuario no identificado");
+        ReportHeaderDTO encabezado = new ReportHeaderDTO("Sistema de Gestión de Recursos", "Calendarización de recursos", usuarioGenerador);
+        encabezado.agregarFiltro("Fecha", fechaCargada.format(formatoFecha));
+        encabezado.agregarFiltro("Categoría", categoriaCargada);
+        List<String> nombresColumnas = tvCalendarizacion.getColumns().stream().map(TableColumn::getText).toList();
+        ReportTableDTO tabla = new ReportTableDTO("Disponibilidad de recursos por hora", nombresColumnas);
 
-        Document documento = new Document(PageSize.A4.rotate(), 25, 25, 25, 25);
-        try {
-            PdfWriter.getInstance(documento, new FileOutputStream(archivoSeleccionado));
-            documento.open();
+        for (String hora : tvCalendarizacion.getItems()) {
+            List<String> valoresFila = new ArrayList<>();
 
-            Font fuenteTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
-            Font fuenteEncabezado = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
-            Font fuenteContenido = FontFactory.getFont(FontFactory.HELVETICA, 8);
-            DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
-            documento.add(new Paragraph("Calendarización de recursos", fuenteTitulo));
-            documento.add(new Paragraph("Fecha: " + fechaCargada.format(formatoFecha)));
-            documento.add(new Paragraph("Categoría: " + categoriaCargada));
-            documento.add(new Paragraph(" "));
-
-            PdfPTable tablaPdf = new PdfPTable(tvCalendarizacion.getColumns().size());
-            tablaPdf.setWidthPercentage(100);
-            tablaPdf.setHeaderRows(1);
-
-            // Encabezados de la tabla
             for (TableColumn<String, ?> columna : tvCalendarizacion.getColumns()) {
-                PdfPCell encabezado = new PdfPCell(new Phrase(columna.getText(), fuenteEncabezado));
-                encabezado.setBackgroundColor(new Color(220, 220, 220));
-                encabezado.setPadding(5);
-                tablaPdf.addCell(encabezado);
+                valoresFila.add(obtenerValorCelda(columna, hora));
             }
-
-            // Contenido de la tabla
-            for (String hora : tvCalendarizacion.getItems()) {
-                for (TableColumn<String, ?> columna : tvCalendarizacion.getColumns()) {
-                    String valor = obtenerValorCelda(columna, hora);
-                    PdfPCell celda = new PdfPCell(new Phrase(valor, fuenteContenido));
-                    celda.setPadding(4);
-                    if (valor.startsWith("Disponible"))
-                        celda.setBackgroundColor(new Color(223, 245, 225));
-                    else if (valor.startsWith("Reservado"))
-                        celda.setBackgroundColor(new Color(255, 243, 205));
-                    else if (valor.startsWith("Fuera de horario"))
-                        celda.setBackgroundColor(new Color(233, 236, 239));
-                    tablaPdf.addCell(celda);
-                }
-            }
-
-            documento.add(tablaPdf);
-            documento.close();
+            tabla.agregarFila(valoresFila);
+        }
+        try {
+            pdfReportService.generarReporteHorizontal(archivoSeleccionado, encabezado, tabla);
             lblEstado.setText("El reporte PDF fue generado correctamente.");
-
-        } catch (Exception excepcion) {
-            if (documento.isOpen()) documento.close();
+        } catch (ReportExceptionLogica excepcion) {
             lblEstado.setText("No se pudo generar el PDF: " + excepcion.getMessage());
             excepcion.printStackTrace();
         }

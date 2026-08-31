@@ -1,47 +1,32 @@
 package ui;
 
+import Sistema.DTO.ReportHeaderDTO;
+import Sistema.DTO.ReportTableDTO;
+import Sistema.Logica.ReportExceptionLogica;
+import Sistema.Service.PdfReportService;
+import Sistema.util.GraficoImagenUtil;
+import Sistema.util.SelectorArchivoPdfUtil;
 import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
-import javafx.scene.control.Button;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
 import javafx.scene.chart.XYChart;
+import javafx.scene.control.*;
+
+import java.io.File;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 
 // import Sistema.DTO.ReservaDTO;
 // import Sistema.Service.ReservaService;
-
-import com.lowagie.text.Document;
-import com.lowagie.text.Font;
-import com.lowagie.text.FontFactory;
-import com.lowagie.text.PageSize;
-import com.lowagie.text.Paragraph;
-import com.lowagie.text.Phrase;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfWriter;
-import javafx.stage.FileChooser;
-import java.awt.Color;
-import java.io.File;
-import java.io.FileOutputStream;
-import com.lowagie.text.Image;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.scene.image.WritableImage;
-import javax.imageio.ImageIO;
-import java.io.ByteArrayOutputStream;
-import java.util.Objects;
 
 public class EstadisticasActividadesController {
 
@@ -59,6 +44,7 @@ public class EstadisticasActividadesController {
 
     private LocalDate fechaDesdeCargada;
     private LocalDate fechaHastaCargada;
+    private final PdfReportService pdfReportService = new PdfReportService();
 
     @FXML
     private void initialize() {
@@ -156,17 +142,6 @@ public class EstadisticasActividadesController {
                 && Objects.equals(fechaHastaCargada, dpHastaActividades.getValue());
     }
 
-    private Image crearImagenGrafico() throws Exception {
-        WritableImage imagenJavaFx = barChartActividades.snapshot(null, null);
-        try (ByteArrayOutputStream salidaImagen = new ByteArrayOutputStream()) {
-            ImageIO.write(SwingFXUtils.fromFXImage(imagenJavaFx, null), "png", salidaImagen);
-            Image imagenPdf = Image.getInstance(salidaImagen.toByteArray());
-            imagenPdf.scaleToFit(500, 300);
-            imagenPdf.setAlignment(Image.ALIGN_CENTER);
-            return imagenPdf;
-        }
-    }
-
     private void generarPdf() {
         if (tvEstadisticasActividades.getItems().isEmpty()) {
             lblEstadoActividades.setText("Debe cargar las estadísticas antes de generar el PDF.");
@@ -176,68 +151,31 @@ public class EstadisticasActividadesController {
             lblEstadoActividades.setText("Las fechas cambiaron. Presione Cargar antes de generar el PDF.");
             return;
         }
-        FileChooser selectorArchivo = new FileChooser();
-        selectorArchivo.setTitle("Guardar estadísticas de actividades");
-        selectorArchivo.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documento PDF", "*.pdf"));
-        selectorArchivo.setInitialFileName("Estadisticas_actividades_" + fechaDesdeCargada + "_al_" + fechaHastaCargada + ".pdf");
-        File archivoSeleccionado = selectorArchivo.showSaveDialog(btnGenerarPdfActividades.getScene().getWindow());
-        if (archivoSeleccionado == null) {
+        File archivo = SelectorArchivoPdfUtil.seleccionar(btnGenerarPdfActividades.getScene().getWindow(),
+                "Guardar estadísticas de actividades", "Estadisticas_actividades_" + fechaDesdeCargada + "_al_" + fechaHastaCargada + ".pdf");
+        if (archivo == null) {
             lblEstadoActividades.setText("Generación del PDF cancelada.");
             return;
         }
-        if (!archivoSeleccionado.getName().toLowerCase().endsWith(".pdf")) {
-            archivoSeleccionado = new File(archivoSeleccionado.getAbsolutePath() + ".pdf");
+        DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        ReportHeaderDTO encabezado = new ReportHeaderDTO("Sistema de Gestión de Recursos", "Estadísticas de actividades", System.getProperty("user.name", "Usuario no identificado"));
+        encabezado.agregarFiltro("Período", fechaDesdeCargada.format(formatoFecha) + " al " + fechaHastaCargada.format(formatoFecha));
+        ReportTableDTO tabla = new ReportTableDTO("Actividades registradas por semana", List.of("Semana", "Cantidad"));
+
+        for (EstadisticaSemana estadistica : tvEstadisticasActividades.getItems()) {
+            tabla.agregarFila(estadistica.getSemana(), String.valueOf(estadistica.getCantidad()));
         }
-        Document documento = new Document(PageSize.A4, 40, 40, 35, 35);
         try {
-            PdfWriter.getInstance(documento, new FileOutputStream(archivoSeleccionado));
-            documento.open();
-            Font fuenteTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
-            Font fuenteEncabezado = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
-            Font fuenteContenido = FontFactory.getFont(FontFactory.HELVETICA, 9);
-            DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            documento.add(new Paragraph("Estadísticas de actividades", fuenteTitulo));
-            documento.add(new Paragraph("Período consultado: " + fechaDesdeCargada.format(formatoFecha) + " al " + fechaHastaCargada.format(formatoFecha)));
-            documento.add(new Paragraph(" "));
-            PdfPTable tablaPdf = new PdfPTable(2);
-            tablaPdf.setWidthPercentage(100);
-            tablaPdf.setWidths(new float[]{3, 1});
-            PdfPCell encabezadoSemana = new PdfPCell(new Phrase("Semana", fuenteEncabezado));
-            encabezadoSemana.setBackgroundColor(new Color(220, 220, 220));
-            encabezadoSemana.setPadding(6);
-            PdfPCell encabezadoCantidad = new PdfPCell(new Phrase("Cantidad", fuenteEncabezado));
-            encabezadoCantidad.setBackgroundColor(new Color(220, 220, 220));
-            encabezadoCantidad.setPadding(6);
-            tablaPdf.addCell(encabezadoSemana);
-            tablaPdf.addCell(encabezadoCantidad);
-            for (EstadisticaSemana estadistica : tvEstadisticasActividades.getItems()) {
-                PdfPCell celdaSemana = new PdfPCell(new Phrase(estadistica.getSemana(), fuenteContenido));
-                celdaSemana.setPadding(6);
-                PdfPCell celdaCantidad = new PdfPCell(new Phrase(String.valueOf(estadistica.getCantidad()), fuenteContenido));
-                celdaCantidad.setPadding(6);
-                tablaPdf.addCell(celdaSemana);
-                tablaPdf.addCell(celdaCantidad);
-            }
-            documento.add(tablaPdf);
-            documento.add(new Paragraph(" "));
-
-            documento.add(
-                    new Paragraph(
-                            "Gráfico de actividades por semana",
-                            fuenteEncabezado
-                    )
-            );
-
-            documento.add(new Paragraph(" "));
-
-            Image imagenGrafico = crearImagenGrafico();
-            documento.add(imagenGrafico);
-
-            documento.close();
+            byte[] imagenGrafico = GraficoImagenUtil.convertirAPng(barChartActividades);
+            pdfReportService.generarReporteConGrafico(archivo, encabezado, tabla, imagenGrafico);
             lblEstadoActividades.setText("El reporte PDF fue generado correctamente.");
-        } catch (Exception excepcion) {
-            if (documento.isOpen()) documento.close();
+
+        } catch (ReportExceptionLogica excepcion) {
             lblEstadoActividades.setText("No se pudo generar el PDF: " + excepcion.getMessage());
+            excepcion.printStackTrace();
+
+        } catch (Exception excepcion) {
+            lblEstadoActividades.setText("No se pudo convertir el gráfico: " + excepcion.getMessage());
             excepcion.printStackTrace();
         }
     }
@@ -250,7 +188,6 @@ public class EstadisticasActividadesController {
             this.semana = semana;
             this.cantidad = cantidad;
         }
-
         public String getSemana() { return semana; }
         public int getCantidad() { return cantidad; }
     }

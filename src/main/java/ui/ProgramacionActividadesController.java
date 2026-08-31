@@ -1,43 +1,25 @@
 package ui;
 
+import Sistema.DTO.ReportHeaderDTO;
+import Sistema.DTO.ReportTableDTO;
+import Sistema.Logica.ReportExceptionLogica;
+import Sistema.Service.PdfReportService;
+import Sistema.util.SelectorArchivoPdfUtil;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
+import javafx.scene.control.*;
 
+import java.io.File;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
-import javafx.beans.property.ReadOnlyStringWrapper;
-import java.util.HashMap;
-import java.util.Map;
-import javafx.scene.control.TableCell;
+import java.util.*;
 
 //imports para JSON
 // Se habilitarán cuando el Integrante 2 termine estas clases.
 // import Sistema.DTO.ReservaDTO;
 // import Sistema.Service.ReservaService;
-// import java.util.List;
-
-//imports para pdf
-import com.lowagie.text.Document;
-import com.lowagie.text.Font;
-import com.lowagie.text.FontFactory;
-import com.lowagie.text.PageSize;
-import com.lowagie.text.Paragraph;
-import com.lowagie.text.Phrase;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfWriter;
-import javafx.stage.FileChooser;
-
-import java.awt.Color;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.util.Objects;
 
 public class ProgramacionActividadesController {
 
@@ -65,6 +47,7 @@ public class ProgramacionActividadesController {
     private LocalDate fechaInicioSemana;
     private LocalDate fechaFinSemana;
     private final Map<LocalDate, Map<String, String>> actividadesPorFecha = new HashMap<>();
+    private final PdfReportService pdfReportService = new PdfReportService();
 
     @FXML
     private void initialize() {
@@ -218,59 +201,38 @@ public class ProgramacionActividadesController {
             lblEstado.setText("Debe seleccionar y cargar una semana.");
             return;
         }
-        LocalDate inicioSemanaSeleccionada = dpFechaReferencia.getValue().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        if (!Objects.equals(fechaInicioSemana, inicioSemanaSeleccionada)) {
+        LocalDate inicioSeleccionado = dpFechaReferencia.getValue()
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+
+        if (!Objects.equals(fechaInicioSemana, inicioSeleccionado)) {
             lblEstado.setText("La fecha cambió. Presione Cargar antes de generar el PDF.");
             return;
         }
-        FileChooser selectorArchivo = new FileChooser();
-        selectorArchivo.setTitle("Guardar programación semanal");
-        selectorArchivo.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documento PDF", "*.pdf"));
-        selectorArchivo.setInitialFileName("Programacion_semanal_" + fechaInicioSemana + "_al_" + fechaFinSemana + ".pdf");
-        File archivoSeleccionado = selectorArchivo.showSaveDialog(btnGenerarPdf.getScene().getWindow());
-        if (archivoSeleccionado == null) {
+        File archivo = SelectorArchivoPdfUtil.seleccionar(btnGenerarPdf.getScene().getWindow(), "Guardar programación semanal",
+                "Programacion_semanal_" + fechaInicioSemana + "_al_" + fechaFinSemana + ".pdf");
+        if (archivo == null) {
             lblEstado.setText("Generación del PDF cancelada.");
             return;
         }
-        if (!archivoSeleccionado.getName().toLowerCase().endsWith(".pdf")) {
-            archivoSeleccionado = new File(archivoSeleccionado.getAbsolutePath() + ".pdf");
-        }
-        Document documento = new Document(PageSize.A4.rotate(), 25, 25, 25, 25);
-        try {
-            PdfWriter.getInstance(documento, new FileOutputStream(archivoSeleccionado));
-            documento.open();
-            Font fuenteTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
-            Font fuenteEncabezado = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);
-            Font fuenteContenido = FontFactory.getFont(FontFactory.HELVETICA, 7);
-            DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            documento.add(new Paragraph("Programación semanal de actividades", fuenteTitulo));
-            documento.add(new Paragraph("Semana del " + fechaInicioSemana.format(formatoFecha) + " al " + fechaFinSemana.format(formatoFecha)));
-            documento.add(new Paragraph(" "));
-            PdfPTable tablaPdf = new PdfPTable(tvActividades.getColumns().size());
-            tablaPdf.setWidthPercentage(100);
-            tablaPdf.setHeaderRows(1);
+        DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        ReportHeaderDTO encabezado = new ReportHeaderDTO("Sistema de Gestión de Recursos", "Programación semanal de actividades", System.getProperty("user.name", "Usuario no identificado"));
+        encabezado.agregarFiltro("Período", fechaInicioSemana.format(formatoFecha) + " al " + fechaFinSemana.format(formatoFecha));
+        List<String> nombresColumnas = tvActividades.getColumns().stream().map(TableColumn::getText).toList();
+
+        ReportTableDTO tabla = new ReportTableDTO("Actividades programadas por día y hora", nombresColumnas);
+
+        for (String hora : tvActividades.getItems()) {
+            List<String> fila = new ArrayList<>();
+
             for (TableColumn<String, ?> columna : tvActividades.getColumns()) {
-                PdfPCell encabezado = new PdfPCell(new Phrase(columna.getText(), fuenteEncabezado));
-                encabezado.setBackgroundColor(new Color(220, 220, 220));
-                encabezado.setPadding(4);
-                tablaPdf.addCell(encabezado);
+                fila.add(obtenerValorCelda(columna, hora));
             }
-            for (String hora : tvActividades.getItems()) {
-                for (TableColumn<String, ?> columna : tvActividades.getColumns()) {
-                    String valor = obtenerValorCelda(columna, hora);
-                    PdfPCell celda = new PdfPCell(new Phrase(valor, fuenteContenido));
-                    celda.setPadding(3);
-                    if (!valor.isBlank() && !valor.equals(hora)) {
-                        celda.setBackgroundColor(new Color(255, 240, 199));
-                    }
-                    tablaPdf.addCell(celda);
-                }
-            }
-            documento.add(tablaPdf);
-            documento.close();
+            tabla.agregarFila(fila);
+        }
+        try {
+            pdfReportService.generarReporteHorizontal(archivo, encabezado, tabla);
             lblEstado.setText("El reporte semanal fue generado correctamente.");
-        } catch (Exception excepcion) {
-            if (documento.isOpen()) documento.close();
+        } catch (ReportExceptionLogica excepcion) {
             lblEstado.setText("No se pudo generar el PDF: " + excepcion.getMessage());
             excepcion.printStackTrace();
         }

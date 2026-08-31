@@ -3,13 +3,13 @@ package Sistema.Service;
 import Sistema.DTO.ReportHeaderDTO;
 import Sistema.DTO.ReportTableDTO;
 import Sistema.Logica.ReportExceptionLogica;
-
 import com.lowagie.text.*;
-import com.lowagie.text.pdf.*;
-import com.lowagie.text.Rectangle;
+import com.lowagie.text.Font;
 import com.lowagie.text.Image;
+import com.lowagie.text.Rectangle;
+import com.lowagie.text.pdf.*;
 
-import java.awt.Color;
+import java.awt.*;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.time.format.DateTimeFormatter;
