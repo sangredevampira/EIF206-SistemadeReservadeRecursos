@@ -17,7 +17,7 @@ public class Main extends Application {
         Parent raiz = loader.load();
 
         escenarioPrincipal.setTitle("SISTEMA DE RESERVAS");
-        escenarioPrincipal.setScene(new Scene(raiz, 400, 250));
+        escenarioPrincipal.setScene(new Scene(raiz, 400, 320));
         escenarioPrincipal.show();
     }
 

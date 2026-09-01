@@ -20,4 +20,8 @@ public class AuthService {
 
         return resultado;
     }
+
+    public UsuarioLogica.ResultadoCambioClave cambiarClave(String id, String claveActual, String claveNueva, String claveNuevaConfirmacion) {
+        return usuarioLogica.cambiarClave(id, claveActual, claveNueva, claveNuevaConfirmacion);
+    }
 }

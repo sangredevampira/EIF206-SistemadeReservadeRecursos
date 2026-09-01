@@ -3,20 +3,22 @@ package Sistema.Datos;
 import Sistema.DTO.Rol;
 import Sistema.DTO.Usuario;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 
-
-//unica clase autorizada para tocar usuarios.json(base de datos), lee, busca, guarda y actualiza la clave
+// unica clase autorizada para tocar usuarios.json (base de datos),
+// lee, busca, guarda y actualiza la clave. Usa Jackson, mismo patron
+// que RecursoDatos, para mantener una sola libreria JSON en el equipo.
 
 public class UsuarioDatos {
 
     private static final String RUTA_ARCHIVO = "src/main/resources/Sistema/data/usuarios.json";
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public UsuarioDatos() {
         crearArchivoSiNoExiste();
@@ -30,80 +32,55 @@ public class UsuarioDatos {
         try {
             archivo.getParentFile().mkdirs();
 
-            JSONObject raiz = new JSONObject();
-            raiz.put("usuarios", new JSONArray());
+            List<Usuario> usuarios = new ArrayList<>();
+            usuarios.add(new Usuario("admin", "admin", Rol.ADMINISTRADOR));
 
-            Usuario admin = new Usuario("admin", "admin", Rol.ADMINISTRADOR);
-            agregarUsuarioAlArreglo(raiz, admin);
-
-            guardarDocumento(raiz);
+            serializar(usuarios);
         } catch (Exception e) {
             throw new RuntimeException("No se pudo crear usuarios.json: " + e.getMessage(), e);
         }
     }
 
     public Usuario buscarPorId(String id) {
-        JSONObject raiz = cargarDocumento();
-        JSONArray usuarios = raiz.getJSONArray("usuarios");
-
-        for (int i = 0; i < usuarios.length(); i++) {
-            JSONObject nodo = usuarios.getJSONObject(i);
-            if (nodo.getString("id").equals(id)) {
-                return convertirAUsuario(nodo);
+        List<Usuario> usuarios = deserializar();
+        for (Usuario usuario : usuarios) {
+            if (usuario.getId().equals(id)) {
+                return usuario;
             }
         }
         return null;
     }
 
-    public void guardar(Usuario usuario) {
-        JSONObject raiz = cargarDocumento();
-        agregarUsuarioAlArreglo(raiz, usuario);
-        guardarDocumento(raiz);
+    public void guardar(Usuario usuarioNuevo) {
+        List<Usuario> usuarios = deserializar();
+        usuarios.add(usuarioNuevo);
+        serializar(usuarios);
     }
 
     public void actualizarClave(String id, String nuevaClave) {
-        JSONObject raiz = cargarDocumento();
-        JSONArray usuarios = raiz.getJSONArray("usuarios");
-
-        for (int i = 0; i < usuarios.length(); i++) {
-            JSONObject nodo = usuarios.getJSONObject(i);
-            if (nodo.getString("id").equals(id)) {
-                nodo.put("clave", nuevaClave);
+        List<Usuario> usuarios = deserializar();
+        for (Usuario usuario : usuarios) {
+            if (usuario.getId().equals(id)) {
+                usuario.setClave(nuevaClave);
                 break;
             }
         }
-        guardarDocumento(raiz);
+        serializar(usuarios);
     }
 
-    private void agregarUsuarioAlArreglo(JSONObject raiz, Usuario usuario) {
-        JSONObject nodo = new JSONObject();
-        nodo.put("id", usuario.getId());
-        nodo.put("clave", usuario.getClave());
-        nodo.put("rol", usuario.getRol().name());
-        raiz.getJSONArray("usuarios").put(nodo);
-    }
-
-    private Usuario convertirAUsuario(JSONObject nodo) {
-        String id = nodo.getString("id");
-        String clave = nodo.getString("clave");
-        String rolTexto = nodo.getString("rol");
-        return new Usuario(id, clave, Rol.valueOf(rolTexto));
-    }
-
-    private JSONObject cargarDocumento() {
+    private void serializar(List<Usuario> usuarios) {
         try {
-            String contenido = Files.readString(new File(RUTA_ARCHIVO).toPath());
-            return new JSONObject(contenido);
+            mapper.writerWithDefaultPrettyPrinter().writeValue(new File(RUTA_ARCHIVO), usuarios);
         } catch (IOException e) {
-            throw new RuntimeException("No se pudo leer usuarios.json: " + e.getMessage(), e);
+            throw new RuntimeException("No se pudo guardar usuarios.json: " + e.getMessage(), e);
         }
     }
 
-    private void guardarDocumento(JSONObject raiz) {
-        try (FileWriter escritor = new FileWriter(RUTA_ARCHIVO)) {
-            escritor.write(raiz.toString(4));
+    private List<Usuario> deserializar() {
+        try {
+            return mapper.readValue(new File(RUTA_ARCHIVO), new TypeReference<List<Usuario>>() {});
         } catch (IOException e) {
-            throw new RuntimeException("No se pudo guardar usuarios.json: " + e.getMessage(), e);
+            throw new RuntimeException("No se pudo leer usuarios.json: " + e.getMessage(), e);
         }
     }
 }
