@@ -1,6 +1,5 @@
 package ui;
 
-import Sistema.Controller.MainController;
 import Sistema.Logica.UsuarioLogica;
 import Sistema.Service.AuthService;
 import Sistema.util.SessionManager;
@@ -26,7 +25,6 @@ public class LoginController {
     @FXML private TextField campoId;
     @FXML private PasswordField campoClave;
     @FXML private Label lblMensaje;
-
     @FXML private Button btnIngresar;
     @FXML private Button btnCancelar;
     @FXML private Button btnCambiar;
@@ -56,7 +54,7 @@ public class LoginController {
 
     private void abrirVentanaPrincipal(javafx.event.ActionEvent evento) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sistema/view/mainView.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sistema/view/MainView.fxml"));
             loader.setController(new MainController());
             Parent raiz = loader.load();
 

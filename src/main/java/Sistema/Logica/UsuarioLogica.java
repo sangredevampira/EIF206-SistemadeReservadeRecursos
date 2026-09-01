@@ -1,10 +1,9 @@
 package Sistema.Logica;
 
+import Sistema.DTO.Funcionario;
+import Sistema.DTO.Rol;
 import Sistema.DTO.Usuario;
 import Sistema.Datos.UsuarioDatos;
-
-//decide si un intento de login es valido, campos no vacios,  si el usuario existe, clave coincide etc..
-//pq estas validaciones aca y no en UsuarioDatos? pq eso son reglas de negocio, no un detalle de acceso a archivo
 
 public class UsuarioLogica {
 
@@ -35,24 +34,33 @@ public class UsuarioLogica {
     public static class ResultadoLogin {
         private final boolean exitoso;
         private final Usuario usuario;
+        private final Funcionario funcionarioAsociado;
         private final String mensajeError;
 
-        private ResultadoLogin(boolean exitoso, Usuario usuario, String mensajeError) {
+        private ResultadoLogin(boolean exitoso, Usuario usuario, Funcionario funcionarioAsociado, String mensajeError) {
             this.exitoso = exitoso;
             this.usuario = usuario;
+            this.funcionarioAsociado = funcionarioAsociado;
             this.mensajeError = mensajeError;
         }
 
         public static ResultadoLogin exito(Usuario usuario) {
-            return new ResultadoLogin(true, usuario, null);
+            Funcionario funcionarioAsociado = null;
+            if (usuario.getRol() == Rol.FUNCIONARIO) {
+                // FuncionarioDatos aun no existe (Fase E). Placeholder con el ID real;
+                // cuando exista, reemplazar por: funcionarioDatos.buscarPorId(usuario.getId())
+                funcionarioAsociado = new Funcionario(usuario.getId(), null, null);
+            }
+            return new ResultadoLogin(true, usuario, funcionarioAsociado, null);
         }
 
         public static ResultadoLogin fallo(String mensajeError) {
-            return new ResultadoLogin(false, null, mensajeError);
+            return new ResultadoLogin(false, null, null, mensajeError);
         }
 
         public boolean isExitoso() { return exitoso; }
         public Usuario getUsuario() { return usuario; }
+        public Funcionario getFuncionarioAsociado() { return funcionarioAsociado; }
         public String getMensajeError() { return mensajeError; }
     }
 }

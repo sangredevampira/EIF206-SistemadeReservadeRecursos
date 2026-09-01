@@ -1,9 +1,12 @@
 package Sistema.util;
 
+import Sistema.DTO.Funcionario;
+
 public class SessionManager {
     private static SessionManager instancia;
     private String idUsuario;
     private String rol;
+    private Funcionario funcionarioAsociado;
 
     private SessionManager() {
     }
@@ -15,14 +18,16 @@ public class SessionManager {
         return instancia;
     }
 
-    public void iniciarSesion(String idUsuario, String rol) {
+    public void iniciarSesion(String idUsuario, String rol, Funcionario funcionarioAsociado) {
         this.idUsuario = idUsuario;
         this.rol = rol;
+        this.funcionarioAsociado = funcionarioAsociado;
     }
 
     public void cerrarSesion() {
         this.idUsuario = null;
         this.rol = null;
+        this.funcionarioAsociado = null;
     }
 
     public String getIdUsuario() {
@@ -31,6 +36,10 @@ public class SessionManager {
 
     public String getRol() {
         return rol;
+    }
+
+    public Funcionario getFuncionarioAsociado() {
+        return funcionarioAsociado;
     }
 
     public boolean esAdministrador() {
