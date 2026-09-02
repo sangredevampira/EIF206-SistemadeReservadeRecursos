@@ -23,7 +23,6 @@ public class RecursoDatos {
 
     public void serializar(List<RecursoDTO> recursos){
         ObjectMapper mapper = new ObjectMapper();   // permite convertir de objeto Java a JSON
-
         try {
             mapper.writeValue(new File(rutaArchivo), recursos);
         } catch (IOException error) { System.out.println("Error al guardar los recursos en JSON"); }
@@ -91,22 +90,15 @@ public class RecursoDatos {
         List<RecursoDTO> recursos = deserializar();
         List<RecursoDTO> recursosFiltrados = new ArrayList<>();
         for(RecursoDTO r : recursos)
-            if(r.getIdCategoria().equalsIgnoreCase(categoria))
+            if(r.getCategoria().getId().equalsIgnoreCase(categoria))
                 recursosFiltrados.add(r);
 
         return recursosFiltrados;
     }
+    public List<RecursoDTO> listarRecursos(){ return deserializar(); }
 
-    // metodos de comprobacion
-    public boolean numeroActivoExistente(String numeroActivo){
-        List<RecursoDTO> recursos = deserializar();
-        for(RecursoDTO r : recursos)
-            if(r.getNumeroActivo().equals(numeroActivo)) return true;
-
-        return false;
-    }
-
-    public boolean recursoExistente(String id){
+    // metodo de comprobacion
+     public boolean recursoExistente(String id){
         List<RecursoDTO> recursos = deserializar();
         for(RecursoDTO r : recursos)
             if(r.getId().equals(id))
