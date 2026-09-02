@@ -47,7 +47,7 @@
                     <graphic>
                         <ImageView fitHeight="16.0" fitWidth="16.0" pickOnBounds="true" preserveRatio="true">
                             <image>
-                                <Image url="@../images/cerrar.png" />
+                                <Image url="@../images/cerrarSesion.png" />
                             </image>
                         </ImageView>
                     </graphic>

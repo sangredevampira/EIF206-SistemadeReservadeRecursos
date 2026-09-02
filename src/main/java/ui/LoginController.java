@@ -14,6 +14,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -35,7 +36,31 @@ public class LoginController {
     private void initialize() {
         btnIngresar.setOnAction(this::manejarIngresar);
         btnCancelar.setOnAction(e -> Platform.exit());
-        btnCambiar.setOnAction(e -> System.out.println("Cambiar clave (pendiente)"));
+        btnCambiar.setOnAction(this::abrirCambiarClave);
+    }
+
+    private void abrirCambiarClave(javafx.event.ActionEvent evento) {
+        String id = campoId.getText();
+        if (id == null || id.isBlank()) {
+            lblMensaje.setText("Escribí tu ID de usuario antes de cambiar la clave.");
+            return;
+        }
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sistema/view/CambiarClaveView.fxml"));
+            CambiarClaveController controller = new CambiarClaveController();
+            controller.setIdUsuarioObjetivo(id);
+            loader.setController(controller);
+            Parent raiz = loader.load();
+
+            Stage dialogo = new Stage();
+            dialogo.setTitle("Cambiar Clave");
+            dialogo.initModality(Modality.APPLICATION_MODAL);
+            dialogo.initOwner(((Node) evento.getSource()).getScene().getWindow());
+            dialogo.setScene(new Scene(raiz));
+            dialogo.showAndWait();
+        } catch (IOException e) {
+            lblMensaje.setText("No se pudo abrir la ventana de cambio de clave.");
+        }
     }
 
     private void manejarIngresar(javafx.event.ActionEvent evento) {
@@ -71,3 +96,7 @@ public class LoginController {
         }
     }
 }
+
+
+
+

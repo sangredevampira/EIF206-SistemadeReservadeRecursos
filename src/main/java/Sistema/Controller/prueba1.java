@@ -1,4 +1,4 @@
 package Sistema.Controller;
 
-public class ControladorPdf {
+public class prueba1 {
 }
