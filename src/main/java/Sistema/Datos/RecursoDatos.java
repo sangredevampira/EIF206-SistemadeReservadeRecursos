@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.ArrayList;
 import Sistema.DTO.RecursoDTO;
 
-public class RecursoDatos extends Datos {
+public class RecursoDatos extends Datos<RecursoDTO> {
 
     public RecursoDatos() {}
     public RecursoDatos(String rutaArchivo) { super(rutaArchivo, RecursoDTO.class); } // le decimos a <T> que este es el tipo de dato
@@ -60,15 +60,8 @@ public class RecursoDatos extends Datos {
 
         return recursosFiltrados;
     }
+
     public List<RecursoDTO> listarRecursos(){ return deserializar(); }
 
-    // metodo de comprobacion
-     public boolean recursoExistente(String id){
-        List<RecursoDTO> recursos = deserializar();
-        for(RecursoDTO r : recursos)
-            if(r.getId().equals(id))
-                return true;
 
-        return false;
-    }
 }

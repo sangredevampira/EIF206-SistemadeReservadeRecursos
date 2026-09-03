@@ -1,6 +1,7 @@
 package Sistema.Logica;
 
 import Sistema.DTO.RecursoDTO;
+import Sistema.Logica.ReservaLogica;
 import Sistema.Datos.RecursoDatos;
 
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.Random;
 public class RecursoLogica {
 
     private RecursoDatos recursoDatos;
+    private ReservaLogica reservaLogica;
 
     public RecursoLogica() {
         this.recursoDatos = new RecursoDatos("recursos.json");
@@ -31,13 +33,13 @@ public class RecursoLogica {
         int registrado = 0;
         validarCampos(nuevoRecurso);
 
-        if (!recursoDatos.recursoExistente(nuevoRecurso.getId())) {
+        if (!recursoExistente(nuevoRecurso.getId())) {
             Random random = new Random();
             int id;
 
             do {
                 id = random.nextInt(900000) + 100000;
-            } while (recursoDatos.recursoExistente(String.valueOf(id)));
+            } while (recursoExistente(String.valueOf(id)));
 
             nuevoRecurso.setId(String.valueOf(id));
             recursoDatos.agregarRecurso(nuevoRecurso);
@@ -71,13 +73,13 @@ public class RecursoLogica {
     public boolean modificarRecurso(RecursoDTO recurso){
         validarCampos(recurso);
 
-        if(!recursoDatos.recursoExistente(recurso.getId()))
+        if(!recursoExistente(recurso.getId()))
             throw new IllegalArgumentException("El recurso que se intenta modificar no existe");
 
         RecursoDTO actual = recursoDatos.buscarRecursoID(recurso.getId());
         boolean cambioNumeroActivo = !actual.getId().equals(recurso.getId());
 
-        if(cambioNumeroActivo && recursoDatos.recursoExistente(recurso.getId()))
+        if(cambioNumeroActivo && recursoExistente(recurso.getId()))
             throw new IllegalArgumentException("Ya existe otro recurso con ese ID");
 
         if (!recurso.getId().matches("\\d+"))
@@ -87,16 +89,24 @@ public class RecursoLogica {
     }
 
     public boolean eliminarRecurso(String id){
-        if(!recursoDatos.recursoExistente(id))
+        if(!recursoExistente(id))
             throw new IllegalArgumentException("El recurso que intenta eliminar no existe");
 
-        //TODO: coordinar con ReservaLogica para impedir eliminar
+        //TODO: coordinar con ReservaLogica/Service para impedir eliminar
         // si el recurso tiene reservas futuras activas
 
+        // 1. validacion propia de Recurso
+        //if (!recursoDatos.recursoExistente(id)) {
+        //        throw new IllegalArgumentException(
+        //            "El recurso que intenta eliminar no existe" );
+        //    }
+
+        // 2. regla de negocio que involucra Reserva
         //if (reservaLogica.tieneReservasFuturasActivas(id))
         //    throw new IllegalArgumentException(
         //        "No se puede eliminar el recurso porque tiene reservas futuras activas");
 
+        // 3. si no hay ningun problema eliminamos
         return recursoDatos.eliminarRecurso(id);
     }
 
@@ -106,8 +116,18 @@ public class RecursoLogica {
         int id;
         do {
             id = random.nextInt(900000) + 100000;
-        } while (recursoDatos.recursoExistente(String.valueOf(id)));
+        } while (recursoExistente(String.valueOf(id)));
 
         return String.valueOf(id);
+    }
+
+    // metodo de comprobacion
+    public boolean recursoExistente(String id){
+        List<RecursoDTO> recursos = recursoDatos.deserializar();
+        for(RecursoDTO r : recursos)
+            if(r.getId().equals(id))
+                return true;
+
+        return false;
     }
 }
