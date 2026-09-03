@@ -22,7 +22,7 @@ public class Datos {
         ObjectMapper mapper = new ObjectMapper();   // permite convertir de objeto Java a JSON
         try {
             mapper.writeValue(new File(rutaArchivo), recursos);
-        } catch (IOException error) { System.out.println("Error al guardar los recursos en JSON"); }
+        } catch (IOException error) { System.out.println("Error al guardar los datos en JSON"); }
     }
 
     public List<RecursoDTO> deserializar(){
@@ -36,7 +36,7 @@ public class Datos {
             );
 
         } catch (JsonProcessingException error){ System.out.println("Error al procesar el JSON"); }
-        catch (IOException error){ System.out.println("Error al leer el archivo de Recursos"); }
+        catch (IOException error){ System.out.println("Error al leer el archivo"); }
 
         return recursos;
     }
