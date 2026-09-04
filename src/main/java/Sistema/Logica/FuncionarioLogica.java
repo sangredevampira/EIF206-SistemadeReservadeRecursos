@@ -70,6 +70,12 @@ public class FuncionarioLogica {
      * no existe, asi que por ahora no se puede validar esta parte.
      * Cuando exista ReservaLogica/ReservaDatos, agregar aca la consulta
      * antes de permitir el borrado.
+     *
+     * Ademas de borrar el Funcionario, se borra su Usuario asociado:
+     * la relacion es de composicion ("un funcionario tiene un usuario"),
+     * asi que si el funcionario desaparece, su cuenta de acceso no debe
+     * seguir existiendo (si no, el ID borrado podria seguir haciendo
+     * login indefinidamente).
      */
     public ResultadoOperacion eliminar(String id) {
 
@@ -84,6 +90,7 @@ public class FuncionarioLogica {
         // }
 
         funcionarioDatos.eliminar(id);
+        usuarioDatos.eliminar(id);
         return ResultadoOperacion.exito();
     }
 

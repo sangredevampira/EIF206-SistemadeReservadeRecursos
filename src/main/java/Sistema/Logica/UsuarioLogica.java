@@ -3,11 +3,13 @@ package Sistema.Logica;
 import Sistema.DTO.Funcionario;
 import Sistema.DTO.Rol;
 import Sistema.DTO.Usuario;
+import Sistema.Datos.FuncionarioDatos;
 import Sistema.Datos.UsuarioDatos;
 
 public class UsuarioLogica {
 
     private final UsuarioDatos usuarioDatos = new UsuarioDatos();
+    private final FuncionarioDatos funcionarioDatos = new FuncionarioDatos();
 
     public ResultadoLogin iniciarSesion(String id, String clave) {
 
@@ -28,7 +30,12 @@ public class UsuarioLogica {
             return ResultadoLogin.fallo("La clave ingresada es incorrecta.");
         }
 
-        return ResultadoLogin.exito(usuario);
+        Funcionario funcionarioAsociado = null;
+        if (usuario.getRol() == Rol.FUNCIONARIO) {
+            funcionarioAsociado = funcionarioDatos.buscarPorId(usuario.getId());
+        }
+
+        return ResultadoLogin.exito(usuario, funcionarioAsociado);
     }
 
     /**
@@ -98,13 +105,7 @@ public class UsuarioLogica {
             this.mensajeError = mensajeError;
         }
 
-        public static ResultadoLogin exito(Usuario usuario) {
-            Funcionario funcionarioAsociado = null;
-            if (usuario.getRol() == Rol.FUNCIONARIO) {
-                // FuncionarioDatos aun no existe (Fase E). Placeholder con el ID real;
-                // cuando exista, reemplazar por: funcionarioDatos.buscarPorId(usuario.getId())
-                funcionarioAsociado = new Funcionario(usuario.getId(), null, null);
-            }
+        public static ResultadoLogin exito(Usuario usuario, Funcionario funcionarioAsociado) {
             return new ResultadoLogin(true, usuario, funcionarioAsociado, null);
         }
 

@@ -13,6 +13,7 @@ import javafx.scene.Node;
 import javafx.stage.Stage;
 import javafx.stage.Modality;
 import java.io.IOException;
+import javafx.scene.control.Alert;
 
 public class MainController {
 
@@ -34,9 +35,28 @@ public class MainController {
     private void initialize() {
         mostrarUsuarioActivo();
         ajustarPestanasSegunRol();
+        cargarVistaFuncionarios();
 
         btnCambiarClave.setOnAction(this::abrirCambiarClave);
         btnCerrarSesion.setOnAction(this::manejarCerrarSesion);
+    }
+
+    private void cargarVistaFuncionarios() {
+        if (!tabPanePrincipal.getTabs().contains(tabFuncionarios)) {
+            return;
+        }
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sistema/view/FuncionariosView.fxml"));
+            loader.setController(new FuncionarioController());
+            Parent vista = loader.load();
+            tabFuncionarios.setContent(vista);
+        } catch (IOException e) {
+            Alert alerta = new Alert(Alert.AlertType.ERROR,
+                    "No se pudo cargar la pantalla de Funcionarios:\n" + e.getMessage());
+            alerta.setTitle("Error inesperado");
+            alerta.setHeaderText(null);
+            alerta.showAndWait();
+        }
     }
 
     private void mostrarUsuarioActivo() {

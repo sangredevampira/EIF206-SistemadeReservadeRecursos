@@ -68,6 +68,12 @@ public class UsuarioDatos {
         serializar(usuarios);
     }
 
+    public void eliminar(String id) {
+        List<Usuario> usuarios = deserializar();
+        usuarios.removeIf(usuario -> usuario.getId().equals(id));
+        serializar(usuarios);
+    }
+
     private void serializar(List<Usuario> usuarios) {
         try {
             mapper.writerWithDefaultPrettyPrinter().writeValue(new File(RUTA_ARCHIVO), usuarios);
