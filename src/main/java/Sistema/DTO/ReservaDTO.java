@@ -14,7 +14,7 @@ public class ReservaDTO {
     private LocalTime horaInicio;
     private LocalTime horaFinal;
     private List<RecursoDTO> recursosReservados;
-    private EstadoReserva estado;
+    private EstadoReserva estado;   // se debe tener unicamente dos valores (ACTIVA/CANCELADA)
 
     public ReservaDTO() {}
 
@@ -31,34 +31,26 @@ public class ReservaDTO {
     }
 
     public String getIdReserva() { return idReserva; }
-
     public void setIdReserva(String idReserva) { this.idReserva = idReserva; }
 
     public String getIdFuncionario() { return idFuncionario; }
-
     public void setIdFuncionario(String idFuncionario) { this.idFuncionario = idFuncionario; }
 
     public String getDescripcionActividad() { return descripcionActividad; }
-
     public void setDescripcionActividad(String descripcionActividad) { this.descripcionActividad = descripcionActividad; }
 
     public LocalDate getFechaReserva() { return fechaReserva; }
-
     public void setFechaReserva(LocalDate fechaReserva) { this.fechaReserva = fechaReserva; }
 
     public LocalTime getHoraInicio() { return horaInicio; }
-
     public void setHoraInicio(LocalTime horaInicio) { this.horaInicio = horaInicio; }
 
     public LocalTime getHoraFinal() { return horaFinal; }
-
     public void setHoraFinal(LocalTime horaFinal) { this.horaFinal = horaFinal; }
 
     public List<RecursoDTO> getRecursosReservados() { return recursosReservados; }
-
     public void setRecursosReservados(List<RecursoDTO> recursosReservados) { this.recursosReservados = recursosReservados; }
 
     public EstadoReserva getEstado() { return estado; }
-
     public void setEstado(EstadoReserva estado) { this.estado = estado; }
 }

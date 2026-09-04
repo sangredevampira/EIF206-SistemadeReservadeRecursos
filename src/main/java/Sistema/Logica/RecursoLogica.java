@@ -19,6 +19,8 @@ public class RecursoLogica {
         this.recursoDatos = new RecursoDatos(rutaArchivo);
     }
 
+
+    //TODO: cambiar nombre de metodo porque deiverto se confunde
     private void validarCampos(RecursoDTO recurso) {             // evalua como se validan los errores (sujeto a cambios del throw)
         if (recurso.getCategoria() == null)
             throw new IllegalArgumentException("Debe seleccionar una categoría");
