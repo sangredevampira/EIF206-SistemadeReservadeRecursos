@@ -22,7 +22,7 @@ public class MainController {
 
     @FXML
     private void initialize() {
-        ajustarPestanasSegunRol();
+        //ajustarPestanasSegunRol();
 
         btnCambiarClave.setOnAction(e -> System.out.println("Cambiar clave (pendiente)"));
         btnCerrarSesion.setOnAction(e -> System.out.println("Cerrar sesión (pendiente)"));
