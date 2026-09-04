@@ -2,13 +2,12 @@ package Sistema.Service;
 
 import Sistema.DTO.ReportHeaderDTO;
 import Sistema.DTO.ReportTableDTO;
-import Sistema.Logica.ReportExceptionLogica;
+import Sistema.Exception.ReportExceptionLogica;
 import com.lowagie.text.*;
 import com.lowagie.text.Font;
 import com.lowagie.text.Image;
 import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.*;
-
 import java.awt.*;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -24,28 +23,33 @@ public class PdfReportService {
     private static final Font FUENTE_CONTENIDO = FontFactory.getFont(FontFactory.HELVETICA, 9);
     private static final Font FUENTE_ENCABEZADO_TABLA = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE);
     private static final Font FUENTE_PIE = FontFactory.getFont(FontFactory.HELVETICA, 8, Color.GRAY);
-    private static final Color COLOR_ENCABEZADO = new Color(55, 95, 145);
-    private static final Color COLOR_FILA_ALTERNA = new Color(240, 244, 248);
+    private static final Color COLOR_ENCABEZADO = new Color(175, 37, 0);
+    private static final Color COLOR_FILA_ALTERNA = new Color(255, 204, 204);
 
     public void generarReporte(File archivo, ReportHeaderDTO encabezado, ReportTableDTO tabla
     ) throws ReportExceptionLogica {
-        generarReporteInterno(archivo, encabezado, tabla, PageSize.A4, null);
+        generarReporteInterno(archivo, encabezado, tabla, PageSize.A4, null, null);
     }
 
     public void generarReporteHorizontal(File archivo, ReportHeaderDTO encabezado, ReportTableDTO tabla
     ) throws ReportExceptionLogica {
-        generarReporteInterno(archivo, encabezado, tabla, PageSize.A4.rotate(), null);
+        generarReporteInterno(archivo, encabezado, tabla, PageSize.A4.rotate(), null, null);
     }
 
-    public void generarReporteConGrafico(File archivo, ReportHeaderDTO encabezado, ReportTableDTO tabla, byte[] imagenGrafico
+    public void generarReporteConGrafico(
+            File archivo,
+            ReportHeaderDTO encabezado,
+            ReportTableDTO tabla,
+            String tituloGrafico,
+            byte[] imagenGrafico
     ) throws ReportExceptionLogica {
         if (imagenGrafico == null || imagenGrafico.length == 0) {
             throw new ReportExceptionLogica("No se proporcionó la imagen del gráfico.");
         }
-        generarReporteInterno(archivo, encabezado, tabla, PageSize.A4, imagenGrafico);
+        generarReporteInterno(archivo, encabezado, tabla, PageSize.A4, tituloGrafico, imagenGrafico);
     }
 
-    private void generarReporteInterno(File archivo, ReportHeaderDTO encabezado, ReportTableDTO tabla, Rectangle tamanioPagina, byte[] imagenGrafico
+    private void generarReporteInterno( File archivo, ReportHeaderDTO encabezado, ReportTableDTO tabla, Rectangle tamanioPagina, String tituloGrafico, byte[] imagenGrafico
     ) throws ReportExceptionLogica {
         validarDatos(archivo, encabezado, tabla);
         Document documento = new Document(tamanioPagina, 40, 40, 75, 55);
@@ -56,7 +60,7 @@ public class PdfReportService {
             agregarInformacionGeneral(documento, encabezado);
             agregarTabla(documento, tabla);
             if (imagenGrafico != null && imagenGrafico.length > 0) {
-                agregarGrafico(documento, imagenGrafico);
+                agregarGrafico(documento, tituloGrafico, imagenGrafico);
             }
         } catch (Exception excepcion) {
             throw new ReportExceptionLogica("No se pudo generar el documento PDF.", excepcion);
@@ -138,12 +142,12 @@ public class PdfReportService {
         documento.add(tablaPdf);
     }
 
-    private void agregarGrafico(Document documento, byte[] imagenGrafico
-    ) throws Exception {
-        Paragraph tituloGrafico = new Paragraph("Gráfico", FUENTE_SUBTITULO);
-        tituloGrafico.setSpacingBefore(15);
-        tituloGrafico.setSpacingAfter(8);
-        documento.add(tituloGrafico);
+    private void agregarGrafico(Document documento, String tituloGrafico, byte[] imagenGrafico) throws Exception {
+        String titulo = tituloGrafico == null || tituloGrafico.isBlank() ? "Gráfico" : tituloGrafico;
+        Paragraph parrafoTitulo = new Paragraph(titulo, FUENTE_SUBTITULO);
+        parrafoTitulo.setSpacingBefore(15);
+        parrafoTitulo.setSpacingAfter(8);
+        documento.add(parrafoTitulo);
         Image imagenPdf = Image.getInstance(imagenGrafico);
         float anchoDisponible = documento.right() - documento.left();
         imagenPdf.scaleToFit(anchoDisponible, 300);

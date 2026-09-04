@@ -2,7 +2,7 @@ package Sistema;
 
 import Sistema.DTO.ReportHeaderDTO;
 import Sistema.DTO.ReportTableDTO;
-import Sistema.Logica.ReportExceptionLogica;
+import Sistema.Exception.ReportExceptionLogica;
 import Sistema.Service.PdfReportService;
 
 import java.io.File;

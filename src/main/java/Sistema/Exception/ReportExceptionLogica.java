@@ -1,4 +1,4 @@
-package Sistema.Logica;
+package Sistema.Exception;
 
 public class ReportExceptionLogica extends Exception {
 

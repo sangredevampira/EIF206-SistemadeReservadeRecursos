@@ -1,22 +1,15 @@
 package ui;
 
+import Sistema.DTO.ReportConfigDTO;           // PDF: DTO con la configuración del reporte (título, nombre de archivo, filtros, orientación)
+import Sistema.Exception.ReportExceptionLogica;   // PDF: excepción lanzada cuando falla la generación del PDF
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import Sistema.util.SelectorArchivoPdfUtil;
-import java.io.File;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatter;     // PDF: formatea la fecha para mostrarla en los filtros del reporte
 import java.util.List;
 import java.util.Objects;
-
-//Imports para los PDF CLASES
-import Sistema.DTO.ReportHeaderDTO;
-import Sistema.DTO.ReportTableDTO;
-import Sistema.Logica.ReportExceptionLogica;
-import java.util.ArrayList;
-import Sistema.Service.PdfReportService;
 
 public class CalendarizacionRecursosController {
 
@@ -32,19 +25,16 @@ public class CalendarizacionRecursosController {
     private LocalDate fechaCargada;
     private String categoriaCargada;
 
-    private final PdfReportService pdfReportService =
-            new PdfReportService();
+    // PDF: controlador encargado de generar y guardar el archivo PDF
+    private final PdfController pdfController = new PdfController();
 
     @FXML
     private void initialize() {
-        // Configurar la columna que mostrará las horas
         colHora.setCellValueFactory(fila -> new ReadOnlyStringWrapper(fila.getValue()));
-        // Carga información temporal en el ComboBox
         cargarCategoriasTemporales();
-        // Preparar los eventos de los botones
         btnCargar.setOnAction(evento -> cargarCalendarizacion());
         btnLimpiar.setOnAction(evento -> limpiarCalendarizacion());
-        btnGenerarPdf.setOnAction(evento -> generarPdf());
+        btnGenerarPdf.setOnAction(evento -> generarPdf()); // PDF: dispara la generación del reporte
         lblEstado.setText("Seleccione una fecha y una categoría para cargar la calendarización.");
     }
 
@@ -53,9 +43,7 @@ public class CalendarizacionRecursosController {
     }
 
     private void cargarHorasDelDia() {
-        // Elimina las horas anteriores para evitar duplicados
         tvCalendarizacion.getItems().clear();
-        // Agrega una fila por cada hora del día
         for (int hora = 0; hora < 24; hora++) {
             tvCalendarizacion.getItems().add(String.format("%02d:00", hora));
         }
@@ -126,8 +114,7 @@ public class CalendarizacionRecursosController {
     }
 
     private void crearColumnasRecursos() {
-        // Elimina las columnas creadas en una carga anterior
-        // y conserva solamente la columna Hora
+        // Elimina las columnas creadas en una carga anterior y conserva solamente la columna Hora
         tvCalendarizacion.getColumns().setAll(colHora);
         for (String nombreRecurso : obtenerRecursosTemporales(categoriaCargada)) {
             TableColumn<String, String> columnaRecurso = new TableColumn<>(nombreRecurso);
@@ -168,47 +155,41 @@ public class CalendarizacionRecursosController {
         lblEstado.setText("Seleccione una fecha y una categoría para cargar la calendarización.");
     }
 
-    private String obtenerValorCelda(TableColumn<String, ?> columna, String hora) {
-        var valorObservable = columna.getCellObservableValue(hora);
-        if (valorObservable == null || valorObservable.getValue() == null) return "";
-        return valorObservable.getValue().toString();
+    // PDF: valida que la tabla tenga datos y que los filtros no hayan cambiado antes de generar el reporte
+    private boolean validarDatosParaPdf() {
+        if (tvCalendarizacion.getItems().isEmpty()) {
+            lblEstado.setText("Debe cargar la calendarización antes de generar el PDF.");
+            return false;
+        }
+        if (!Objects.equals(fechaCargada, dpFecha.getValue())
+                || !Objects.equals(categoriaCargada, cbCategoria.getValue())) {
+            lblEstado.setText("Los filtros cambiaron. Presione Cargar antes de generar el PDF.");
+            return false;
+        }
+        return true;
     }
 
+    // PDF: construye el ReportConfigDTO con título, subtítulo, nombre de archivo, orientación y filtros del reporte
+    private ReportConfigDTO crearConfiguracionPdf() {
+        DateTimeFormatter formato = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        ReportConfigDTO configuracion = new ReportConfigDTO(
+                "Calendarización de recursos",
+                "Disponibilidad de recursos por hora",
+                "Calendarizacion_" + fechaCargada + ".pdf"
+        );
+        configuracion.setTituloVentana("Guardar reporte de calendarización");
+        configuracion.setHorizontal(true);
+        configuracion.agregarFiltro("Fecha", fechaCargada.format(formato));
+        configuracion.agregarFiltro("Categoría", categoriaCargada);
+        return configuracion;
+    }
+
+    // PDF: punto de entrada para generar el reporte; valida datos, llama a PdfController y muestra el resultado
     private void generarPdf() {
-
-        if (tvCalendarizacion.getItems().isEmpty()) {
-            lblEstado.setText("Debe cargar la calendarización " + "antes de generar el PDF.");
-            return;
-        }
-        if (!Objects.equals(fechaCargada, dpFecha.getValue()) || !Objects.equals(categoriaCargada, cbCategoria.getValue())) {
-            lblEstado.setText("Los filtros cambiaron. " + "Presione Cargar antes de generar el PDF.");
-            return;
-        }
-        File archivoSeleccionado = SelectorArchivoPdfUtil.seleccionar(btnGenerarPdf.getScene().getWindow(),
-                "Guardar reporte de calendarización", "Calendarizacion_" + fechaCargada + ".pdf");
-        if (archivoSeleccionado == null) {
-            lblEstado.setText("Generación del PDF cancelada.");
-            return;
-        }
-        DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        String usuarioGenerador = System.getProperty("user.name", "Usuario no identificado");
-        ReportHeaderDTO encabezado = new ReportHeaderDTO("Sistema de Gestión de Recursos", "Calendarización de recursos", usuarioGenerador);
-        encabezado.agregarFiltro("Fecha", fechaCargada.format(formatoFecha));
-        encabezado.agregarFiltro("Categoría", categoriaCargada);
-        List<String> nombresColumnas = tvCalendarizacion.getColumns().stream().map(TableColumn::getText).toList();
-        ReportTableDTO tabla = new ReportTableDTO("Disponibilidad de recursos por hora", nombresColumnas);
-
-        for (String hora : tvCalendarizacion.getItems()) {
-            List<String> valoresFila = new ArrayList<>();
-
-            for (TableColumn<String, ?> columna : tvCalendarizacion.getColumns()) {
-                valoresFila.add(obtenerValorCelda(columna, hora));
-            }
-            tabla.agregarFila(valoresFila);
-        }
+        if (!validarDatosParaPdf()) return;
         try {
-            pdfReportService.generarReporteHorizontal(archivoSeleccionado, encabezado, tabla);
-            lblEstado.setText("El reporte PDF fue generado correctamente.");
+            boolean generado = pdfController.generar(crearConfiguracionPdf(), btnGenerarPdf.getScene().getWindow(), tvCalendarizacion);
+            lblEstado.setText(generado ? "El reporte PDF fue generado correctamente." : "Generación del PDF cancelada.");
         } catch (ReportExceptionLogica excepcion) {
             lblEstado.setText("No se pudo generar el PDF: " + excepcion.getMessage());
             excepcion.printStackTrace();

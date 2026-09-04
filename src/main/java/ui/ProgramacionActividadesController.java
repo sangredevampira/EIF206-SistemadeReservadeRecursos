@@ -1,20 +1,17 @@
 package ui;
 
-import Sistema.DTO.ReportHeaderDTO;
-import Sistema.DTO.ReportTableDTO;
-import Sistema.Logica.ReportExceptionLogica;
-import Sistema.Service.PdfReportService;
-import Sistema.util.SelectorArchivoPdfUtil;
+import Sistema.DTO.ReportConfigDTO;           // PDF: DTO con la configuración del reporte (título, nombre de archivo, filtros, orientación)
+import Sistema.Exception.ReportExceptionLogica;   // PDF: excepción lanzada cuando falla la generación del PDF
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-
-import java.io.File;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatter;     // PDF: formatea las fechas del período para mostrarlas en los filtros del reporte
 import java.time.temporal.TemporalAdjusters;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 
 //imports para JSON
 // Se habilitarán cuando el Integrante 2 termine estas clases.
@@ -23,17 +20,14 @@ import java.util.*;
 
 public class ProgramacionActividadesController {
 
-    // Controles para seleccionar y cargar la semana
+
     @FXML private DatePicker dpFechaReferencia;
     @FXML private Button btnCargar;
     @FXML private Button btnLimpiar;
     @FXML private Button btnGenerarPdf;
-
-    // Información mostrada en la pantalla
     @FXML private Label lblRangoSemana;
     @FXML private Label lblEstado;
 
-    // Tabla semanal
     @FXML private TableView<String> tvActividades;
     @FXML private TableColumn<String, String> colHora;
     @FXML private TableColumn<String, String> colLunes;
@@ -47,7 +41,9 @@ public class ProgramacionActividadesController {
     private LocalDate fechaInicioSemana;
     private LocalDate fechaFinSemana;
     private final Map<LocalDate, Map<String, String>> actividadesPorFecha = new HashMap<>();
-    private final PdfReportService pdfReportService = new PdfReportService();
+
+    // PDF: controlador encargado de generar y guardar el archivo PDF
+    private final PdfController pdfController = new PdfController();
 
     @FXML
     private void initialize() {
@@ -57,25 +53,25 @@ public class ProgramacionActividadesController {
         colHora.setMaxWidth(75);
         btnCargar.setOnAction(evento -> cargarProgramacion());
         btnLimpiar.setOnAction(evento -> limpiarProgramacion());
-        btnGenerarPdf.setOnAction(evento -> generarPdf());
+        btnGenerarPdf.setOnAction(evento -> generarPdf()); // PDF: dispara la generación del reporte
         lblRangoSemana.setText("Semana no seleccionada");
         lblEstado.setText("Seleccione una fecha para cargar la programación semanal.");
     }
 
     //private void cargarActividadesDesdeJson() {
-        /*
-         * Este código se habilitará cuando exista ReservaService.
-         *
-         * ReservaService reservaService = new ReservaService();
-         *
-         * List<ReservaDTO> reservaciones =
-         *         reservaService.buscarPorPeriodo(
-         *                 fechaInicioSemana,
-         *                 fechaFinSemana
-         *         );
-         *
-         * mostrarActividadesEnTabla(reservaciones);
-         */
+    /*
+     * Este código se habilitará cuando exista ReservaService.
+     *
+     * ReservaService reservaService = new ReservaService();
+     *
+     * List<ReservaDTO> reservaciones =
+     *         reservaService.buscarPorPeriodo(
+     *                 fechaInicioSemana,
+     *                 fechaFinSemana
+     *         );
+     *
+     * mostrarActividadesEnTabla(reservaciones);
+     */
     //}
 
     private void registrarActividadEnTabla(LocalDate fecha, String hora, String nombreActividad, String nombreFuncionario) {
@@ -186,52 +182,43 @@ public class ProgramacionActividadesController {
         }
     }
 
-    private String obtenerValorCelda(TableColumn<String, ?> columna, String hora) {
-        var valorObservable = columna.getCellObservableValue(hora);
-        if (valorObservable == null || valorObservable.getValue() == null) return "";
-        return valorObservable.getValue().toString();
-    }
-
-    private void generarPdf() {
+    // PDF: valida que la tabla tenga datos, que haya una semana cargada y que la fecha no haya cambiado
+    private boolean validarDatosParaPdf() {
         if (tvActividades.getItems().isEmpty() || fechaInicioSemana == null || fechaFinSemana == null) {
             lblEstado.setText("Debe cargar una semana antes de generar el PDF.");
-            return;
+            return false;
         }
         if (dpFechaReferencia.getValue() == null) {
             lblEstado.setText("Debe seleccionar y cargar una semana.");
-            return;
+            return false;
         }
-        LocalDate inicioSeleccionado = dpFechaReferencia.getValue()
-                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-
+        LocalDate inicioSeleccionado = dpFechaReferencia.getValue().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         if (!Objects.equals(fechaInicioSemana, inicioSeleccionado)) {
             lblEstado.setText("La fecha cambió. Presione Cargar antes de generar el PDF.");
-            return;
+            return false;
         }
-        File archivo = SelectorArchivoPdfUtil.seleccionar(btnGenerarPdf.getScene().getWindow(), "Guardar programación semanal",
-                "Programacion_semanal_" + fechaInicioSemana + "_al_" + fechaFinSemana + ".pdf");
-        if (archivo == null) {
-            lblEstado.setText("Generación del PDF cancelada.");
-            return;
-        }
-        DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        ReportHeaderDTO encabezado = new ReportHeaderDTO("Sistema de Gestión de Recursos", "Programación semanal de actividades", System.getProperty("user.name", "Usuario no identificado"));
-        encabezado.agregarFiltro("Período", fechaInicioSemana.format(formatoFecha) + " al " + fechaFinSemana.format(formatoFecha));
-        List<String> nombresColumnas = tvActividades.getColumns().stream().map(TableColumn::getText).toList();
+        return true;
+    }
 
-        ReportTableDTO tabla = new ReportTableDTO("Actividades programadas por día y hora", nombresColumnas);
+    // PDF: construye el ReportConfigDTO con título, subtítulo, nombre de archivo, orientación y filtros del reporte
+    private ReportConfigDTO crearConfiguracionPdf() {
+        DateTimeFormatter formato = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        ReportConfigDTO configuracion = new ReportConfigDTO(
+                "Programación semanal de actividades", "Actividades programadas por día y hora",
+                "Programacion_semanal_" + fechaInicioSemana + "_al_" + fechaFinSemana + ".pdf"
+        );
+        configuracion.setTituloVentana("Guardar programación semanal");
+        configuracion.setHorizontal(true);
+        configuracion.agregarFiltro("Período", fechaInicioSemana.format(formato) + " al " + fechaFinSemana.format(formato));
+        return configuracion;
+    }
 
-        for (String hora : tvActividades.getItems()) {
-            List<String> fila = new ArrayList<>();
-
-            for (TableColumn<String, ?> columna : tvActividades.getColumns()) {
-                fila.add(obtenerValorCelda(columna, hora));
-            }
-            tabla.agregarFila(fila);
-        }
+    // PDF: punto de entrada para generar el reporte; valida datos, llama a PdfController y muestra el resultado
+    private void generarPdf() {
+        if (!validarDatosParaPdf()) return;
         try {
-            pdfReportService.generarReporteHorizontal(archivo, encabezado, tabla);
-            lblEstado.setText("El reporte semanal fue generado correctamente.");
+            boolean generado = pdfController.generar(crearConfiguracionPdf(), btnGenerarPdf.getScene().getWindow(), tvActividades);
+            lblEstado.setText(generado ? "El reporte semanal fue generado correctamente." : "Generación del PDF cancelada.");
         } catch (ReportExceptionLogica excepcion) {
             lblEstado.setText("No se pudo generar el PDF: " + excepcion.getMessage());
             excepcion.printStackTrace();

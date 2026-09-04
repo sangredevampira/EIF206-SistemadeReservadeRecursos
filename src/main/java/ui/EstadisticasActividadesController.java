@@ -1,11 +1,7 @@
 package ui;
 
-import Sistema.DTO.ReportHeaderDTO;
-import Sistema.DTO.ReportTableDTO;
-import Sistema.Logica.ReportExceptionLogica;
-import Sistema.Service.PdfReportService;
-import Sistema.util.GraficoImagenUtil;
-import Sistema.util.SelectorArchivoPdfUtil;
+import Sistema.DTO.ReportConfigDTO;           // PDF: DTO con la configuración del reporte (título, nombre de archivo, filtros, orientación)
+import Sistema.Exception.ReportExceptionLogica;   // PDF: excepción lanzada cuando falla la generación del PDF
 import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
@@ -14,11 +10,9 @@ import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
-
-import java.io.File;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatter;     // PDF: formatea las fechas del período para mostrarlas en los filtros del reporte
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +38,9 @@ public class EstadisticasActividadesController {
 
     private LocalDate fechaDesdeCargada;
     private LocalDate fechaHastaCargada;
-    private final PdfReportService pdfReportService = new PdfReportService();
+
+    // PDF: controlador encargado de generar y guardar el archivo PDF con tabla y gráfico
+    private final PdfController pdfController = new PdfController();
 
     @FXML
     private void initialize() {
@@ -52,7 +48,7 @@ public class EstadisticasActividadesController {
         colCantidad.setCellValueFactory(fila -> new ReadOnlyIntegerWrapper(fila.getValue().getCantidad()));
         ejeCantidad.setForceZeroInRange(true);
         btnCargarActividades.setOnAction(evento -> cargarEstadisticas());
-        btnGenerarPdfActividades.setOnAction(evento -> generarPdf());
+        btnGenerarPdfActividades.setOnAction(evento -> generarPdf()); // PDF: dispara la generación del reporte
         lblEstadoActividades.setText("Seleccione las fechas para consultar las actividades programadas.");
     }
 
@@ -142,40 +138,41 @@ public class EstadisticasActividadesController {
                 && Objects.equals(fechaHastaCargada, dpHastaActividades.getValue());
     }
 
-    private void generarPdf() {
+    // PDF: valida que la tabla tenga datos y que las fechas no hayan cambiado antes de generar el reporte
+    private boolean validarDatosParaPdf() {
         if (tvEstadisticasActividades.getItems().isEmpty()) {
             lblEstadoActividades.setText("Debe cargar las estadísticas antes de generar el PDF.");
-            return;
+            return false;
         }
         if (!filtrosCoincidenConConsulta()) {
             lblEstadoActividades.setText("Las fechas cambiaron. Presione Cargar antes de generar el PDF.");
-            return;
+            return false;
         }
-        File archivo = SelectorArchivoPdfUtil.seleccionar(btnGenerarPdfActividades.getScene().getWindow(),
-                "Guardar estadísticas de actividades", "Estadisticas_actividades_" + fechaDesdeCargada + "_al_" + fechaHastaCargada + ".pdf");
-        if (archivo == null) {
-            lblEstadoActividades.setText("Generación del PDF cancelada.");
-            return;
-        }
-        DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        ReportHeaderDTO encabezado = new ReportHeaderDTO("Sistema de Gestión de Recursos", "Estadísticas de actividades", System.getProperty("user.name", "Usuario no identificado"));
-        encabezado.agregarFiltro("Período", fechaDesdeCargada.format(formatoFecha) + " al " + fechaHastaCargada.format(formatoFecha));
-        ReportTableDTO tabla = new ReportTableDTO("Actividades registradas por semana", List.of("Semana", "Cantidad"));
+        return true;
+    }
 
-        for (EstadisticaSemana estadistica : tvEstadisticasActividades.getItems()) {
-            tabla.agregarFila(estadistica.getSemana(), String.valueOf(estadistica.getCantidad()));
-        }
+    // PDF: construye el ReportConfigDTO con título, subtítulo, nombre de archivo, título del gráfico y filtros del reporte
+    private ReportConfigDTO crearConfiguracionPdf() {
+        DateTimeFormatter formato = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        ReportConfigDTO configuracion = new ReportConfigDTO(
+                "Estadísticas de actividades",
+                "Actividades registradas por semana",
+                "Estadisticas_actividades_" + fechaDesdeCargada + "_al_" + fechaHastaCargada + ".pdf"
+        );
+        configuracion.setTituloVentana("Guardar estadísticas de actividades");
+        configuracion.setTituloGrafico("Gráfico de actividades por semana");
+        configuracion.agregarFiltro("Período", fechaDesdeCargada.format(formato) + " al " + fechaHastaCargada.format(formato));
+        return configuracion;
+    }
+
+    // PDF: punto de entrada para generar el reporte; valida datos, llama a PdfController con tabla y gráfico, y muestra el resultado
+    private void generarPdf() {
+        if (!validarDatosParaPdf()) return;
         try {
-            byte[] imagenGrafico = GraficoImagenUtil.convertirAPng(barChartActividades);
-            pdfReportService.generarReporteConGrafico(archivo, encabezado, tabla, imagenGrafico);
-            lblEstadoActividades.setText("El reporte PDF fue generado correctamente.");
-
+            boolean generado = pdfController.generarConGrafico(crearConfiguracionPdf(), btnGenerarPdfActividades.getScene().getWindow(), tvEstadisticasActividades, barChartActividades);
+            lblEstadoActividades.setText(generado ? "El reporte PDF fue generado correctamente." : "Generación del PDF cancelada.");
         } catch (ReportExceptionLogica excepcion) {
             lblEstadoActividades.setText("No se pudo generar el PDF: " + excepcion.getMessage());
-            excepcion.printStackTrace();
-
-        } catch (Exception excepcion) {
-            lblEstadoActividades.setText("No se pudo convertir el gráfico: " + excepcion.getMessage());
             excepcion.printStackTrace();
         }
     }
