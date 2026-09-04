@@ -8,6 +8,7 @@ import java.util.List;
 public class ReservaLogica {
 
     private ReservaDatos reservaDatos;
+    private ReservaDTO reservaDTO;
 
 
     // metodos de comprobacion

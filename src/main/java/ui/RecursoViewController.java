@@ -1,13 +1,19 @@
 package ui;
 
 import Sistema.DTO.RecursoDTO;
-import Sistema.DTO.CategoriaDTO;
-import Sistema.Controller.GestionRecursoController; // Controlador intermedio
+import Sistema.DTO.CategoriaDTO;        // NOTA: DTO puede estar en esta capa, se encarga de viajar capa por capa
+import Sistema.Service.RecursoService; // Controlador intermedio
 
 import java.util.List;
 import java.util.Optional;
 
 import javafx.fxml.FXML;
+import javafx.scene.Node;
+import javafx.stage.Stage;
+import javafx.scene.Parent;
+import javafx.fxml.FXMLLoader;
+import javafx.event.ActionEvent;
+
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.beans.property.SimpleStringProperty;
@@ -23,7 +29,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.cell.PropertyValueFactory;
 
 public class RecursoViewController {
-    private GestionRecursoController gestionRecursoController;
+    private RecursoService recursoService;
 
     @FXML private ComboBox<CategoriaDTO> cbFiltroCategoriaRecursos;
     @FXML private TextField txtFiltroDescripcionRecursos;
@@ -47,7 +53,7 @@ public class RecursoViewController {
 
     @FXML
     public void initialize(){
-        this.gestionRecursoController = new GestionRecursoController();
+        this.recursoService = new RecursoService();
 
         // 1. deshabilitamos la edición manual del ID
         txtIdRecurso.setDisable(true);
@@ -108,7 +114,7 @@ public class RecursoViewController {
 
     private void cargarDatosDesdeSistema(){
         try{
-            List<RecursoDTO> recursos = gestionRecursoController.listarRecursos();
+            List<RecursoDTO> recursos = recursoService.listarRecursos();
             cargarTabla(recursos);
         } catch (Exception error){
             listaRecursos.clear();
@@ -118,7 +124,7 @@ public class RecursoViewController {
     @FXML
     private void limpiarFormulario(){
         try{
-            String nuevoID = gestionRecursoController.generarNuevoId();
+            String nuevoID = recursoService.generarNuevoId();
             txtIdRecurso.setText(nuevoID);
         } catch (Exception error) {
             txtIdRecurso.clear();
@@ -139,17 +145,17 @@ public class RecursoViewController {
             RecursoDTO recurso = new RecursoDTO(id, descripcion, categoria);
             RecursoDTO existente = null;
             try {
-                existente = gestionRecursoController.buscarRecursoID(id);
+                existente = recursoService.buscarRecursoID(id);
             } catch (Exception e) {
                 existente = null;
             }
 
             if (existente != null) {
-                boolean modificado = gestionRecursoController.modificarRecurso(recurso);
+                boolean modificado = recursoService.modificarRecurso(recurso);
                 if (modificado)
-                    mostrarAlerta(AlertType.INFORMATION, "Éxito", "El recurso fue modificado correctamente.");
+                    mostrarAlerta(AlertType.INFORMATION, "Éxito", "El recurso fue modificado correctamente");
             } else {
-                int resultado = gestionRecursoController.registrarRecurso(recurso);
+                int resultado = recursoService.registrarRecurso(recurso);
                 if (resultado == 1)
                     mostrarAlerta(AlertType.INFORMATION, "Éxito", "El recurso fue registrado con el ID: " + id);
             }
@@ -169,7 +175,7 @@ public class RecursoViewController {
         String id = txtIdRecurso.getText().trim();
 
         if (id.isEmpty()) {
-            mostrarAlerta(AlertType.WARNING, "Selección requerida", "Seleccione un recurso de la tabla para eliminar.");
+            mostrarAlerta(AlertType.WARNING, "Selección requerida", "Seleccione un recurso de la tabla para eliminar");
             return;
         }
 
@@ -178,9 +184,9 @@ public class RecursoViewController {
 
         if (respuesta.isPresent() && respuesta.get() == ButtonType.YES) {
             try {
-                boolean eliminado = gestionRecursoController.eliminarRecurso(id);
+                boolean eliminado = recursoService.eliminarRecurso(id);
                 if (eliminado) {
-                    mostrarAlerta(AlertType.INFORMATION, "Éxito", "Recurso eliminado correctamente.");
+                    mostrarAlerta(AlertType.INFORMATION, "Éxito", "Recurso eliminado correctamente");
                     limpiarFormulario();
                     cargarDatosDesdeSistema();
                 }
@@ -198,10 +204,10 @@ public class RecursoViewController {
 
         try {
             if (categoriaSeleccionada != null) {
-                List<RecursoDTO> filtrados = gestionRecursoController.filtrarPorCategoria(categoriaSeleccionada.getId());
+                List<RecursoDTO> filtrados = recursoService.filtrarPorCategoria(categoriaSeleccionada.getId());
                 cargarTabla(filtrados);
             } else {
-                // Si no hay filtro, carga toda la lista
+                // si no hay filtro, cargamos toda la lista
                 cargarDatosDesdeSistema();
             }
         } catch (Exception ex) {

@@ -1,7 +1,6 @@
 package Sistema.Logica;
 
 import Sistema.DTO.RecursoDTO;
-import Sistema.Logica.ReservaLogica;
 import Sistema.Datos.RecursoDatos;
 
 import java.util.List;
@@ -19,9 +18,7 @@ public class RecursoLogica {
         this.recursoDatos = new RecursoDatos(rutaArchivo);
     }
 
-
-    //TODO: cambiar nombre de metodo porque deiverto se confunde
-    private void validarCampos(RecursoDTO recurso) {             // evalua como se validan los errores (sujeto a cambios del throw)
+    private void validarInfomacion(RecursoDTO recurso) {             // evalua como se validan los errores (sujeto a cambios del throw)
         if (recurso.getCategoria() == null)
             throw new IllegalArgumentException("Debe seleccionar una categoría");
         if (recurso.getDescripcion() == null || recurso.getDescripcion().isBlank())
@@ -32,23 +29,13 @@ public class RecursoLogica {
         if(nuevoRecurso == null)
             throw new IllegalArgumentException("El recurso que se intenta registrar no existe");
 
-        int registrado = 0;
-        validarCampos(nuevoRecurso);
+        validarInfomacion(nuevoRecurso);
 
-        if (!recursoExistente(nuevoRecurso.getId())) {
-            Random random = new Random();
-            int id;
+        if (nuevoRecurso.getId() == null || nuevoRecurso.getId().isBlank())
+            throw new IllegalArgumentException("El recurso no tiene un ID asignado");
 
-            do {
-                id = random.nextInt(900000) + 100000;
-            } while (recursoExistente(String.valueOf(id)));
-
-            nuevoRecurso.setId(String.valueOf(id));
-            recursoDatos.agregarRecurso(nuevoRecurso);
-            registrado = 1;
-        }
-
-        return registrado;
+        recursoDatos.agregarRecurso(nuevoRecurso);
+        return 1;
     }
 
     public RecursoDTO buscarRecursoID(String id) {
@@ -73,7 +60,7 @@ public class RecursoLogica {
     }
 
     public boolean modificarRecurso(RecursoDTO recurso){
-        validarCampos(recurso);
+        validarInfomacion(recurso);
 
         if(!recursoExistente(recurso.getId()))
             throw new IllegalArgumentException("El recurso que se intenta modificar no existe");
@@ -124,7 +111,7 @@ public class RecursoLogica {
     }
 
     // metodo de comprobacion
-    public boolean recursoExistente(String id){
+    private boolean recursoExistente(String id){
         List<RecursoDTO> recursos = recursoDatos.deserializar();
         for(RecursoDTO r : recursos)
             if(r.getId().equals(id))

@@ -63,5 +63,4 @@ public class RecursoDatos extends Datos<RecursoDTO> {
 
     public List<RecursoDTO> listarRecursos(){ return deserializar(); }
 
-
 }
