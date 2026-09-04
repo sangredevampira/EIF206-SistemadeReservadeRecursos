@@ -2,38 +2,20 @@ package Sistema.Datos;
 
 import Sistema.DTO.Funcionario;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 // unica clase autorizada para tocar funcionarios.json (base de datos).
 // lee, busca (por id o nombre), guarda, modifica y borra. No valida
 // reglas de negocio -- eso es trabajo de FuncionarioLogica.
+// Hereda serializar/deserializar/crearArchivoSiNoExiste de Datos<T>.
 
-public class FuncionarioDatos {
+public class FuncionarioDatos extends Datos<Funcionario> {
 
     private static final String RUTA_ARCHIVO = "src/main/resources/Sistema/data/funcionarios.json";
-    private final ObjectMapper mapper = new ObjectMapper();
 
     public FuncionarioDatos() {
-        crearArchivoSiNoExiste();
-    }
-
-    private void crearArchivoSiNoExiste() {
-        File archivo = new File(RUTA_ARCHIVO);
-        if (archivo.exists()) {
-            return;
-        }
-        try {
-            archivo.getParentFile().mkdirs();
-            serializar(new ArrayList<>());
-        } catch (Exception e) {
-            throw new RuntimeException("No se pudo crear funcionarios.json: " + e.getMessage(), e);
-        }
+        super(RUTA_ARCHIVO, Funcionario.class);
     }
 
     public Funcionario buscarPorId(String id) {
@@ -90,21 +72,5 @@ public class FuncionarioDatos {
         List<Funcionario> funcionarios = deserializar();
         funcionarios.removeIf(funcionario -> funcionario.getId().equals(id));
         serializar(funcionarios);
-    }
-
-    private void serializar(List<Funcionario> funcionarios) {
-        try {
-            mapper.writerWithDefaultPrettyPrinter().writeValue(new File(RUTA_ARCHIVO), funcionarios);
-        } catch (IOException e) {
-            throw new RuntimeException("No se pudo guardar funcionarios.json: " + e.getMessage(), e);
-        }
-    }
-
-    private List<Funcionario> deserializar() {
-        try {
-            return mapper.readValue(new File(RUTA_ARCHIVO), new TypeReference<List<Funcionario>>() {});
-        } catch (IOException e) {
-            throw new RuntimeException("No se pudo leer funcionarios.json: " + e.getMessage(), e);
-        }
     }
 }
