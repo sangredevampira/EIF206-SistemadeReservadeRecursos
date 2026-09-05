@@ -3,7 +3,11 @@
   "clave" : "admin",
   "rol" : "ADMINISTRADOR"
 }, {
-  "id" : "funcionario",
+  "id" : "1111111",
   "clave" : "1111111",
+  "rol" : "FUNCIONARIO"
+}, {
+  "id" : "33333",
+  "clave" : "de",
   "rol" : "FUNCIONARIO"
 } ]
