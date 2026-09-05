@@ -12,7 +12,7 @@ public class RecursoLogica {
     private ReservaLogica reservaLogica;
 
     public RecursoLogica() {
-        this.recursoDatos = new RecursoDatos("recursos.json");
+        this.recursoDatos = new RecursoDatos("src/data/recursos.json");
     }
     public RecursoLogica(String rutaArchivo) {
         this.recursoDatos = new RecursoDatos(rutaArchivo);

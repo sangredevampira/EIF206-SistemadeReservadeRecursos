@@ -14,7 +14,7 @@ import java.util.List;
 
 public class UsuarioDatos extends Datos<Usuario> {
 
-    private static final String RUTA_ARCHIVO = "src/main/resources/Sistema/data/usuarios.json";
+    private static final String RUTA_ARCHIVO = "src/data/usuarios.json";
 
     public UsuarioDatos() {
         super(RUTA_ARCHIVO, Usuario.class);

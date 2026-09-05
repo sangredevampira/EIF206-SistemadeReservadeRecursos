@@ -92,6 +92,7 @@ public class LoginController {
             escenario.setScene(new Scene(raiz, 1150, 720));
             escenario.show();
         } catch (IOException e) {
+            e.printStackTrace();
             lblMensaje.setText("No se pudo abrir la ventana principal.");
         }
     }
