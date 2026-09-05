@@ -12,7 +12,7 @@ import java.util.List;
 
 public class FuncionarioDatos extends Datos<Funcionario> {
 
-    private static final String RUTA_ARCHIVO = "src/main/resources/Sistema/data/funcionarios.json";
+    private static final String RUTA_ARCHIVO = "src/data/funcionarios.json";
 
     public FuncionarioDatos() {
         super(RUTA_ARCHIVO, Funcionario.class);

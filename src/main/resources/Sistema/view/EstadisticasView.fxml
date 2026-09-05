@@ -2,23 +2,16 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
-<?import javafx.scene.control.SplitPane?>
 
-
-<BorderPane maxHeight="-Infinity"
-            maxWidth="-Infinity"
-            minHeight="-Infinity"
-            minWidth="-Infinity"
-            prefHeight="650.0"
-            prefWidth="1100.0"
-            xmlns="http://javafx.com/javafx/26"
+<BorderPane xmlns="http://javafx.com/javafx/26"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="ui.EstadisticasViewController">
    <top>
-      <VBox prefWidth="100.0" spacing="5.0" BorderPane.alignment="CENTER">
+      <VBox spacing="5.0" BorderPane.alignment="CENTER">
          <padding>
             <Insets bottom="12.0" left="20.0" right="20.0" top="18.0" />
          </padding>
@@ -33,17 +26,11 @@
       </VBox>
    </top>
    <center>
-      <SplitPane dividerPositions="0.5"
-                 prefHeight="570.0"
-                 prefWidth="1100.0"
-                 BorderPane.alignment="CENTER">
-
+      <SplitPane dividerPositions="0.5" BorderPane.alignment="CENTER">
          <items>
-            <fx:include source="EstadisticasRecursosView.fxml"/>
-
-            <fx:include source="EstadisticasActividadesView.fxml"/>
+            <fx:include source="EstadisticasRecursosView.fxml" />
+            <fx:include source="EstadisticasActividadesView.fxml" />
          </items>
-
       </SplitPane>
    </center>
 </BorderPane>
