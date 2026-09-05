@@ -1,0 +1,13 @@
+[ {
+  "id" : "admin",
+  "clave" : "admin",
+  "rol" : "ADMINISTRADOR"
+}, {
+  "id" : "1111111",
+  "clave" : "1111111",
+  "rol" : "FUNCIONARIO"
+}, {
+  "id" : "33333",
+  "clave" : "de",
+  "rol" : "FUNCIONARIO"
+} ]
