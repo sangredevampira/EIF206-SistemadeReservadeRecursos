@@ -215,7 +215,7 @@ public class RecursoViewController {
         }
     }
 
-    // Método auxiliar para construir alertas estándar
+    // Metodo auxiliar para construir alertas estándar
     private void mostrarAlerta(AlertType tipo, String titulo, String mensaje) {
         Alert alert = new Alert(tipo);
         alert.setTitle(titulo);

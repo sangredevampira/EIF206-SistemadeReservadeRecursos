@@ -6,7 +6,6 @@ import Sistema.DTO.RecursoDTO;
 
 public class RecursoDatos extends Datos<RecursoDTO> {
 
-    public RecursoDatos() {}
     public RecursoDatos(String rutaArchivo) { super(rutaArchivo, RecursoDTO.class); } // le decimos a <T> que este es el tipo de dato
 
     public void agregarRecurso(RecursoDTO recursoNuevo){

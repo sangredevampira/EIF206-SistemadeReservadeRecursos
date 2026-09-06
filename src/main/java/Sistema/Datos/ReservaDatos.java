@@ -6,7 +6,6 @@ import java.time.LocalDate;
 
 import Sistema.DTO.ReservaDTO;
 import Sistema.DTO.RecursoDTO;
-import Sistema.DTO.EstadoReserva;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 public class ReservaDatos extends Datos<ReservaDTO> {
@@ -15,7 +14,7 @@ public class ReservaDatos extends Datos<ReservaDTO> {
     public ReservaDatos(String rutaArchivo)
     {
         super(rutaArchivo, ReservaDTO.class);
-        mapper.registerModule(new JavaTimeModule()); // necesario por LocalDate/LocalTime
+        mapper.registerModule(new JavaTimeModule());    // necesario por LocalDate/LocalTime
     }
 
     public void agregarReserva(ReservaDTO NuevaReserva){
@@ -25,24 +24,17 @@ public class ReservaDatos extends Datos<ReservaDTO> {
     }
 
     public ReservaDTO buscarReservaID(String id){
-        List<ReservaDTO> reservas = deserializar();
-        ReservaDTO buscado = null;
-        boolean encontrado = false;
-
-        for(ReservaDTO r : reservas)    // para cada RecursoDTO en la lista, lo guardamos temporalmente en r
-            if(!encontrado && r.getIdReserva().equals(id)){
-                buscado = r;
-                encontrado = true;
-            }
-        return buscado;
+        for(ReservaDTO r : deserializar())
+            if(r.getIdReserva().equals(id))
+                return r;
+        return null;
     }
 
     public List<ReservaDTO> listarReservas() { return deserializar(); }
 
     public List<ReservaDTO> filtrarReservaFuncionario(String idFuncionario){
-        List<ReservaDTO> reservas = deserializar();
         List<ReservaDTO> reservasFiltradas = new ArrayList<>();
-        for(ReservaDTO r : reservas)
+        for(ReservaDTO r : deserializar())
             if(r.getIdFuncionario().equals(idFuncionario))
                 reservasFiltradas.add(r);
         return reservasFiltradas;
@@ -51,8 +43,18 @@ public class ReservaDatos extends Datos<ReservaDTO> {
     public List<ReservaDTO> filtrarReservaFecha(LocalDate fecha){
         List<ReservaDTO> reservas = new ArrayList<>();
         for(ReservaDTO r : deserializar())
-            if(r.getFechaReserva().equals(fecha))
+            if(r.getFecha().equals(fecha))
                 reservas.add(r);
+        return reservas;
+    }
+
+    public List<ReservaDTO> filtrarReservasRangoFechas(LocalDate desde, LocalDate hasta){
+        List<ReservaDTO> reservas = new ArrayList<>();
+        for(ReservaDTO r : deserializar()){
+            LocalDate fecha = r.getFecha();
+            if(!fecha.isBefore(desde) && !fecha.isAfter(hasta))
+                reservas.add(r);
+        }
         return reservas;
     }
 
@@ -79,5 +81,4 @@ public class ReservaDatos extends Datos<ReservaDTO> {
         if (modificado) serializar(reservas);
         return modificado;
     }
-
 }

@@ -29,7 +29,7 @@
                 <HBox alignment="CENTER_LEFT" spacing="8.0">
                     <children>
                         <Label text="Categoría" />
-                        <ComboBox fx:id="cbFiltroCategoriaRecursos" prefHeight="25.0" prefWidth="176.0" />
+                        <ComboBox fx:id="cbFiltroCategoriaRecursos" prefHeight="25.0" prefWidth="176.0" promptText="Seleccione una categoría" />
                         <Region prefHeight="25.0" prefWidth="23.0" />
 
                         <Label text="Descripción" />
@@ -91,7 +91,7 @@
                     <children>
                         <Region prefHeight="25.0" prefWidth="22.0" />
                         <Label prefHeight="17.0" prefWidth="66.0" text="Categoría" />
-                        <ComboBox fx:id="cbCategoriaRecurso" prefWidth="220.0" />
+                        <ComboBox fx:id="cbCategoriaRecurso" prefWidth="220.0" promptText="Seleccione una categoría" />
                     </children>
                 </HBox>
 

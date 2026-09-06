@@ -1,33 +1,35 @@
 package Sistema.DTO;
 
-import Sistema.DTO.RecursoDTO;
-
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
 public class ReservaDTO {
+
     private String idReserva;
-    private String idFuncionario;       // ID compartido con Usuario/Funcionario
-    private String descripcionActividad;    // descripcion de la actividad
-    private LocalDate fechaReserva;
+    private String idFuncionario;
+    private String nombreFuncionario;
+    private String nombreActividad;            // descripcion de la actividad
+    private LocalDate fecha;
     private LocalTime horaInicio;
-    private LocalTime horaFinal;
+    private LocalTime horaFin;
     private List<RecursoDTO> recursosReservados;
-    private EstadoReserva estado;   // se debe tener unicamente dos valores (ACTIVA/CANCELADA)
+    private EstadoReserva estado;                  // se debe tener unicamente dos valores (ACTIVA/CANCELADA)
 
     public ReservaDTO() {}
 
-    public ReservaDTO(EstadoReserva estado, List<RecursoDTO> recursosReservados, LocalTime horaFinal, LocalTime horaInicio,
-                      LocalDate fechaReserva, String descripcionActividad, String idFuncionario, String idReserva) {
-        this.estado = estado;
-        this.recursosReservados = recursosReservados;
-        this.horaFinal = horaFinal;
-        this.horaInicio = horaInicio;
-        this.fechaReserva = fechaReserva;
-        this.descripcionActividad = descripcionActividad;
-        this.idFuncionario = idFuncionario;
+    public ReservaDTO(String idReserva, String idFuncionario, String nombreFuncionario,
+                     String nombreActividad, LocalDate fecha, LocalTime horaInicio,
+                     LocalTime horaFin, List<RecursoDTO> recursosReservados, EstadoReserva estado) {
         this.idReserva = idReserva;
+        this.idFuncionario = idFuncionario;
+        this.nombreFuncionario = nombreFuncionario;
+        this.nombreActividad = nombreActividad;
+        this.fecha = fecha;
+        this.horaInicio = horaInicio;
+        this.horaFin = horaFin;
+        this.recursosReservados = recursosReservados;
+        this.estado = estado;
     }
 
     public String getIdReserva() { return idReserva; }
@@ -36,17 +38,20 @@ public class ReservaDTO {
     public String getIdFuncionario() { return idFuncionario; }
     public void setIdFuncionario(String idFuncionario) { this.idFuncionario = idFuncionario; }
 
-    public String getDescripcionActividad() { return descripcionActividad; }
-    public void setDescripcionActividad(String descripcionActividad) { this.descripcionActividad = descripcionActividad; }
+    public String getNombreFuncionario() { return nombreFuncionario; }
+    public void setNombreFuncionario(String nombreFuncionario) { this.nombreFuncionario = nombreFuncionario; }
 
-    public LocalDate getFechaReserva() { return fechaReserva; }
-    public void setFechaReserva(LocalDate fechaReserva) { this.fechaReserva = fechaReserva; }
+    public String getNombreActividad() { return nombreActividad; }
+    public void setNombreActividad(String nombreActividad) { this.nombreActividad = nombreActividad; }
+
+    public LocalDate getFecha() { return fecha; }
+    public void setFecha(LocalDate fecha) { this.fecha = fecha; }
 
     public LocalTime getHoraInicio() { return horaInicio; }
     public void setHoraInicio(LocalTime horaInicio) { this.horaInicio = horaInicio; }
 
-    public LocalTime getHoraFinal() { return horaFinal; }
-    public void setHoraFinal(LocalTime horaFinal) { this.horaFinal = horaFinal; }
+    public LocalTime getHoraFin() { return horaFin; }
+    public void setHoraFin(LocalTime horaFin) { this.horaFin = horaFin; }
 
     public List<RecursoDTO> getRecursosReservados() { return recursosReservados; }
     public void setRecursosReservados(List<RecursoDTO> recursosReservados) { this.recursosReservados = recursosReservados; }
