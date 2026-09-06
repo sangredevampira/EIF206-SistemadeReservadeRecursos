@@ -3,6 +3,7 @@ package ui;
 import Sistema.DTO.RecursoDTO;
 import Sistema.DTO.CategoriaDTO;        // NOTA: DTO puede estar en esta capa, se encarga de viajar capa por capa
 import Sistema.Service.RecursoService; // Controlador intermedio
+import Sistema.Service.CategoriaService;
 
 import java.util.List;
 import java.util.Optional;
@@ -94,10 +95,9 @@ public class RecursoViewController {
     // TODO: llena el combobox de categoria
     private void cargarCategorias() {
         try {
-            // Asumiendo que el controller tiene o tendrá el acceso a categorías
-            // List<CategoriaDTO> categorias = gestionRecursoController.listarCategorias();
-            // cbCategoriaRecurso.setItems(FXCollections.observableArrayList(categorias));
-            // cbFiltroCategoriaRecursos.setItems(FXCollections.observableArrayList(categorias));
+            List<CategoriaDTO> categorias = new CategoriaService().listarTodos();
+            cbCategoriaRecurso.setItems(FXCollections.observableArrayList(categorias));
+            cbFiltroCategoriaRecursos.setItems(FXCollections.observableArrayList(categorias));
         } catch (Exception e) {
             // Manejo silencioso en caso de no estar listo el módulo de categorías
         }

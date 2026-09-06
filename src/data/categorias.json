@@ -1,4 +1,16 @@
 [ {
   "id" : "CAT-000001",
   "descripcion" : "Sala de estudio"
+}, {
+  "id" : "CAT-000002",
+  "descripcion" : "Laptop windows"
+}, {
+  "id" : "CAT-000003",
+  "descripcion" : "Sala para 10 personas"
+}, {
+  "id" : "CAT-000004",
+  "descripcion" : "Dispositivo electronico"
+}, {
+  "id" : "CAT-000005",
+  "descripcion" : "Sala de juntas"
 } ]

@@ -13,17 +13,24 @@
     "descripcion" : "Sala para 10 personas"
   }
 }, {
-    "id": "235699",
-    "descripcion": "Proyector E235699",
-    "categoria": {
-      "id": "CAT-000004",
-      "descripcion": "Dispositivo electronico"
-    }
-}, {
-  "id": "567890",
-  "descripcion": "Sala 2A segundo piso",
-  "categoria": {
-    "id": "CAT-000003",
-    "descripcion": "Sala de juntas"
+  "id" : "235699",
+  "descripcion" : "Proyector E235699",
+  "categoria" : {
+    "id" : "CAT-000004",
+    "descripcion" : "Dispositivo electronico"
   }
-}]
+}, {
+  "id" : "567890",
+  "descripcion" : "Sala 2A segundo piso",
+  "categoria" : {
+    "id" : "CAT-000003",
+    "descripcion" : "Sala de juntas"
+  }
+}, {
+  "id" : "771980",
+  "descripcion" : "Aula-2005",
+  "categoria" : {
+    "id" : "CAT-000001",
+    "descripcion" : "Sala de estudio"
+  }
+} ]
