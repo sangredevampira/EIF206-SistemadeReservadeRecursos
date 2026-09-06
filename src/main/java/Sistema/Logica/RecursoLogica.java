@@ -11,26 +11,18 @@ public class RecursoLogica {
     private final RecursoDatos recursoDatos;
     private ReservaLogica reservaLogica;
 
-    public RecursoLogica() {
-        this.recursoDatos = new RecursoDatos("src/data/recursos.json");
-    }
+    public RecursoLogica() { this.recursoDatos = new RecursoDatos("src/data/recursos.json"); }
 
-    public RecursoLogica(String rutaArchivo) {
-        this.recursoDatos = new RecursoDatos(rutaArchivo);
-    }
-
-    private void validarInfomacion(RecursoDTO recurso) {  // evalua como se validan los errores (sujeto a cambios del throw)
-        if (recurso.getCategoria() == null)
-            throw new IllegalArgumentException("Debe seleccionar una categoría");
-        if (recurso.getDescripcion() == null || recurso.getDescripcion().isBlank())
-            throw new IllegalArgumentException("La descripción no puede estar vacía");
+    private ReservaLogica getReservaLogica() {
+        if (reservaLogica == null) reservaLogica = new ReservaLogica();
+        return reservaLogica;
     }
 
     public int registrarRecurso(RecursoDTO nuevoRecurso) {
         if(nuevoRecurso == null)
             throw new IllegalArgumentException("El recurso que se intenta registrar no existe");
 
-        validarInfomacion(nuevoRecurso);
+        validarDatosGenerales(nuevoRecurso);
 
         if (nuevoRecurso.getId() == null || nuevoRecurso.getId().isBlank())
             throw new IllegalArgumentException("El recurso no tiene un ID asignado");
@@ -61,7 +53,7 @@ public class RecursoLogica {
     }
 
     public boolean modificarRecurso(RecursoDTO recurso){
-        validarInfomacion(recurso);
+        validarDatosGenerales(recurso);
 
         if(!recursoExistente(recurso.getId()))
             throw new IllegalArgumentException("El recurso que se intenta modificar no existe");
@@ -79,22 +71,13 @@ public class RecursoLogica {
     }
 
     public boolean eliminarRecurso(String id){
-        if(!recursoExistente(id))
-            throw new IllegalArgumentException("El recurso que intenta eliminar no existe");
-
-        //TODO: coordinar con ReservaLogica/Service para impedir eliminar
-        // si el recurso tiene reservas futuras activas
-
         // 1. validacion propia de Recurso
-        //if (!recursoDatos.recursoExistente(id)) {
-        //        throw new IllegalArgumentException(
-        //            "El recurso que intenta eliminar no existe" );
-        //    }
+        if (!recursoExistente(id))
+            throw new IllegalArgumentException("El recurso que se intenta eliminar no existe");
 
-        // 2. regla de negocio que involucra Reserva
-        //if (reservaLogica.tieneReservasFuturasActivas(id))
-        //    throw new IllegalArgumentException(
-        //        "No se puede eliminar el recurso porque tiene reservas futuras activas");
+        // 2. coordinacion con reserva
+        if (getReservaLogica().tieneReservasFuturasActivas(id))
+            throw new IllegalArgumentException("No se puede eliminar el recurso porque tiene reservas futuras activas");
 
         // 3. si no hay ningun problema eliminamos
         return recursoDatos.eliminarRecurso(id);
@@ -111,9 +94,16 @@ public class RecursoLogica {
         return String.valueOf(id);
     }
 
-    // metodo de comprobacion
+    // metodos de comprobacion y validacion
+    private void validarDatosGenerales(RecursoDTO recurso) {
+        if (recurso.getCategoria() == null)
+            throw new IllegalArgumentException("Debe seleccionar una categoría");
+        if (recurso.getDescripcion() == null || recurso.getDescripcion().isBlank())
+            throw new IllegalArgumentException("La descripción no puede estar vacía");
+    }
+
     private boolean recursoExistente(String id){
-        List<RecursoDTO> recursos = recursoDatos.deserializar();
+        List<RecursoDTO> recursos = recursoDatos.listarRecursos();
         for(RecursoDTO r : recursos)
             if(r.getId().equals(id))
                 return true;
