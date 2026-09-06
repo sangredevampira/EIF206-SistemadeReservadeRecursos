@@ -1,1 +1,29 @@
-[ ]
+[ {
+  "id" : "238715",
+  "descripcion" : "Laptop #238715",
+  "categoria" : {
+    "id" : "CAT-000002",
+    "descripcion" : "Laptop windows"
+  }
+}, {
+  "id" : "343433",
+  "descripcion" : "Sala 1 primer piso",
+  "categoria" : {
+    "id" : "CAT-000001",
+    "descripcion" : "Sala para 10 personas"
+  }
+}, {
+    "id": "235699",
+    "descripcion": "Proyector E235699",
+    "categoria": {
+      "id": "CAT-000004",
+      "descripcion": "Dispositivo electronico"
+    }
+}, {
+  "id": "567890",
+  "descripcion": "Sala 2A segundo piso",
+  "categoria": {
+    "id": "CAT-000003",
+    "descripcion": "Sala de juntas"
+  }
+}]

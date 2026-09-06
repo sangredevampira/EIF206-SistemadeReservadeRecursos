@@ -8,17 +8,18 @@ import java.util.Random;
 
 public class RecursoLogica {
 
-    private RecursoDatos recursoDatos;
+    private final RecursoDatos recursoDatos;
     private ReservaLogica reservaLogica;
 
     public RecursoLogica() {
         this.recursoDatos = new RecursoDatos("src/data/recursos.json");
     }
+
     public RecursoLogica(String rutaArchivo) {
         this.recursoDatos = new RecursoDatos(rutaArchivo);
     }
 
-    private void validarInfomacion(RecursoDTO recurso) {             // evalua como se validan los errores (sujeto a cambios del throw)
+    private void validarInfomacion(RecursoDTO recurso) {  // evalua como se validan los errores (sujeto a cambios del throw)
         if (recurso.getCategoria() == null)
             throw new IllegalArgumentException("Debe seleccionar una categoría");
         if (recurso.getDescripcion() == null || recurso.getDescripcion().isBlank())

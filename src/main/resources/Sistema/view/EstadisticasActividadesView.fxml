@@ -16,14 +16,22 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="570.0" prefWidth="520.0" spacing="10.0" style="-fx-background-color: white;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1">
+<VBox minWidth="0.0"
+      maxWidth="1.7976931348623157E308"
+      prefHeight="570.0"
+      prefWidth="520.0"
+      spacing="10.0"
+      style="-fx-background-color: white;"
+      xmlns="http://javafx.com/javafx/26"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="ui.EstadisticasActividadesController">
    <padding>
       <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
    </padding>
    <children>
       <HBox alignment="CENTER_LEFT" prefWidth="200.0" spacing="8.0">
          <children>
-            <Label text="Actividadades">
+            <Label text="Actividades">
                <font>
                   <Font name="System Bold" size="17.0" />
                </font>
@@ -88,7 +96,7 @@
          </padding>
          <children>
             <Label text="Gráfico" />
-            <BarChart fx:id="barChartActividades" animated="false" categoryGap="20.0" legendVisible="false" prefHeight="250.0" title="Actividades Realizadas" VBox.vgrow="ALWAYS">
+            <BarChart fx:id="barChartActividades" animated="false" categoryGap="20.0" legendVisible="false" prefHeight="250.0" title="Actividades programadas" VBox.vgrow="ALWAYS">
               <xAxis>
                 <CategoryAxis fx:id="ejeSemanas" label="Semana" side="BOTTOM" />
               </xAxis>
