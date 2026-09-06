@@ -17,6 +17,12 @@ public class FuncionarioLogica {
     private final FuncionarioDatos funcionarioDatos = new FuncionarioDatos();
     private final UsuarioDatos usuarioDatos = new UsuarioDatos();
 
+    // Dependencia directa a ReservaLogica (no a ReservaDatos): a diferencia
+    // del caso de CategoriaLogica->RecursoDatos, aca sí conviene pasar por
+    // la Logica de Kris porque "es una reserva futura" es una regla de
+    // negocio suya (fecha + estado), no una simple lectura de archivo.
+    private final ReservaLogica reservaLogica = new ReservaLogica();
+
     /**
      * Proceso exacto del plan (2.5):
      * 1. ID no exista. 2. Nombre y telefono validos. 3-4. Crea funcionario
@@ -83,11 +89,10 @@ public class FuncionarioLogica {
             return ResultadoOperacion.fallo("El funcionario no existe.");
         }
 
-        // TODO (depende de Reservas, Integrante 2):
-        // if (reservaLogica.tieneReservasFuturas(id)) {
-        //     return ResultadoOperacion.fallo(
-        //         "No se puede eliminar el funcionario porque tiene reservas futuras registradas.");
-        // }
+        if (reservaLogica.tieneReservasFuturas(id)) {
+            return ResultadoOperacion.fallo(
+                    "No se puede eliminar el funcionario porque tiene reservas futuras registradas.");
+        }
 
         funcionarioDatos.eliminar(id);
         usuarioDatos.eliminar(id);

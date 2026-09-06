@@ -1,9 +1,11 @@
 package Sistema.Logica;
 
+import Sistema.DTO.EstadoReserva;
 import Sistema.DTO.Funcionario;
 import Sistema.DTO.ReservaDTO;
 import Sistema.Datos.ReservaDatos;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public class ReservaLogica {
@@ -64,4 +66,27 @@ public class ReservaLogica {
         }
         funcionario.setReservas(reservas);
     }
+
+    /**
+     * Regla del plan detallado (2.5, "Registro de un funcionario" / regla
+     * de eliminacion) y del TODO que quedo pendiente en FuncionarioLogica:
+     * "No se puede eliminar el funcionario porque tiene reservas futuras
+     * registradas." Una reserva cuenta como "futura" si su fecha es hoy o
+     * despues Y sigue ACTIVA (una CANCELADA no bloquea el borrado, aunque
+     * la fecha todavia no haya pasado).
+     */
+    public boolean tieneReservasFuturas(String idFuncionario) {
+        List<ReservaDTO> reservas = reservaDatos.filtrarReservaFuncionario(idFuncionario);
+        LocalDate hoy = LocalDate.now();
+
+        for (ReservaDTO reserva : reservas) {
+            boolean esFutura = !reserva.getFechaReserva().isBefore(hoy);
+            boolean estaActiva = reserva.getEstado() == EstadoReserva.ACTIVA;
+            if (esFutura && estaActiva) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
+
