@@ -1,94 +1,89 @@
-[
-  {
-    "id": "238715",
-    "descripcion": "Laptop #238715",
-    "categoria": {
-      "id": "CAT-000002",
-      "descripcion": "Laptop windows"
-    }
-  },
-  {
-    "id": "343433",
-    "descripcion": "Sala 1 primer piso",
-    "categoria": {
-      "id": "CAT-000001",
-      "descripcion": "Sala para 10 personas"
-    }
-  },
-  {
-    "id": "235699",
-    "descripcion": "Proyector E235699",
-    "categoria": {
-      "id": "CAT-000004",
-      "descripcion": "Dispositivo electrónico"
-    }
-  },
-  {
-    "id": "567890",
-    "descripcion": "Sala 2A segundo piso",
-    "categoria": {
-      "id": "CAT-000003",
-      "descripcion": "Sala de juntas"
-    }
-  },
-  {
-    "id": "891234",
-    "descripcion": "Monitor Dell 27 pulgadas",
-    "categoria": {
-      "id": "CAT-000004",
-      "descripcion": "Dispositivo electrónico"
-    }
-  },
-  {
-    "id": "654321",
-    "descripcion": "Kit Conferencia Logitech",
-    "categoria": {
-      "id": "CAT-000004",
-      "descripcion": "Dispositivo electrónico"
-    }
-  },
-  {
-    "id": "789012",
-    "descripcion": "Control Remoto para Presentaciones",
-    "categoria": {
-      "id": "CAT-000005",
-      "descripcion": "Accesorio de presentación"
-    }
-  },
-  {
-    "id": "789013",
-    "descripcion": "Puntero Láser Rojo",
-    "categoria": {
-      "id": "CAT-000005",
-      "descripcion": "Accesorio de presentación"
-    }
-  },
-  {
-    "id": "432109",
-    "descripcion": "Micrófono USB",
-    "categoria": {
-      "id": "CAT-000004",
-      "descripcion": "Dispositivo electrónico"
-    }
-  },
-  {
-    "id": "987654",
-    "descripcion": "Pizarra Blanca Móvil",
-    "categoria": {
-      "id": "CAT-000006",
-      "descripcion": "Mobiliario de apoyo"
-    }
-  },
-  {
-    "id": "987655",
-    "descripcion": "Set de Marcadores y Borrador para Pizarra",
-    "categoria": {
-      "id": "CAT-000006",
-      "descripcion": "Mobiliario de apoyo"
-    }
+[ {
+  "id" : "238715",
+  "descripcion" : "Laptop #238715",
+  "categoria" : {
+    "id" : "CAT-000002",
+    "descripcion" : "Laptop windows"
+  }
+}, {
+  "id" : "343433",
+  "descripcion" : "Sala 1 primer piso",
+  "categoria" : {
+    "id" : "CAT-000001",
+    "descripcion" : "Sala para 10 personas"
+  }
+}, {
+  "id" : "235699",
+  "descripcion" : "Proyector E235699",
+  "categoria" : {
+    "id" : "CAT-000004",
+    "descripcion" : "Dispositivo electrónico"
+  }
+}, {
+  "id" : "567890",
+  "descripcion" : "Sala 2A segundo piso",
+  "categoria" : {
+    "id" : "CAT-000003",
+    "descripcion" : "Sala de juntas"
+  }
+}, {
+  "id" : "891234",
+  "descripcion" : "Monitor Dell 27 pulgadas",
+  "categoria" : {
+    "id" : "CAT-000004",
+    "descripcion" : "Dispositivo electrónico"
+  }
+}, {
+  "id" : "654321",
+  "descripcion" : "Kit Conferencia Logitech",
+  "categoria" : {
+    "id" : "CAT-000004",
+    "descripcion" : "Dispositivo electrónico"
+  }
+}, {
+  "id" : "789012",
+  "descripcion" : "Control Remoto para Presentaciones",
+  "categoria" : {
+    "id" : "CAT-000005",
+    "descripcion" : "Accesorio de presentación"
+  }
+}, {
+  "id" : "789013",
+  "descripcion" : "Puntero Láser Rojo",
+  "categoria" : {
+    "id" : "CAT-000005",
+    "descripcion" : "Accesorio de presentación"
+  }
+}, {
+  "id" : "432109",
+  "descripcion" : "Micrófono USB",
+  "categoria" : {
+    "id" : "CAT-000004",
+    "descripcion" : "Dispositivo electrónico"
+  }
+}, {
+  "id" : "987654",
+  "descripcion" : "Pizarra Blanca Móvil",
+  "categoria" : {
+    "id" : "CAT-000006",
+    "descripcion" : "Mobiliario de apoyo"
+  }
+}, {
+  "id" : "987655",
+  "descripcion" : "Set de Marcadores y Borrador para Pizarra",
+  "categoria" : {
+    "id" : "CAT-000006",
+    "descripcion" : "Mobiliario de apoyo"
   }
 }, {
   "id" : "771980",
+  "descripcion" : "Aula-2005",
+  "categoria" : {
+    "id" : "CAT-000001",
+    "descripcion" : "Sala de estudio"
+  }
+}, {
+  "id" : "730810",
   "descripcion" : "Aula-2005",
   "categoria" : {
     "id" : "CAT-000001",

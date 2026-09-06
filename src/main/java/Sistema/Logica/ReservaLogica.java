@@ -78,7 +78,7 @@ public class ReservaLogica {
             throw new IllegalArgumentException("La reserva que se intenta cancelar no existe");
         if(reserva.getEstado() == EstadoReserva.CANCELADA)
             throw new IllegalArgumentException("Esta reserva ya se encuentra cancelada");
-        if(reserva.getFechaReserva().isBefore(LocalDate.now()))
+        if(reserva.getFecha().isBefore(LocalDate.now()))
             throw new IllegalArgumentException("No se puede cancelar una reserva que ya pasó");
 
         reserva.setEstado(EstadoReserva.CANCELADA);
@@ -232,7 +232,7 @@ public class ReservaLogica {
         LocalDate hoy = LocalDate.now();
 
         for (ReservaDTO reserva : reservas) {
-            boolean esFutura = !reserva.getFechaReserva().isBefore(hoy);
+            boolean esFutura = !reserva.getFecha().isBefore(hoy);
             boolean estaActiva = reserva.getEstado() == EstadoReserva.ACTIVA;
             if (esFutura && estaActiva) {
                 return true;
