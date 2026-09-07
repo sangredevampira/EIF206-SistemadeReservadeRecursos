@@ -6,14 +6,11 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 import Sistema.DTO.RecursoDTO;
-import Sistema.DTO.EstadoReserva;
-import Sistema.DTO.Funcionario;
 import Sistema.DTO.ReservaDTO;
+import Sistema.DTO.Funcionario;
 import Sistema.DTO.EstadoReserva;
 import Sistema.Datos.ReservaDatos;
 
-import java.time.LocalDate;
-import java.util.List;
 
 public class ReservaLogica {
 
@@ -36,23 +33,29 @@ public class ReservaLogica {
         return null;
     }
 
-    public String registrarReserva(String idFuncionario, String nombreFuncionario, String nombreActividad,
-                                   LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, List<String> idsCategoriasSolicitadas){
+    public int registrarReserva(String idFuncionario, String nombreFuncionario, String nombreActividad,
+                                LocalDate fecha, LocalTime horaInicio, LocalTime horaFin,
+                                List<String> idsCategoriasSolicitadas) {
+
         validarDatosGenerales(nombreActividad, fecha, horaInicio, horaFin, idsCategoriasSolicitadas);
 
         List<RecursoDTO> recursosAsignados = new ArrayList<>();
         List<String> categoriasNoDisponibles = new ArrayList<>();
 
         for (String idCategoria : idsCategoriasSolicitadas) {
-            RecursoDTO disponible = buscarPrimerRecursoDisponible(idCategoria, fecha, horaInicio, horaFin);
+            RecursoDTO disponible = buscarPrimerRecursoDisponible(
+                    idCategoria, fecha, horaInicio, horaFin
+            );
 
-            if (disponible == null) categoriasNoDisponibles.add(idCategoria);   // TODO: cambiar a descripcion de categoria
-            else recursosAsignados.add(disponible);
+            if (disponible == null)
+                categoriasNoDisponibles.add(idCategoria);
+            else
+                recursosAsignados.add(disponible);
         }
 
         if (!categoriasNoDisponibles.isEmpty()) {
             String listado = String.join(", ", categoriasNoDisponibles);
-            throw new IllegalArgumentException( "No hay disponibilidad para las siguientes categorías: " + listado);
+            return 0;
         }
 
         ReservaDTO nuevaReserva = new ReservaDTO(
@@ -68,7 +71,8 @@ public class ReservaLogica {
         );
 
         reservaDatos.agregarReserva(nuevaReserva);
-        return nuevaReserva.getIdReserva();
+
+        return 1;
     }
 
     public boolean cancelarReserva(String idReserva){
@@ -127,7 +131,7 @@ public class ReservaLogica {
         return false;
     }
 
-    public String generarNuevoId(){
+    private String generarNuevoId(){
         List<ReservaDTO> reservas = reservaDatos.listarReservas();
         int numeroMasAlto = 0;
 

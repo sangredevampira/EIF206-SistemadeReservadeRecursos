@@ -92,7 +92,6 @@ public class RecursoViewController {
         cargarDatosDesdeSistema();
     }
 
-    // TODO: llena el combobox de categoria
     private void cargarCategorias() {
         try {
             List<CategoriaDTO> categorias = new CategoriaService().listarTodos();

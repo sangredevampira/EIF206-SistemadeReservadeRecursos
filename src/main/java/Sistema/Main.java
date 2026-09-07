@@ -18,7 +18,10 @@ public class Main extends Application {
 
         escenarioPrincipal.setTitle("SISTEMA DE RESERVAS");
         escenarioPrincipal.setScene(new Scene(raiz, 400, 320));
+
+        escenarioPrincipal.setResizable(false);
         escenarioPrincipal.show();
+        escenarioPrincipal.centerOnScreen();
     }
 
     public static void main(String[] args) {

@@ -41,13 +41,6 @@
     "descripcion" : "Dispositivo electrónico"
   }
 }, {
-  "id" : "789012",
-  "descripcion" : "Control Remoto para Presentaciones",
-  "categoria" : {
-    "id" : "CAT-000005",
-    "descripcion" : "Accesorio de presentación"
-  }
-}, {
   "id" : "789013",
   "descripcion" : "Puntero Láser Rojo",
   "categoria" : {

@@ -93,7 +93,12 @@ public class MainController {
             Stage escenario = (Stage) ((Node) evento.getSource()).getScene().getWindow();
             escenario.setTitle("SISTEMA DE RESERVAS");
             escenario.setScene(new Scene(raiz, 400, 320));
+
+            // --- Agrega estas dos líneas ---
+            escenario.setResizable(false);
             escenario.show();
+            escenario.centerOnScreen(); // Recalcula el centro para el Login
+
         } catch (IOException e) {
             System.out.println("No se pudo volver a la pantalla de login: " + e.getMessage());
         }
