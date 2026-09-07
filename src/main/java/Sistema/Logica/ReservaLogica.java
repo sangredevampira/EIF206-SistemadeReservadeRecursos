@@ -9,11 +9,8 @@ import Sistema.DTO.RecursoDTO;
 import Sistema.DTO.EstadoReserva;
 import Sistema.DTO.Funcionario;
 import Sistema.DTO.ReservaDTO;
-import Sistema.DTO.EstadoReserva;
 import Sistema.Datos.ReservaDatos;
 
-import java.time.LocalDate;
-import java.util.List;
 
 public class ReservaLogica {
 
