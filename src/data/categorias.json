@@ -1,16 +1,26 @@
-[ {
-  "id" : "CAT-000001",
-  "descripcion" : "Sala de estudio"
-}, {
-  "id" : "CAT-000002",
-  "descripcion" : "Gimnasio"
-}, {
-  "id" : "CAT-000003",
-  "descripcion" : "Sala para 10 personas"
-}, {
-  "id" : "CAT-000004",
-  "descripcion" : "Dispositivo electronico"
-}, {
-  "id" : "CAT-000005",
-  "descripcion" : "Sala de juntas"
-} ]
+[
+  {
+    "id" : "CAT-000001",
+    "descripcion" : "Sala de estudio"
+  },
+  {
+    "id" : "CAT-000002",
+    "descripcion" : "Laptop windows"
+  },
+  {
+    "id" : "CAT-000003",
+    "descripcion" : "Sala para 10 personas"
+  },
+  {
+    "id" : "CAT-000004",
+    "descripcion" : "Dispositivo electrónico"
+  },
+  {
+    "id" : "CAT-000005",
+    "descripcion" : "Accesorio de presentación"
+  },
+  {
+    "id" : "CAT-000006",
+    "descripcion" : "Mobiliario de apoyo"
+  }
+]

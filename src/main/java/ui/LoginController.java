@@ -57,7 +57,7 @@ public class LoginController {
             dialogo.initModality(Modality.APPLICATION_MODAL);
             dialogo.initOwner(((Node) evento.getSource()).getScene().getWindow());
             dialogo.setScene(new Scene(raiz));
-            dialogo.setResizable(false); // Tamaño fijo para la modal
+            dialogo.setResizable(false); // Tamano fijo para la modal
 
             // Mostrar y centrar la ventana modal
             dialogo.show();

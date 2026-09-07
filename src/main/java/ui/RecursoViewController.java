@@ -30,6 +30,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.cell.PropertyValueFactory;
 
 public class RecursoViewController {
+
     private RecursoService recursoService;
 
     @FXML private ComboBox<CategoriaDTO> cbFiltroCategoriaRecursos;
