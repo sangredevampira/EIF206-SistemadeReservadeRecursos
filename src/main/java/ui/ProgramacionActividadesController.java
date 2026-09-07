@@ -1,33 +1,35 @@
 package ui;
 
-import Sistema.DTO.ReportConfigDTO;           // PDF: DTO con la configuración del reporte (título, nombre de archivo, filtros, orientación)
-import Sistema.Exception.ReportExceptionLogica;   // PDF: excepción lanzada cuando falla la generación del PDF
+import Sistema.DTO.EstadoReserva;
+import Sistema.DTO.ReportConfigDTO;
+import Sistema.DTO.ReservaDTO;
+import Sistema.Exception.ReportExceptionLogica;
+import Sistema.Service.ReservaService;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.DatePicker;
+import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;     // PDF: formatea las fechas del período para mostrarlas en los filtros del reporte
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-//imports para JSON
-// Se habilitarán cuando el Integrante 2 termine estas clases.
-// import Sistema.DTO.ReservaDTO;
-// import Sistema.Service.ReservaService;
-
 public class ProgramacionActividadesController {
-
-
     @FXML private DatePicker dpFechaReferencia;
     @FXML private Button btnCargar;
     @FXML private Button btnLimpiar;
     @FXML private Button btnGenerarPdf;
     @FXML private Label lblRangoSemana;
     @FXML private Label lblEstado;
-
     @FXML private TableView<String> tvActividades;
     @FXML private TableColumn<String, String> colHora;
     @FXML private TableColumn<String, String> colLunes;
@@ -37,13 +39,11 @@ public class ProgramacionActividadesController {
     @FXML private TableColumn<String, String> colViernes;
     @FXML private TableColumn<String, String> colSabado;
     @FXML private TableColumn<String, String> colDomingo;
-
     private LocalDate fechaInicioSemana;
     private LocalDate fechaFinSemana;
     private final Map<LocalDate, Map<String, String>> actividadesPorFecha = new HashMap<>();
-
-    // PDF: controlador encargado de generar y guardar el archivo PDF
     private final PdfController pdfController = new PdfController();
+    private final ReservaService reservaService = new ReservaService();
 
     @FXML
     private void initialize() {
@@ -53,33 +53,41 @@ public class ProgramacionActividadesController {
         colHora.setMaxWidth(75);
         btnCargar.setOnAction(evento -> cargarProgramacion());
         btnLimpiar.setOnAction(evento -> limpiarProgramacion());
-        btnGenerarPdf.setOnAction(evento -> generarPdf()); // PDF: dispara la generación del reporte
+        btnGenerarPdf.setOnAction(evento -> generarPdf());
         lblRangoSemana.setText("Semana no seleccionada");
         lblEstado.setText("Seleccione una fecha para cargar la programación semanal.");
     }
+    private void mostrarActividadesEnTabla(List<ReservaDTO> reservaciones) {
+        for (ReservaDTO reserva : reservaciones) {
+            if (reserva.getEstado() != EstadoReserva.ACTIVA) continue;
 
-    //private void cargarActividadesDesdeJson() {
-    /*
-     * Este código se habilitará cuando exista ReservaService.
-     *
-     * ReservaService reservaService = new ReservaService();
-     *
-     * List<ReservaDTO> reservaciones =
-     *         reservaService.buscarPorPeriodo(
-     *                 fechaInicioSemana,
-     *                 fechaFinSemana
-     *         );
-     *
-     * mostrarActividadesEnTabla(reservaciones);
-     */
-    //}
+            for (int hora = 0; hora < 24; hora++) {
+                LocalTime inicioBloque = LocalTime.of(hora, 0);
+                LocalTime finBloque = hora == 23 ? LocalTime.MAX : LocalTime.of(hora + 1, 0);
 
+                boolean ocupaBloque = reserva.getHoraInicio().isBefore(finBloque)
+                        && reserva.getHoraFin().isAfter(inicioBloque);
+
+                if (ocupaBloque) {
+                    registrarActividadEnTabla(
+                            reserva.getFecha(),
+                            String.format("%02d:00", hora),
+                            reserva.getNombreActividad(),
+                            reserva.getNombreFuncionario()
+                    );
+                }
+            }
+        }
+    }
+    private void cargarActividadesDesdeJson() {
+        List<ReservaDTO> reservaciones = reservaService.buscarPorPeriodo(fechaInicioSemana, fechaFinSemana);
+        mostrarActividadesEnTabla(reservaciones);
+    }
     private void registrarActividadEnTabla(LocalDate fecha, String hora, String nombreActividad, String nombreFuncionario) {
         Map<String, String> actividadesDelDia = actividadesPorFecha.computeIfAbsent(fecha, clave -> new HashMap<>());
         String textoActividad = nombreActividad + "\n" + nombreFuncionario;
         actividadesDelDia.merge(hora, textoActividad, (actividadAnterior, actividadNueva) -> actividadAnterior + "\n\n" + actividadNueva);
     }
-
     private void aplicarEstiloActividad(TableColumn<String, String> columna) {
         columna.setCellFactory(columnaActual -> new TableCell<>() {
             @Override
@@ -94,7 +102,6 @@ public class ProgramacionActividadesController {
             }
         });
     }
-
     private void calcularRangoSemana(LocalDate fechaReferencia) {
         fechaInicioSemana = fechaReferencia.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         fechaFinSemana = fechaInicioSemana.plusDays(6);
@@ -102,7 +109,6 @@ public class ProgramacionActividadesController {
         lblRangoSemana.setText("Del " + fechaInicioSemana.format(formatoFecha) + " al " + fechaFinSemana.format(formatoFecha));
         actualizarEncabezadosSemana();
     }
-
     private void actualizarEncabezadosSemana() {
         DateTimeFormatter formatoCorto = DateTimeFormatter.ofPattern("dd/MM");
         colLunes.setText("Lunes\n" + fechaInicioSemana.format(formatoCorto));
@@ -113,7 +119,6 @@ public class ProgramacionActividadesController {
         colSabado.setText("Sábado\n" + fechaInicioSemana.plusDays(5).format(formatoCorto));
         colDomingo.setText("Domingo\n" + fechaInicioSemana.plusDays(6).format(formatoCorto));
     }
-
     private void cargarProgramacion() {
         if (dpFechaReferencia.getValue() == null) {
             lblEstado.setText("Debe seleccionar una fecha de referencia.");
@@ -121,12 +126,17 @@ public class ProgramacionActividadesController {
         }
         calcularRangoSemana(dpFechaReferencia.getValue());
         actividadesPorFecha.clear();
-        cargarHorasDelDia();
-        // cargarActividadesDesdeJson();
-        tvActividades.refresh();
-        lblEstado.setText("Estructura semanal preparada. Pendiente cargar las reservaciones desde JSON.");
+        try {
+            cargarActividadesDesdeJson();
+            cargarHorasDelDia();
+            tvActividades.refresh();
+            lblEstado.setText("Programación semanal cargada correctamente.");
+        } catch (RuntimeException excepcion) {
+            actividadesPorFecha.clear();
+            tvActividades.getItems().clear();
+            lblEstado.setText("No se pudo cargar la programación: " + excepcion.getMessage());
+        }
     }
-
     private void limpiarProgramacion() {
         dpFechaReferencia.setValue(null);
         fechaInicioSemana = null;
@@ -137,7 +147,6 @@ public class ProgramacionActividadesController {
         lblRangoSemana.setText("Semana no seleccionada");
         lblEstado.setText("Seleccione una fecha para cargar la programación semanal.");
     }
-
     private void restablecerEncabezadosSemana() {
         colLunes.setText("Lunes");
         colMartes.setText("Martes");
@@ -147,13 +156,11 @@ public class ProgramacionActividadesController {
         colSabado.setText("Sábado");
         colDomingo.setText("Domingo");
     }
-
     private String obtenerTextoActividad(LocalDate fecha, String hora) {
         Map<String, String> actividadesDelDia = actividadesPorFecha.get(fecha);
         if (actividadesDelDia == null) return "";
         return actividadesDelDia.getOrDefault(hora, "");
     }
-
     private void configurarColumnaDia(TableColumn<String, String> columna, int diasDespuesDelLunes) {
         columna.setCellValueFactory(fila -> {
             if (fechaInicioSemana == null) return new ReadOnlyStringWrapper("");
@@ -163,7 +170,6 @@ public class ProgramacionActividadesController {
         });
         aplicarEstiloActividad(columna);
     }
-
     private void configurarColumnasActividades() {
         configurarColumnaDia(colLunes, 0);
         configurarColumnaDia(colMartes, 1);
@@ -173,16 +179,12 @@ public class ProgramacionActividadesController {
         configurarColumnaDia(colSabado, 5);
         configurarColumnaDia(colDomingo, 6);
     }
-
     private void cargarHorasDelDia() {
-        // Evita duplicar las horas al presionar Cargar varias veces
         tvActividades.getItems().clear();
         for (int hora = 0; hora < 24; hora++) {
             tvActividades.getItems().add(String.format("%02d:00", hora));
         }
     }
-
-    // PDF: valida que la tabla tenga datos, que haya una semana cargada y que la fecha no haya cambiado
     private boolean validarDatosParaPdf() {
         if (tvActividades.getItems().isEmpty() || fechaInicioSemana == null || fechaFinSemana == null) {
             lblEstado.setText("Debe cargar una semana antes de generar el PDF.");
@@ -199,8 +201,6 @@ public class ProgramacionActividadesController {
         }
         return true;
     }
-
-    // PDF: construye el ReportConfigDTO con título, subtítulo, nombre de archivo, orientación y filtros del reporte
     private ReportConfigDTO crearConfiguracionPdf() {
         DateTimeFormatter formato = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         ReportConfigDTO configuracion = new ReportConfigDTO(
@@ -212,13 +212,13 @@ public class ProgramacionActividadesController {
         configuracion.agregarFiltro("Período", fechaInicioSemana.format(formato) + " al " + fechaFinSemana.format(formato));
         return configuracion;
     }
-
-    // PDF: punto de entrada para generar el reporte; valida datos, llama a PdfController y muestra el resultado
     private void generarPdf() {
         if (!validarDatosParaPdf()) return;
         try {
             boolean generado = pdfController.generar(crearConfiguracionPdf(), btnGenerarPdf.getScene().getWindow(), tvActividades);
-            lblEstado.setText(generado ? "El reporte semanal fue generado correctamente." : "Generación del PDF cancelada.");
+            lblEstado.setText(generado
+                    ? "El reporte semanal fue generado correctamente."
+                    : "Generación del PDF cancelada.");
         } catch (ReportExceptionLogica excepcion) {
             lblEstado.setText("No se pudo generar el PDF: " + excepcion.getMessage());
             excepcion.printStackTrace();

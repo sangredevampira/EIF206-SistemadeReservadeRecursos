@@ -19,22 +19,18 @@ import java.util.Map;
  * y gráficos de la interfaz a documentos PDF.
  */
 public class PdfController {
-
     private static final String NOMBRE_SISTEMA = "Sistema de Gestión de Recursos";
     private final PdfReportService pdfReportService = new PdfReportService();
 
-    public <T> boolean generar(ReportConfigDTO configuracion, Window ventana, TableView<T> tableView
-    ) throws ReportExceptionLogica {
+    public <T> boolean generar(ReportConfigDTO configuracion, Window ventana, TableView<T> tableView) throws ReportExceptionLogica {
         return generarInterno(configuracion, ventana, tableView, null);
     }
 
-    public <T> boolean generarConGrafico(ReportConfigDTO configuracion, Window ventana, TableView<T> tableView, Node grafico
-    ) throws ReportExceptionLogica {
+    public <T> boolean generarConGrafico(ReportConfigDTO configuracion, Window ventana, TableView<T> tableView, Node grafico) throws ReportExceptionLogica {
         return generarInterno(configuracion, ventana, tableView, grafico);
     }
 
-    private <T> boolean generarInterno(ReportConfigDTO configuracion, Window ventana, TableView<T> tableView, Node grafico
-    ) throws ReportExceptionLogica {
+    private <T> boolean generarInterno(ReportConfigDTO configuracion, Window ventana, TableView<T> tableView, Node grafico) throws ReportExceptionLogica {
         validarDatos(configuracion, tableView);
         File archivo = SelectorArchivoPdfUtil.seleccionar(ventana, configuracion.getTituloVentana(), configuracion.getNombreArchivo());
         if (archivo == null) return false;
@@ -69,8 +65,7 @@ public class PdfController {
         return System.getProperty("user.name", "Usuario no identificado");
     }
 
-    private <T> void validarDatos(ReportConfigDTO configuracion, TableView<T> tableView
-    ) throws ReportExceptionLogica {
+    private <T> void validarDatos(ReportConfigDTO configuracion, TableView<T> tableView) throws ReportExceptionLogica {
         if (configuracion == null) {
             throw new ReportExceptionLogica("No se proporcionó la configuración del reporte.");
         }
