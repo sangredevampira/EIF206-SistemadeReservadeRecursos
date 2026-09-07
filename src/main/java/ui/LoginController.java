@@ -57,7 +57,11 @@ public class LoginController {
             dialogo.initModality(Modality.APPLICATION_MODAL);
             dialogo.initOwner(((Node) evento.getSource()).getScene().getWindow());
             dialogo.setScene(new Scene(raiz));
-            dialogo.showAndWait();
+            dialogo.setResizable(false); // Tamaño fijo para la modal
+
+            // Mostrar y centrar la ventana modal
+            dialogo.show();
+            dialogo.centerOnScreen();
         } catch (IOException e) {
             lblMensaje.setText("No se pudo abrir la ventana de cambio de clave.");
         }
@@ -90,14 +94,17 @@ public class LoginController {
             Stage escenario = (Stage) ((Node) evento.getSource()).getScene().getWindow();
             escenario.setTitle(titulo);
             escenario.setScene(new Scene(raiz, 1150, 720));
+
+            // Bloquea el cambio de tamaño
+            escenario.setResizable(false);
+
+            // Muestra y centra exactamente en la pantalla
             escenario.show();
+            escenario.centerOnScreen();
+
         } catch (IOException e) {
             e.printStackTrace();
             lblMensaje.setText("No se pudo abrir la ventana principal.");
         }
     }
 }
-
-
-
-

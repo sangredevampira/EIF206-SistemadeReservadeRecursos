@@ -3,12 +3,23 @@ package Sistema.Service;
 import Sistema.DTO.ReportHeaderDTO;
 import Sistema.DTO.ReportTableDTO;
 import Sistema.Exception.ReportExceptionLogica;
-import com.lowagie.text.*;
+import com.lowagie.text.Document;
+import com.lowagie.text.DocumentException;
+import com.lowagie.text.Element;
 import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
 import com.lowagie.text.Image;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
 import com.lowagie.text.Rectangle;
-import com.lowagie.text.pdf.*;
-import java.awt.*;
+import com.lowagie.text.pdf.ColumnText;
+import com.lowagie.text.pdf.PdfContentByte;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfPageEventHelper;
+import com.lowagie.text.pdf.PdfWriter;
+import java.awt.Color;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.time.format.DateTimeFormatter;
@@ -16,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 
 public class PdfReportService {
-
     private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final Font FUENTE_TITULO = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
     private static final Font FUENTE_SUBTITULO = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
@@ -26,13 +36,11 @@ public class PdfReportService {
     private static final Color COLOR_ENCABEZADO = new Color(175, 37, 0);
     private static final Color COLOR_FILA_ALTERNA = new Color(255, 204, 204);
 
-    public void generarReporte(File archivo, ReportHeaderDTO encabezado, ReportTableDTO tabla
-    ) throws ReportExceptionLogica {
+    public void generarReporte(File archivo, ReportHeaderDTO encabezado, ReportTableDTO tabla) throws ReportExceptionLogica {
         generarReporteInterno(archivo, encabezado, tabla, PageSize.A4, null, null);
     }
 
-    public void generarReporteHorizontal(File archivo, ReportHeaderDTO encabezado, ReportTableDTO tabla
-    ) throws ReportExceptionLogica {
+    public void generarReporteHorizontal(File archivo, ReportHeaderDTO encabezado, ReportTableDTO tabla) throws ReportExceptionLogica {
         generarReporteInterno(archivo, encabezado, tabla, PageSize.A4.rotate(), null, null);
     }
 
@@ -49,8 +57,7 @@ public class PdfReportService {
         generarReporteInterno(archivo, encabezado, tabla, PageSize.A4, tituloGrafico, imagenGrafico);
     }
 
-    private void generarReporteInterno( File archivo, ReportHeaderDTO encabezado, ReportTableDTO tabla, Rectangle tamanioPagina, String tituloGrafico, byte[] imagenGrafico
-    ) throws ReportExceptionLogica {
+    private void generarReporteInterno(File archivo, ReportHeaderDTO encabezado, ReportTableDTO tabla, Rectangle tamanioPagina, String tituloGrafico, byte[] imagenGrafico) throws ReportExceptionLogica {
         validarDatos(archivo, encabezado, tabla);
         Document documento = new Document(tamanioPagina, 40, 40, 75, 55);
         try {
@@ -160,7 +167,6 @@ public class PdfReportService {
     }
 
     private static class EventoPagina extends PdfPageEventHelper {
-
         private final String nombreSistema;
 
         public EventoPagina(String nombreSistema) {

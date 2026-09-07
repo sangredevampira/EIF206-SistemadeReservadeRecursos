@@ -6,7 +6,6 @@ public class EstadisticasViewController {
 
     @FXML
     private void initialize() {
-
         /*
          * Este controlador administra únicamente
          * el contenedor general de estadísticas.

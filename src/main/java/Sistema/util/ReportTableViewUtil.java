@@ -12,17 +12,14 @@ import java.util.List;
  * reutilizable para generar reportes PDF.
  */
 public final class ReportTableViewUtil {
-
     private ReportTableViewUtil() {
     }
-
     public static <T> ReportTableDTO convertir(String titulo, TableView<T> tableView) {
         if (tableView == null) {
             throw new IllegalArgumentException("La tabla no puede ser nula.");
         }
 
         List<String> columnas = new ArrayList<>();
-
         for (TableColumn<T, ?> columna : tableView.getColumns()) {
             columnas.add(columna.getText());
         }
@@ -32,10 +29,8 @@ public final class ReportTableViewUtil {
         }
 
         ReportTableDTO reporte = new ReportTableDTO(titulo, columnas);
-
         for (T elemento : tableView.getItems()) {
             List<String> fila = new ArrayList<>();
-
             for (TableColumn<T, ?> columna : tableView.getColumns()) {
                 Object valor = columna.getCellData(elemento);
                 fila.add(valor == null ? "" : valor.toString());

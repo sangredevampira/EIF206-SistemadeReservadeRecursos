@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import Sistema.DTO.ReservaDTO;
 import Sistema.DTO.RecursoDTO;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 public class ReservaDatos extends Datos<ReservaDTO> {
 
@@ -15,6 +16,7 @@ public class ReservaDatos extends Datos<ReservaDTO> {
     {
         super(rutaArchivo, ReservaDTO.class);
         mapper.registerModule(new JavaTimeModule());    // necesario por LocalDate/LocalTime
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     public void agregarReserva(ReservaDTO NuevaReserva){
