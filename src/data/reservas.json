@@ -1,48 +1,17 @@
 [ {
   "idReserva" : "RES-000001",
-  "idFuncionario" : "44444",
-  "nombreFuncionario" : "Pepe",
-  "nombreActividad" : "Seguimiento de proyecto",
-  "fecha" : "2026-09-11",
-  "horaInicio" : "10:00:00",
-  "horaFin" : "12:00:00",
+  "idFuncionario" : "1111111",
+  "nombreFuncionario" : "Derek",
+  "nombreActividad" : "Reunión de equipo",
+  "fecha" : "2026-07-01",
+  "horaInicio" : "09:00:00",
+  "horaFin" : "10:00:00",
   "recursosReservados" : [ {
-    "id" : "771980",
-    "descripcion" : "Aula-2005",
-    "categoria" : {
-      "id" : "CAT-000001",
-      "descripcion" : "Sala de estudio"
-    }
-  }, {
-    "id" : "238715",
-    "descripcion" : "Laptop #238715",
-    "categoria" : {
-      "id" : "CAT-000002",
-      "descripcion" : "Laptop windows"
-    }
-  }, {
     "id" : "343433",
     "descripcion" : "Sala 1 primer piso",
     "categoria" : {
-      "id" : "CAT-000003",
+      "id" : "CAT-000001",
       "descripcion" : "Sala para 10 personas"
-    }
-  } ],
-  "estado" : "CANCELADA"
-}, {
-  "idReserva" : "RES-000002",
-  "idFuncionario" : "44444",
-  "nombreFuncionario" : "Pepe",
-  "nombreActividad" : "Revisión de metas",
-  "fecha" : "2026-09-09",
-  "horaInicio" : "13:00:00",
-  "horaFin" : "15:00:00",
-  "recursosReservados" : [ {
-    "id" : "238715",
-    "descripcion" : "Laptop #238715",
-    "categoria" : {
-      "id" : "CAT-000002",
-      "descripcion" : "Laptop windows"
     }
   }, {
     "id" : "235699",
@@ -51,45 +20,14 @@
       "id" : "CAT-000004",
       "descripcion" : "Dispositivo electrónico"
     }
-  }, {
-    "id" : "987654",
-    "descripcion" : "Pizarra Blanca Móvil",
-    "categoria" : {
-      "id" : "CAT-000006",
-      "descripcion" : "Mobiliario de apoyo"
-    }
   } ],
   "estado" : "ACTIVA"
 }, {
-  "idReserva" : "RES-000003",
-  "idFuncionario" : "1111111",
-  "nombreFuncionario" : "Derek",
-  "nombreActividad" : "Reunión de ventas",
-  "fecha" : "2026-09-08",
-  "horaInicio" : "08:00:00",
-  "horaFin" : "10:00:00",
-  "recursosReservados" : [ {
-    "id" : "343433",
-    "descripcion" : "Sala 1 primer piso",
-    "categoria" : {
-      "id" : "CAT-000003",
-      "descripcion" : "Sala para 10 personas"
-    }
-  }, {
-    "id" : "789013",
-    "descripcion" : "Puntero Láser Rojo",
-    "categoria" : {
-      "id" : "CAT-000005",
-      "descripcion" : "Accesorio de presentación"
-    }
-  } ],
-  "estado" : "CANCELADA"
-}, {
-  "idReserva" : "RES-000004",
+  "idReserva" : "RES-000002",
   "idFuncionario" : "44444",
   "nombreFuncionario" : "Pepe",
-  "nombreActividad" : "reunión de planificación",
-  "fecha" : "2026-09-11",
+  "nombreActividad" : "Capacitación técnica",
+  "fecha" : "2026-07-02",
   "horaInicio" : "13:00:00",
   "horaFin" : "15:00:00",
   "recursosReservados" : [ {
@@ -100,104 +38,52 @@
       "descripcion" : "Laptop windows"
     }
   }, {
-    "id" : "343433",
-    "descripcion" : "Sala 1 primer piso",
+    "id" : "891234",
+    "descripcion" : "Monitor Dell 27 pulgadas",
     "categoria" : {
-      "id" : "CAT-000003",
-      "descripcion" : "Sala para 10 personas"
+      "id" : "CAT-000004",
+      "descripcion" : "Dispositivo electrónico"
+    }
+  }, {
+    "id" : "654321",
+    "descripcion" : "Kit Conferencia Logitech",
+    "categoria" : {
+      "id" : "CAT-000004",
+      "descripcion" : "Dispositivo electrónico"
     }
   } ],
   "estado" : "ACTIVA"
 }, {
-  "idReserva" : "RES-000005",
+  "idReserva" : "RES-000003",
   "idFuncionario" : "1111111",
   "nombreFuncionario" : "Derek",
-  "nombreActividad" : "reunión de seguimiento de proyecto",
-  "fecha" : "2026-09-10",
-  "horaInicio" : "15:00:00",
-  "horaFin" : "17:00:00",
+  "nombreActividad" : "Reunión con proveedor (cancelada)",
+  "fecha" : "2026-07-01",
+  "horaInicio" : "11:00:00",
+  "horaFin" : "12:00:00",
   "recursosReservados" : [ {
-    "id" : "238715",
-    "descripcion" : "Laptop #238715",
-    "categoria" : {
-      "id" : "CAT-000002",
-      "descripcion" : "Laptop windows"
-    }
-  }, {
-    "id" : "343433",
-    "descripcion" : "Sala 1 primer piso",
+    "id" : "567890",
+    "descripcion" : "Sala 2A segundo piso",
     "categoria" : {
       "id" : "CAT-000003",
-      "descripcion" : "Sala para 10 personas"
-    }
-  }, {
-    "id" : "789013",
-    "descripcion" : "Puntero Láser Rojo",
-    "categoria" : {
-      "id" : "CAT-000005",
-      "descripcion" : "Accesorio de presentación"
+      "descripcion" : "Sala de juntas"
     }
   } ],
-  "estado" : "ACTIVA"
+  "estado" : "CANCELADA"
 }, {
-  "idReserva" : "RES-000006",
-  "idFuncionario" : "1111111",
-  "nombreFuncionario" : "Derek",
-  "nombreActividad" : "Planificación de recursos para el proyecto",
-  "fecha" : "2026-09-16",
-  "horaInicio" : "14:00:00",
-  "horaFin" : "16:00:00",
+  "idReserva" : "RES-000004",
+  "idFuncionario" : "44444",
+  "nombreFuncionario" : "Pepe",
+  "nombreActividad" : "Sesión de estudio",
+  "fecha" : "2026-06-15",
+  "horaInicio" : "08:00:00",
+  "horaFin" : "09:00:00",
   "recursosReservados" : [ {
     "id" : "771980",
     "descripcion" : "Aula-2005",
     "categoria" : {
       "id" : "CAT-000001",
       "descripcion" : "Sala de estudio"
-    }
-  }, {
-    "id" : "238715",
-    "descripcion" : "Laptop #238715",
-    "categoria" : {
-      "id" : "CAT-000002",
-      "descripcion" : "Laptop windows"
-    }
-  }, {
-    "id" : "987654",
-    "descripcion" : "Pizarra Blanca Móvil",
-    "categoria" : {
-      "id" : "CAT-000006",
-      "descripcion" : "Mobiliario de apoyo"
-    }
-  } ],
-  "estado" : "ACTIVA"
-}, {
-  "idReserva" : "RES-000007",
-  "idFuncionario" : "44444",
-  "nombreFuncionario" : "Pepe",
-  "nombreActividad" : "reunión de ventas",
-  "fecha" : "2026-09-14",
-  "horaInicio" : "08:00:00",
-  "horaFin" : "10:00:00",
-  "recursosReservados" : [ {
-    "id" : "238715",
-    "descripcion" : "Laptop #238715",
-    "categoria" : {
-      "id" : "CAT-000002",
-      "descripcion" : "Laptop windows"
-    }
-  }, {
-    "id" : "343433",
-    "descripcion" : "Sala 1 primer piso",
-    "categoria" : {
-      "id" : "CAT-000003",
-      "descripcion" : "Sala para 10 personas"
-    }
-  }, {
-    "id" : "789013",
-    "descripcion" : "Puntero Láser Rojo",
-    "categoria" : {
-      "id" : "CAT-000005",
-      "descripcion" : "Accesorio de presentación"
     }
   } ],
   "estado" : "ACTIVA"

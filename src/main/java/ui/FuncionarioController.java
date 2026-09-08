@@ -3,6 +3,8 @@ package ui;
 import Sistema.DTO.Funcionario;
 import Sistema.Logica.FuncionarioLogica;
 import Sistema.Service.FuncionarioService;
+import Sistema.DTO.ReportConfigDTO;
+import Sistema.Exception.ReportExceptionLogica;
 
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -39,6 +41,7 @@ public class FuncionarioController {
     @FXML private Label lblMensaje;
 
     private final FuncionarioService funcionarioService = new FuncionarioService();
+    private final PdfController pdfController = new PdfController();
 
     // Funcionario actualmente seleccionado en el listado.
     // null = el formulario esta en modo "nuevo funcionario".
@@ -166,13 +169,25 @@ public class FuncionarioController {
     }
 
     private void imprimir() {
-        // Generacion de reporte PDF: pendiente (ControladorPdf/OpenPDF
-        // todavia no se implementa, ver HANDOFF seccion 8).
-        Alert aviso = new Alert(Alert.AlertType.INFORMATION,
-                "La generación de reporte en PDF para Funcionarios está pendiente de implementar.");
-        aviso.setTitle("Reporte PDF");
-        aviso.setHeaderText(null);
-        aviso.showAndWait();
+        if (tablaListado.getItems().isEmpty()) {
+            mostrarErrorValidacion("No hay funcionarios para incluir en el reporte.");
+            return;
+        }
+
+        ReportConfigDTO configuracion = new ReportConfigDTO(
+                "Listado de funcionarios", "Funcionarios", "funcionarios");
+        if (!campoBusquedaId.getText().isBlank()) {
+            configuracion.agregarFiltro("ID", campoBusquedaId.getText());
+        }
+        if (!campoBusquedaNombre.getText().isBlank()) {
+            configuracion.agregarFiltro("Nombre", campoBusquedaNombre.getText());
+        }
+
+        try {
+            pdfController.generar(configuracion, tablaListado.getScene().getWindow(), tablaListado);
+        } catch (ReportExceptionLogica e) {
+            mostrarErrorSistema("No se pudo generar el reporte PDF.\n" + e.getMessage());
+        }
     }
 
     private void mostrarErrorValidacion(String mensaje) {

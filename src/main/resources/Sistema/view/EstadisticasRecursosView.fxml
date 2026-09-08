@@ -23,7 +23,8 @@
       spacing="10.0"
       style="-fx-background-color: white;"
       xmlns="http://javafx.com/javafx/26"
-      xmlns:fx="http://javafx.com/fxml/1">
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="ui.EstadisticasRecursosController">
    <padding>
       <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
    </padding>
@@ -79,10 +80,10 @@
          <children>
             <Label text="Estadísticas" />
             <TableView fx:id="tvEstadisticasRecursos" minHeight="120.0" prefHeight="145.0" prefWidth="200.0">
-              <columns>
-                <TableColumn fx:id="colCategoria" prefWidth="120.0" sortable="false" text="Categoría" />
-                <TableColumn fx:id="colCantidadRecursos" prefWidth="120.0" sortable="false" text="Cantidad" />
-              </columns>
+               <columns>
+                  <TableColumn fx:id="colCategoria" prefWidth="120.0" sortable="false" text="Categoría" />
+                  <TableColumn fx:id="colCantidadRecursos" prefWidth="120.0" sortable="false" text="Cantidad" />
+               </columns>
                <columnResizePolicy>
                   <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
                </columnResizePolicy>
@@ -96,12 +97,12 @@
          <children>
             <Label text="Gráfico" />
             <BarChart fx:id="barChartRecursos" animated="false" categoryGap="20.0" legendVisible="false" prefHeight="250.0" title="Recursos reservados" VBox.vgrow="ALWAYS">
-              <xAxis>
-                <CategoryAxis fx:id="ejeRecurso" label="Recurso" side="BOTTOM" />
-              </xAxis>
-              <yAxis>
-                <NumberAxis fx:id="ejeCantidadRecursos" label="Cantidad" side="LEFT" />
-              </yAxis>
+               <xAxis>
+                  <CategoryAxis fx:id="ejeRecurso" label="Recurso" side="BOTTOM" />
+               </xAxis>
+               <yAxis>
+                  <NumberAxis fx:id="ejeCantidadRecursos" label="Cantidad" side="LEFT" />
+               </yAxis>
             </BarChart>
             <Label fx:id="lblEstadoRecursos" text="Seleccione las fechas para consultar los recursos reservados." textFill="#555555" wrapText="true" />
          </children>

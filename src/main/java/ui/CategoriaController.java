@@ -3,6 +3,8 @@ package ui;
 import Sistema.DTO.CategoriaDTO;
 import Sistema.Logica.CategoriaLogica;
 import Sistema.Service.CategoriaService;
+import Sistema.DTO.ReportConfigDTO;
+import Sistema.Exception.ReportExceptionLogica;
 
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -42,6 +44,7 @@ public class CategoriaController {
     @FXML private Label lblMensaje;
 
     private final CategoriaService categoriaService = new CategoriaService();
+    private final PdfController pdfController = new PdfController();
 
     private CategoriaDTO categoriaSeleccionada;
 
@@ -165,13 +168,22 @@ public class CategoriaController {
     }
 
     private void imprimir() {
-        // Generacion de reporte PDF: pendiente, igual que en Funcionarios
-        // y Recursos -- ControladorPdf/OpenPDF todavia no se implementa.
-        Alert aviso = new Alert(Alert.AlertType.INFORMATION,
-                "La generación de reporte en PDF para Categorías está pendiente de implementar.");
-        aviso.setTitle("Reporte PDF");
-        aviso.setHeaderText(null);
-        aviso.showAndWait();
+        if (tablaListado.getItems().isEmpty()) {
+            mostrarErrorValidacion("No hay categorías para incluir en el reporte.");
+            return;
+        }
+
+        ReportConfigDTO configuracion = new ReportConfigDTO(
+                "Listado de categorías", "Categorías", "categorias");
+        if (!campoBusquedaDescripcion.getText().isBlank()) {
+            configuracion.agregarFiltro("Descripción", campoBusquedaDescripcion.getText());
+        }
+
+        try {
+            pdfController.generar(configuracion, tablaListado.getScene().getWindow(), tablaListado);
+        } catch (ReportExceptionLogica e) {
+            mostrarErrorSistema("No se pudo generar el reporte PDF.\n" + e.getMessage());
+        }
     }
 
     private void mostrarErrorValidacion(String mensaje) {
