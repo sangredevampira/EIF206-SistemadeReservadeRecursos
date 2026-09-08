@@ -135,7 +135,7 @@ public class CalendarizacionController {
         fechaCargada = dpFecha.getValue();
         categoriaCargada = cbCategoria.getValue();
         try {
-            recursosCargados = recursoService.filtrarPorCategoria(categoriaCargada.getId());
+            recursosCargados = recursoService.filtrarRecursos(categoriaCargada.getId());
             if (recursosCargados.isEmpty()) {
                 tvCalendarizacion.getItems().clear();
                 tvCalendarizacion.getColumns().setAll(colHora);

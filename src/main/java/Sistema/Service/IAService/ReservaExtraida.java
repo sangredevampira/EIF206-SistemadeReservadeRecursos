@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Resultado de interpretar, con IA (Gemini), la frase en lenguaje
+ * resultado de interpretar, con IA (Gemini), la frase en lenguaje
  * natural que escribió el funcionario. El controlador usa estos datos
  * para llenar el formulario de reserva; el usuario puede modificarlos
  * antes de presionar "Reservar".

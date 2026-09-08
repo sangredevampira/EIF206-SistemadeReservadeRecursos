@@ -1,20 +1,14 @@
 package ui;
 
 import Sistema.DTO.RecursoDTO;
-import Sistema.DTO.CategoriaDTO;        // NOTA: DTO puede estar en esta capa, se encarga de viajar capa por capa
-import Sistema.Service.RecursoService; // Controlador intermedio
+import Sistema.DTO.CategoriaDTO;
+import Sistema.Service.RecursoService;
 import Sistema.Service.CategoriaService;
 
 import java.util.List;
 import java.util.Optional;
 
 import javafx.fxml.FXML;
-import javafx.scene.Node;
-import javafx.stage.Stage;
-import javafx.scene.Parent;
-import javafx.fxml.FXMLLoader;
-import javafx.event.ActionEvent;
-
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.beans.property.SimpleStringProperty;
@@ -50,18 +44,15 @@ public class RecursoViewController {
     @FXML private TableColumn<RecursoDTO, String> colCategoriaListadoRecursos;
     @FXML private TableColumn<RecursoDTO, String> colDescripcionListadoRecursos;
 
-    // lista observable que alimenta el TableView
     private ObservableList<RecursoDTO> listaRecursos = FXCollections.observableArrayList();
 
     @FXML
     public void initialize(){
         this.recursoService = new RecursoService();
 
-        // 1. deshabilitamos la edición manual del ID
         txtIdRecurso.setDisable(true);
         btnBorrarRecursos.setDisable(true);
 
-        // 2. vinculamos columnas con atributos/getters de RecursoDTO
         colIdListadoRecursos.setCellValueFactory(new PropertyValueFactory<>("id"));
         colDescripcionListadoRecursos.setCellValueFactory(new PropertyValueFactory<>("descripcion"));
 
@@ -74,20 +65,17 @@ public class RecursoViewController {
 
         tvwRecursos.setItems(listaRecursos);
 
-        // 3. evento de seleccion: al hacer clic en una fila, llena el formulario
         tvwRecursos.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 mostrarDetalleRecurso(newValue);
             }
         });
 
-        // 4. asignacion de acciones (eventos) a los botones
         btnGuardarRecursos.setOnAction(evento -> guardarRecurso());
         btnBorrarRecursos.setOnAction(evento -> borrarRecurso());
-        btnLimpiarRecursos.setOnAction(evento -> limpiarFormulario()); // Corregido el typo
+        btnLimpiarRecursos.setOnAction(evento -> limpiarFormulario());
         btnFiltroBuscarRecursos.setOnAction(evento -> buscarRecursos());
 
-        // dejamos la vista lista con categorias, ID pregenerado y la tabla cargada
         cargarCategorias();
         limpiarFormulario();
         cargarDatosDesdeSistema();
@@ -96,14 +84,26 @@ public class RecursoViewController {
     private void cargarCategorias() {
         try {
             List<CategoriaDTO> categorias = new CategoriaService().listarTodos();
+
+            // Para el formulario de guardado
             cbCategoriaRecurso.setItems(FXCollections.observableArrayList(categorias));
-            cbFiltroCategoriaRecursos.setItems(FXCollections.observableArrayList(categorias));
+
+            // Para el filtro: Agregamos la opción "Todas"
+            ObservableList<CategoriaDTO> opcionesFiltro = FXCollections.observableArrayList();
+
+            CategoriaDTO opcionTodas = new CategoriaDTO();
+            opcionTodas.setId(null);
+            opcionTodas.setDescripcion("-- Todas las categorías --");
+
+            opcionesFiltro.add(opcionTodas);
+            opcionesFiltro.addAll(categorias);
+
+            cbFiltroCategoriaRecursos.setItems(opcionesFiltro);
         } catch (Exception e) {
             // Manejo silencioso en caso de no estar listo el módulo de categorías
         }
     }
 
-    // rellena la tabla desde el servicio/repositorio
     public void cargarTabla(List<RecursoDTO> recursos){
         if (recursos != null) {
             listaRecursos.setAll(recursos);
@@ -123,14 +123,16 @@ public class RecursoViewController {
 
     @FXML
     private void limpiarFormulario(){
-        try{
+        try {
             String nuevoID = recursoService.generarNuevoId();
             txtIdRecurso.setText(nuevoID);
         } catch (Exception error) {
             txtIdRecurso.clear();
         }
+
         txtDescripcionRecurso.clear();
         cbCategoriaRecurso.setValue(null);
+
         tvwRecursos.getSelectionModel().clearSelection();
         btnBorrarRecursos.setDisable(true);
     }
@@ -201,21 +203,21 @@ public class RecursoViewController {
     @FXML
     private void buscarRecursos(){
         CategoriaDTO categoriaSeleccionada = cbFiltroCategoriaRecursos.getValue();
+        String textoDescripcion = txtFiltroDescripcionRecursos.getText();
+
+        // Si la categoría seleccionada es la opción "Todas" (cuyo id es null) o no hay ninguna seleccionada
+        String idCategoria = (categoriaSeleccionada != null) ? categoriaSeleccionada.getId() : null;
 
         try {
-            if (categoriaSeleccionada != null) {
-                List<RecursoDTO> filtrados = recursoService.filtrarPorCategoria(categoriaSeleccionada.getId());
-                cargarTabla(filtrados);
-            } else {
-                // si no hay filtro, cargamos toda la lista
-                cargarDatosDesdeSistema();
-            }
-        } catch (Exception ex) {
-            mostrarAlerta(AlertType.INFORMATION, "Búsqueda", ex.getMessage());
-        }
+            List<RecursoDTO> resultados = recursoService.filtrarRecursos(idCategoria, textoDescripcion);
+            cargarTabla(resultados);
+
+            if (resultados.isEmpty())
+                mostrarAlerta(AlertType.INFORMATION, "Búsqueda", "No se encontraron recursos con los criterios especificados.");
+
+        } catch (Exception ex) { mostrarAlerta(AlertType.ERROR, "Error en Búsqueda", ex.getMessage()); }
     }
 
-    // Metodo auxiliar para construir alertas estándar
     private void mostrarAlerta(AlertType tipo, String titulo, String mensaje) {
         Alert alert = new Alert(tipo);
         alert.setTitle(titulo);

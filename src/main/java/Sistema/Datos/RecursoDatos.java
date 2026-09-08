@@ -50,16 +50,24 @@ public class RecursoDatos extends Datos<RecursoDTO> {
         return eliminado;
     }
 
-    public List<RecursoDTO> filtrarPorCategoria(String categoria){
+    // sobrecarga del metodo para implementarlo en eliminar en CategoriaLogica
+    public List<RecursoDTO> filtrarRecursos(String idCategoria) { return filtrarRecursos(idCategoria, null); }
+
+    public List<RecursoDTO> filtrarRecursos(String idCategoria, String descripcion){
         List<RecursoDTO> recursos = deserializar();
         List<RecursoDTO> recursosFiltrados = new ArrayList<>();
-        for(RecursoDTO r : recursos)
-            if(r.getCategoria().getId().equalsIgnoreCase(categoria))
-                recursosFiltrados.add(r);
 
+        for (RecursoDTO r : recursos) {
+            boolean coincideCategoria = (idCategoria == null) ||
+                    (r.getCategoria() != null && r.getCategoria().getId().equalsIgnoreCase(idCategoria));
+
+            boolean coincideDescripcion = (descripcion == null) ||
+                    (r.getDescripcion() != null && r.getDescripcion().toLowerCase().contains(descripcion));
+
+            if(coincideCategoria && coincideDescripcion) recursosFiltrados.add(r);
+        }
         return recursosFiltrados;
     }
 
     public List<RecursoDTO> listarRecursos(){ return deserializar(); }
-
 }

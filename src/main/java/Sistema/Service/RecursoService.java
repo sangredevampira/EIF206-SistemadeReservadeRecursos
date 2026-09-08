@@ -18,7 +18,9 @@ public class RecursoService {
 
     public RecursoDTO buscarRecursoID(String id) { return recursoLogica.buscarRecursoID(id); }
 
-    public List<RecursoDTO> filtrarPorCategoria(String categoria) { return recursoLogica.filtrarPorCategoria(categoria); }
+    public List<RecursoDTO> filtrarRecursos(String idCategoria) { return recursoLogica.filtrarRecursos(idCategoria); }
+
+    public List<RecursoDTO> filtrarRecursos(String idCategoria, String descripcion) { return recursoLogica.filtrarRecursos(idCategoria, descripcion); }
 
     public List<RecursoDTO> listarRecursos() { return recursoLogica.listarRecursos(); }
 

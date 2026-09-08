@@ -33,7 +33,7 @@
                         <Region prefHeight="25.0" prefWidth="23.0" />
 
                         <Label text="Descripción" />
-                        <TextField fx:id="txtFiltroDescripcionRecursos" prefHeight="25.0" prefWidth="191.0" />
+                        <TextField fx:id="txtFiltroDescripcionRecursos" prefHeight="25.0" prefWidth="191.0" promptText="Descripción del recurso" />
                         <Region prefHeight="25.0" prefWidth="1.0" />
 
                         <Button fx:id="btnFiltroBuscarRecursos" mnemonicParsing="false" prefHeight="25.0" prefWidth="81.0" text="Buscar" textAlignment="CENTER">

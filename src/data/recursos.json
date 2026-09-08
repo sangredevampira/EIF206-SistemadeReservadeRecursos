@@ -1,50 +1,50 @@
-[
-  {
-    "id" : "771980",
-    "descripcion" : "Aula-2005",
-    "categoria" : {
-      "id" : "CAT-000001",
-      "descripcion" : "Sala de estudio"
-    }
-  },
-  {
-    "id" : "238715",
-    "descripcion" : "Laptop #238715",
-    "categoria" : {
-      "id" : "CAT-000002",
-      "descripcion" : "Laptop windows"
-    }
-  },
-  {
-    "id" : "343433",
-    "descripcion" : "Sala 1 primer piso",
-    "categoria" : {
-      "id" : "CAT-000003",
-      "descripcion" : "Sala para 10 personas"
-    }
-  },
-  {
-    "id" : "235699",
-    "descripcion" : "Proyector E235699",
-    "categoria" : {
-      "id" : "CAT-000004",
-      "descripcion" : "Dispositivo electrónico"
-    }
-  },
-  {
-    "id" : "789013",
-    "descripcion" : "Puntero Láser Rojo",
-    "categoria" : {
-      "id" : "CAT-000005",
-      "descripcion" : "Accesorio de presentación"
-    }
-  },
-  {
-    "id" : "987654",
-    "descripcion" : "Pizarra Blanca Móvil",
-    "categoria" : {
-      "id" : "CAT-000006",
-      "descripcion" : "Mobiliario de apoyo"
-    }
+[ {
+  "id" : "771980",
+  "descripcion" : "Aula-2005",
+  "categoria" : {
+    "id" : "CAT-000001",
+    "descripcion" : "Sala de estudio"
   }
-]
+}, {
+  "id" : "238715",
+  "descripcion" : "Laptop #238715",
+  "categoria" : {
+    "id" : "CAT-000002",
+    "descripcion" : "Laptop windows"
+  }
+}, {
+  "id" : "343433",
+  "descripcion" : "Sala 1 primer piso",
+  "categoria" : {
+    "id" : "CAT-000003",
+    "descripcion" : "Sala para 10 personas"
+  }
+}, {
+  "id" : "235699",
+  "descripcion" : "Proyector E235699",
+  "categoria" : {
+    "id" : "CAT-000004",
+    "descripcion" : "Dispositivo electrónico"
+  }
+}, {
+  "id" : "789013",
+  "descripcion" : "Puntero Láser Rojo",
+  "categoria" : {
+    "id" : "CAT-000005",
+    "descripcion" : "Accesorio de presentación"
+  }
+}, {
+  "id" : "987654",
+  "descripcion" : "Pizarra Blanca Móvil",
+  "categoria" : {
+    "id" : "CAT-000006",
+    "descripcion" : "Mobiliario de apoyo"
+  }
+}, {
+  "id" : "318911",
+  "descripcion" : "Laptop windows #318911",
+  "categoria" : {
+    "id" : "CAT-000002",
+    "descripcion" : "Laptop windows"
+  }
+} ]

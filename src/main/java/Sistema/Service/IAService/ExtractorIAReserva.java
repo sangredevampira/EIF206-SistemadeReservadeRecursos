@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class ExtractorIAReserva {
 
-    private static final String MODELO = "gemini-3.6-flash";
+    private static final String MODELO = "gemini-3.7-flash";
     private static final String ENDPOINT_BASE =
             "https://generativelanguage.googleapis.com/v1beta/models/";
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -84,7 +84,9 @@ public class ExtractorIAReserva {
                     throw new Exception("Error de la API Gemini (" + response.statusCode() + "): " + response.body());
                 }
 
-                ultimoError = new Exception("Gemini no disponible (503), intento " + intento + " de " + MAX_INTENTOS);
+                ultimoError = new Exception(
+                        "Gemini respondió 503. Respuesta: " + response.body()
+                );
 
             } catch (java.net.http.HttpTimeoutException e) {
                 // La petición no respondió a tiempo; se trata igual que un 503,
@@ -116,9 +118,16 @@ public class ExtractorIAReserva {
     // navega candidates -> content -> parts -> text, igual que en el manual de gemini
     private static String extraerTexto(String jsonRespuesta) throws Exception {
         JsonNode raiz = MAPPER.readTree(jsonRespuesta);
-        return raiz.path("candidates").get(0)
+        JsonNode candidatos = raiz.path("candidates");
+
+        if (!candidatos.isArray() || candidatos.isEmpty()) {
+            throw new Exception("Gemini no devolvió contenido (posible bloqueo de seguridad "
+                    + "o respuesta vacía). Respuesta completa: " + jsonRespuesta);
+        }
+
+        return candidatos.path(0)
                 .path("content")
-                .path("parts").get(0)
+                .path("parts").path(0)
                 .path("text").asText();
     }
 

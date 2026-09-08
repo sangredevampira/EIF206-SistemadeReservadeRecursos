@@ -26,7 +26,7 @@ public class ReservaLogica {
 
     private RecursoDTO buscarPrimerRecursoDisponible(String idCategoria, LocalDate fecha,
                                                      LocalTime horaInicio, LocalTime horaFin) {
-        List<RecursoDTO> recursosDeLaCategoria = getRecursoLogica().filtrarPorCategoria(idCategoria);
+        List<RecursoDTO> recursosDeLaCategoria = getRecursoLogica().filtrarRecursos(idCategoria);
         for (RecursoDTO recurso : recursosDeLaCategoria)
             if (recursoDisponible(recurso, fecha, horaInicio, horaFin))
                 return recurso;

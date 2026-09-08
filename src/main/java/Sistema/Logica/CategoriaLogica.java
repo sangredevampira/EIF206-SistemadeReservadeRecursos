@@ -61,7 +61,7 @@ public class CategoriaLogica {
             return ResultadoOperacion.fallo("La categoria no existe.");
         }
 
-        List<RecursoDTO> recursosDeEstaCategoria = recursoDatos.filtrarPorCategoria(id);
+        List<RecursoDTO> recursosDeEstaCategoria = recursoDatos.filtrarRecursos(id);
         if (!recursosDeEstaCategoria.isEmpty()) {
             return ResultadoOperacion.fallo(
                     "No se puede eliminar la categoria porque tiene recursos asociados.");
