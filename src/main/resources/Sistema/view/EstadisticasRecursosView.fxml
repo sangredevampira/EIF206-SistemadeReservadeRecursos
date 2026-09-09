@@ -16,7 +16,15 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="570.0" prefWidth="520.0" spacing="10.0" style="-fx-background-color: white;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1">
+<VBox minWidth="0.0"
+      maxWidth="1.7976931348623157E308"
+      prefHeight="570.0"
+      prefWidth="520.0"
+      spacing="10.0"
+      style="-fx-background-color: white;"
+      xmlns="http://javafx.com/javafx/26"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="ui.EstadisticasRecursosController">
    <padding>
       <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
    </padding>
@@ -28,7 +36,7 @@
                   <Font name="System Bold" size="17.0" />
                </font>
             </Label>
-            <Region prefHeight="200.0" prefWidth="200.0" HBox.hgrow="ALWAYS" />
+            <Region HBox.hgrow="ALWAYS"/>
             <Button fx:id="btnGenerarPdfRecursos" mnemonicParsing="false" text="Generar PDF">
                <graphic>
                   <ImageView fitHeight="16.0" fitWidth="16.0" pickOnBounds="true" preserveRatio="true">
@@ -46,7 +54,7 @@
          </padding>
          <children>
             <Label text="Período de consulta" />
-            <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="7.0">
+            <HBox alignment="CENTER_LEFT" minHeight="32.0" prefHeight="32.0" prefWidth="200.0" spacing="7.0">
                <children>
                   <Label text="Desde:" />
                   <DatePicker fx:id="dpDesdeRecursos" prefWidth="130.0" promptText="Fecha inicial" />
@@ -71,32 +79,36 @@
          </padding>
          <children>
             <Label text="Estadísticas" />
-            <TableView fx:id="tvEstadisticasRecursos" minHeight="120.0" prefHeight="145.0" prefWidth="200.0">
-              <columns>
-                <TableColumn fx:id="colCategoria" prefWidth="120.0" sortable="false" text="Categoria" />
-                <TableColumn fx:id="colCantidadRecursos" prefWidth="120.0" sortable="false" text="Cantidad" />
-              </columns>
+            <TableView fx:id="tvEstadisticasRecursos" minHeight="90.0" prefHeight="105.0" prefWidth="200.0">
+               <columns>
+                  <TableColumn fx:id="colCategoria" prefWidth="120.0" sortable="false" text="Categoría" />
+                  <TableColumn fx:id="colCantidadRecursos" prefWidth="120.0" sortable="false" text="Cantidad" />
+               </columns>
                <columnResizePolicy>
                   <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
                </columnResizePolicy>
             </TableView>
          </children>
       </VBox>
-      <VBox prefHeight="200.0" prefWidth="100.0" spacing="6.0" style="-fx-border-color: #C8CDD3; -fx-border-radius: 4; -fx-background-color: #FAFBFC; -fx-background-radius: 4;" VBox.vgrow="ALWAYS">
+      <VBox minHeight="210.0" prefHeight="220.0" spacing="6.0" VBox.vgrow="ALWAYS">
          <padding>
             <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
          </padding>
          <children>
-            <Label text="Gráfico" />
-            <BarChart fx:id="barChartRecursos" animated="false" categoryGap="20.0" legendVisible="false" prefHeight="250.0" title="Recursos Usados" VBox.vgrow="ALWAYS">
-              <xAxis>
-                <CategoryAxis fx:id="ejeRecurso" label="Recurso" side="BOTTOM" />
-              </xAxis>
-              <yAxis>
-                <NumberAxis fx:id="ejeCantidadRecursos" label="Cantidad" side="LEFT" />
-              </yAxis>
+            <Label text="Recursos reservados">
+               <font>
+                  <Font name="System Bold" size="14.0" />
+               </font>
+            </Label>
+            <BarChart fx:id="barChartRecursos" animated="false" categoryGap="8.0" legendVisible="false" minHeight="160.0" prefHeight="190.0" VBox.vgrow="ALWAYS">
+               <xAxis>
+                  <CategoryAxis fx:id="ejeRecurso" side="BOTTOM" />
+               </xAxis>
+               <yAxis>
+                  <NumberAxis fx:id="ejeCantidadRecursos" label="Cantidad" side="LEFT" />
+               </yAxis>
             </BarChart>
-            <Label fx:id="lblEstadoRecursos" text="Seleccione las fechas para consultar las actividades programadas." textFill="#555555" wrapText="true" />
+            <Label fx:id="lblEstadoRecursos" text="Seleccione las fechas para consultar los recursos reservados." textFill="#555555" wrapText="true" />
          </children>
       </VBox>
    </children>

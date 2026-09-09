@@ -6,7 +6,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.*?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="650.0" prefWidth="1100.0" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="650.0" prefWidth="1100.0" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.ProgramacionActividadesController">
    <top>
       <VBox prefHeight="150.0" prefWidth="1100.0" spacing="12.0" BorderPane.alignment="CENTER">
          <padding>
@@ -67,15 +67,15 @@
          <children>
             <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="8.0">
                <children>
-                  <Label text="Semana:">
+                  <Label prefHeight="18.0" prefWidth="121.0" text="Semana:">
                      <font>
                         <Font name="System Bold" size="12.0" />
                      </font>
                   </Label>
-                  <Label fx:id="lblRangoSemana" text="Semana no seleccionada" />
+                  <Label fx:id="lblRangoSemana" prefHeight="18.0" prefWidth="251.0" text="Semana no seleccionada" />
                   <Region prefHeight="200.0" prefWidth="672.0" HBox.hgrow="ALWAYS" />
-                  <Label text="Estado:" />
-                  <Label style="-fx-background-color: #FFF0C7; -fx-text-fill: #8A5A00; -fx-padding: 5 10 5 10; -fx-background-radius: 4;" text="Actividad programada" />
+                  <Label prefHeight="18.0" prefWidth="110.0" text="Estado:" />
+                  <Label prefHeight="27.0" prefWidth="213.0" style="-fx-background-color: #FFF0C7; -fx-text-fill: #8A5A00; -fx-padding: 5 10 5 10; -fx-background-radius: 4;" text="Actividad programada" />
                </children>
             </HBox>
             <TableView fx:id="tvActividades" prefHeight="500.0" prefWidth="200.0" VBox.vgrow="ALWAYS">
