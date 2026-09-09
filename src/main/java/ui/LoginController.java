@@ -71,13 +71,17 @@ public class LoginController {
         String id = campoId.getText();
         String clave = campoClave.getText();
 
-        UsuarioLogica.ResultadoLogin resultado = authService.login(id, clave);
+        try {
+            UsuarioLogica.ResultadoLogin resultado = authService.login(id, clave);
 
-        if (resultado.isExitoso()) {
-            lblMensaje.setText("");
-            abrirVentanaPrincipal(evento);
-        } else {
-            lblMensaje.setText(resultado.getMensajeError());
+            if (resultado.isExitoso()) {
+                lblMensaje.setText("");
+                abrirVentanaPrincipal(evento);
+            } else {
+                lblMensaje.setText(resultado.getMensajeError());
+            }
+        } catch (RuntimeException e) {
+            lblMensaje.setText("No se pudo verificar el usuario. Intente de nuevo.");
         }
     }
 

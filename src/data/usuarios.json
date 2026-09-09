@@ -10,4 +10,8 @@
   "id" : "44444",
   "clave" : "44444",
   "rol" : "FUNCIONARIO"
+}, {
+  "id" : "123",
+  "clave" : "1234",
+  "rol" : "FUNCIONARIO"
 } ]

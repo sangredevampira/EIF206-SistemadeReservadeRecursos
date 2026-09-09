@@ -30,6 +30,10 @@ public class UsuarioLogica {
             return ResultadoLogin.fallo("La clave ingresada es incorrecta.");
         }
 
+        if (usuario.getRol() == null) {
+            return ResultadoLogin.fallo("El usuario no tiene un rol asignado. Contacte al administrador.");
+        }
+
         Funcionario funcionarioAsociado = null;
         if (usuario.getRol() == Rol.FUNCIONARIO) {
             funcionarioAsociado = funcionarioDatos.buscarPorId(usuario.getId());

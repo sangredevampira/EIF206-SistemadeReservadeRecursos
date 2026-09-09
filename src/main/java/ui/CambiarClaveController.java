@@ -49,13 +49,17 @@ public class CambiarClaveController {
         String claveNueva = campoClaveNueva.getText();
         String confirmacion = campoClaveNuevaConfirmacion.getText();
 
-        UsuarioLogica.ResultadoCambioClave resultado =
-                authService.cambiarClave(id, claveActual, claveNueva, confirmacion);
+        try {
+            UsuarioLogica.ResultadoCambioClave resultado =
+                    authService.cambiarClave(id, claveActual, claveNueva, confirmacion);
 
-        if (resultado.isExitoso()) {
-            cerrarVentana(evento);
-        } else {
-            lblMensaje.setText(resultado.getMensajeError());
+            if (resultado.isExitoso()) {
+                cerrarVentana(evento);
+            } else {
+                lblMensaje.setText(resultado.getMensajeError());
+            }
+        } catch (RuntimeException e) {
+            lblMensaje.setText("No se pudo actualizar la clave. Intente de nuevo.");
         }
     }
 
