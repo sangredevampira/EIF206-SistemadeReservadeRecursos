@@ -18,7 +18,8 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.paint.Color;
-
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -35,6 +36,8 @@ public class EstadisticasRecursosController {
     @FXML private TableColumn<EstadisticaCategoriaDTO, Integer> colCantidadRecursos;
 
     @FXML private BarChart<String, Number> barChartRecursos;
+    @FXML private CategoryAxis ejeRecurso;
+    @FXML private NumberAxis ejeCantidadRecursos;
 
     @FXML private Label lblEstadoRecursos;
 
@@ -52,6 +55,10 @@ public class EstadisticasRecursosController {
     private void initialize() {
         colCategoria.setCellValueFactory(new PropertyValueFactory<>("categoria"));
         colCantidadRecursos.setCellValueFactory(new PropertyValueFactory<>("cantidad"));
+
+        ejeCantidadRecursos.setAutoRanging(true);
+        ejeCantidadRecursos.setForceZeroInRange(true);
+        ejeRecurso.setTickLabelRotation(0);
 
         btnCargarRecursos.setOnAction(evento -> cargarEstadisticas());
         btnGenerarPdfRecursos.setOnAction(evento -> generarPdf());

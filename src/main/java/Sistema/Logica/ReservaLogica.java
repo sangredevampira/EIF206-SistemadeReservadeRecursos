@@ -10,7 +10,7 @@ import Sistema.DTO.ReservaDTO;
 import Sistema.DTO.Funcionario;
 import Sistema.DTO.EstadoReserva;
 import Sistema.Datos.ReservaDatos;
-
+import Sistema.util.HorarioSistema;
 
 public class ReservaLogica {
 
@@ -149,17 +149,28 @@ public class ReservaLogica {
     }
 
     // metodos de comprobacion
-    private void validarDatosGenerales(String nombreActividad, LocalDate fecha, LocalTime horaInicio,
-                                     LocalTime horaFin, List<String> idsCategoriasSolicitadas) {
-        if(nombreActividad == null || nombreActividad.isBlank())
-            throw new IllegalArgumentException("Debe describir la actividad a realizar");
-        if(fecha.isBefore(LocalDate.now()))
-            throw new IllegalArgumentException("No se pueden crear reservas en fechas pasadas");
-        if(horaInicio == null || horaFin == null)
-            throw new IllegalArgumentException("Debe indicar la hora de inicio y finalización");
-        if(!horaInicio.isBefore(horaFin))
-            throw new IllegalArgumentException("La hora de inicio debe ser anterior a la hora de finalización");
-        if(idsCategoriasSolicitadas == null || idsCategoriasSolicitadas.isEmpty())
+    private void validarDatosGenerales(String nombreActividad, LocalDate fecha,
+                                       LocalTime horaInicio, LocalTime horaFin,
+                                       List<String> idsCategoriasSolicitadas) {
+        if (nombreActividad == null || nombreActividad.isBlank())
+            throw new IllegalArgumentException("Debe describir la actividad a realizar.");
+        if (fecha == null)
+            throw new IllegalArgumentException("Debe indicar la fecha de la reserva.");
+        if (fecha.isBefore(LocalDate.now()))
+            throw new IllegalArgumentException("No se pueden crear reservas en fechas pasadas.");
+        if (horaInicio == null || horaFin == null)
+            throw new IllegalArgumentException("Debe indicar la hora de inicio y finalización.");
+        if (!horaInicio.isBefore(horaFin))
+            throw new IllegalArgumentException("La hora de inicio debe ser anterior a la hora de finalización.");
+        if (horaInicio.isBefore(HorarioSistema.INICIO_SERVICIO)
+                || horaFin.isAfter(HorarioSistema.FIN_SERVICIO))
+            throw new IllegalArgumentException("La reserva debe estar dentro del horario de 06:00 a 22:00.");
+        if (horaInicio.getMinute() % HorarioSistema.MINUTOS_POR_BLOQUE != 0
+                || horaFin.getMinute() % HorarioSistema.MINUTOS_POR_BLOQUE != 0
+                || horaInicio.getSecond() != 0
+                || horaFin.getSecond() != 0)
+            throw new IllegalArgumentException("Las horas deben utilizar intervalos de 30 minutos.");
+        if (idsCategoriasSolicitadas == null || idsCategoriasSolicitadas.isEmpty())
             throw new IllegalArgumentException("Debe seleccionar al menos una categoría de recurso.");
     }
 

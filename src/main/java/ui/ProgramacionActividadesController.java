@@ -5,14 +5,10 @@ import Sistema.DTO.ReportConfigDTO;
 import Sistema.DTO.ReservaDTO;
 import Sistema.Exception.ReportExceptionLogica;
 import Sistema.Service.ReservaService;
+import Sistema.util.HorarioSistema;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
+import javafx.scene.control.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -24,6 +20,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public class ProgramacionActividadesController {
+    private static final DateTimeFormatter FORMATO_HORA = DateTimeFormatter.ofPattern("HH:mm");
     @FXML private DatePicker dpFechaReferencia;
     @FXML private Button btnCargar;
     @FXML private Button btnLimpiar;
@@ -58,12 +55,19 @@ public class ProgramacionActividadesController {
         lblEstado.setText("Seleccione una fecha para cargar la programación semanal.");
     }
     private void mostrarActividadesEnTabla(List<ReservaDTO> reservaciones) {
+        int cantidadBloques = (24 * 60) / HorarioSistema.MINUTOS_POR_BLOQUE;
         for (ReservaDTO reserva : reservaciones) {
-            if (reserva.getEstado() != EstadoReserva.ACTIVA) continue;
-
-            for (int hora = 0; hora < 24; hora++) {
-                LocalTime inicioBloque = LocalTime.of(hora, 0);
-                LocalTime finBloque = hora == 23 ? LocalTime.MAX : LocalTime.of(hora + 1, 0);
+            if (reserva.getEstado() != EstadoReserva.ACTIVA
+                    || reserva.getFecha() == null
+                    || reserva.getHoraInicio() == null
+                    || reserva.getHoraFin() == null) {
+                continue;
+            }
+            LocalTime inicioBloque = LocalTime.MIDNIGHT;
+            for (int bloque = 0; bloque < cantidadBloques; bloque++) {
+                LocalTime finBloque = bloque == cantidadBloques - 1
+                        ? LocalTime.MAX
+                        : inicioBloque.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
 
                 boolean ocupaBloque = reserva.getHoraInicio().isBefore(finBloque)
                         && reserva.getHoraFin().isAfter(inicioBloque);
@@ -71,11 +75,12 @@ public class ProgramacionActividadesController {
                 if (ocupaBloque) {
                     registrarActividadEnTabla(
                             reserva.getFecha(),
-                            String.format("%02d:00", hora),
+                            inicioBloque.format(FORMATO_HORA),
                             reserva.getNombreActividad(),
                             reserva.getNombreFuncionario()
                     );
                 }
+                inicioBloque = inicioBloque.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
             }
         }
     }
@@ -181,8 +186,11 @@ public class ProgramacionActividadesController {
     }
     private void cargarHorasDelDia() {
         tvActividades.getItems().clear();
-        for (int hora = 0; hora < 24; hora++) {
-            tvActividades.getItems().add(String.format("%02d:00", hora));
+        LocalTime hora = LocalTime.MIDNIGHT;
+        int cantidadBloques = (24 * 60) / HorarioSistema.MINUTOS_POR_BLOQUE;
+        for (int bloque = 0; bloque < cantidadBloques; bloque++) {
+            tvActividades.getItems().add(hora.format(FORMATO_HORA));
+            hora = hora.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
         }
     }
     private boolean validarDatosParaPdf() {

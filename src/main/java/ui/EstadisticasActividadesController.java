@@ -48,6 +48,8 @@ public class EstadisticasActividadesController {
         colSemana.setCellValueFactory(fila -> new ReadOnlyStringWrapper(fila.getValue().getSemana()));
         colCantidad.setCellValueFactory(fila -> new ReadOnlyIntegerWrapper(fila.getValue().getCantidad()));
         ejeCantidad.setForceZeroInRange(true);
+        ejeSemanas.setTickLabelRotation(0);
+        barChartActividades.setCategoryGap(8);
         btnCargarActividades.setOnAction(evento -> cargarEstadisticas());
         btnGenerarPdfActividades.setOnAction(evento -> generarPdf());
         lblEstadoActividades.setText("Seleccione las fechas para consultar las actividades programadas.");
@@ -72,6 +74,7 @@ public class EstadisticasActividadesController {
         tvEstadisticasActividades.getItems().clear();
         barChartActividades.getData().clear();
         DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        DateTimeFormatter formatoGrafico = DateTimeFormatter.ofPattern("dd/MM");
         XYChart.Series<String, Number> serieActividades = new XYChart.Series<>();
         serieActividades.setName("Actividades");
         for (Map.Entry<LocalDate, Integer> resultado : conteoSemanal.entrySet()) {
@@ -79,8 +82,9 @@ public class EstadisticasActividadesController {
             LocalDate finSemana = inicioSemana.plusDays(6);
             int cantidad = resultado.getValue();
             String textoSemana = inicioSemana.format(formatoFecha) + " al " + finSemana.format(formatoFecha);
+            String textoSemanaGrafico = inicioSemana.format(formatoGrafico);
             tvEstadisticasActividades.getItems().add(new EstadisticaSemana(textoSemana, cantidad));
-            serieActividades.getData().add(new XYChart.Data<>(textoSemana, cantidad));
+            serieActividades.getData().add(new XYChart.Data<>(textoSemanaGrafico, cantidad));
         }
         barChartActividades.getData().add(serieActividades);
     }

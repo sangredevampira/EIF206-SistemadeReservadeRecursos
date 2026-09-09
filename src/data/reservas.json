@@ -87,4 +87,21 @@
     }
   } ],
   "estado" : "ACTIVA"
+}, {
+  "idReserva" : "RES-000005",
+  "idFuncionario" : "44444",
+  "nombreFuncionario" : "Pepe",
+  "nombreActividad" : "Capacitación técnica",
+  "fecha" : "2026-09-11",
+  "horaInicio" : "08:30:00",
+  "horaFin" : "10:30:00",
+  "recursosReservados" : [ {
+    "id" : "343433",
+    "descripcion" : "Sala 1 primer piso",
+    "categoria" : {
+      "id" : "CAT-000003",
+      "descripcion" : "Sala para 10 personas"
+    }
+  } ],
+  "estado" : "ACTIVA"
 } ]

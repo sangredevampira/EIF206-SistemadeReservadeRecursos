@@ -13,6 +13,7 @@ import javafx.scene.control.TableView;
 import javafx.stage.Window;
 import java.io.File;
 import java.util.Map;
+import Sistema.util.SessionManager;
 
 /**
  * Coordina el proceso completo de exportación de las tablas
@@ -62,9 +63,11 @@ public class PdfController {
     }
 
     private String obtenerUsuarioActual() {
-        return System.getProperty("user.name", "Usuario no identificado");
+        String usuario = SessionManager.getInstancia().getIdUsuario();
+        return usuario == null || usuario.isBlank()
+                ? "Usuario no identificado"
+                : usuario;
     }
-
     private <T> void validarDatos(ReportConfigDTO configuracion, TableView<T> tableView) throws ReportExceptionLogica {
         if (configuracion == null) {
             throw new ReportExceptionLogica("No se proporcionó la configuración del reporte.");

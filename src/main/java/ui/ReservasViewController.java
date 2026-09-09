@@ -7,6 +7,7 @@ import Sistema.DTO.CategoriaDTO;
 import Sistema.util.SessionManager;
 import Sistema.Service.ReservaService;
 import Sistema.Service.CategoriaService;
+import Sistema.util.HorarioSistema;
 
 import java.net.URL;
 import java.util.List;
@@ -128,14 +129,21 @@ public class ReservasViewController implements Initializable {
     }
 
     private void configurarHorarios() {
-        ObservableList<LocalTime> horas = FXCollections.observableArrayList();
-        LocalTime hora = LocalTime.of(7, 0);
-        while (!hora.isAfter(LocalTime.of(21, 0))) {
-            horas.add(hora);
-            hora = hora.plusMinutes(30);
+        ObservableList<LocalTime> horasInicio = FXCollections.observableArrayList();
+        ObservableList<LocalTime> horasFin = FXCollections.observableArrayList();
+
+        LocalTime hora = HorarioSistema.INICIO_SERVICIO;
+        while (hora.isBefore(HorarioSistema.FIN_SERVICIO)) {
+            horasInicio.add(hora);
+            hora = hora.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
         }
-        cbHoraInicio.setItems(horas);
-        cbHoraFin.setItems(horas);
+        hora = HorarioSistema.INICIO_SERVICIO.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
+        while (!hora.isAfter(HorarioSistema.FIN_SERVICIO)) {
+            horasFin.add(hora);
+            hora = hora.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
+        }
+        cbHoraInicio.setItems(horasInicio);
+        cbHoraFin.setItems(horasFin);
     }
 
     private void configurarListViewCategorias() {
