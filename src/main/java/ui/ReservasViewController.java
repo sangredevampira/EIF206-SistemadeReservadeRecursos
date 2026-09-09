@@ -17,7 +17,7 @@ import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
 import Sistema.DTO.ReportConfigDTO;
-import Sistema.Exception.ReportExceptionLogica;
+import Sistema.Logica.Exception.ReportExceptionLogica;
 
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;

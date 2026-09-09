@@ -1,7 +1,7 @@
 package ui;
 
 import Sistema.DTO.*;
-import Sistema.Exception.ReportExceptionLogica;
+import Sistema.Logica.Exception.ReportExceptionLogica;
 import Sistema.Service.CategoriaService;
 import Sistema.Service.RecursoService;
 import Sistema.Service.ReservaService;

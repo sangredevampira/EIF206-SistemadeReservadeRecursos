@@ -3,7 +3,7 @@ package ui;
 import Sistema.DTO.EstadoReserva;
 import Sistema.DTO.ReportConfigDTO;
 import Sistema.DTO.ReservaDTO;
-import Sistema.Exception.ReportExceptionLogica;
+import Sistema.Logica.Exception.ReportExceptionLogica;
 import Sistema.Service.ReservaService;
 import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;

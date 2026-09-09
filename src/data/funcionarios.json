@@ -1,8 +1,4 @@
 [ {
-  "id" : "1111111",
-  "nombre" : "Derek",
-  "telefono" : "86569980"
-}, {
   "id" : "44444",
   "nombre" : "Pepe",
   "telefono" : "24351234"
@@ -12,6 +8,10 @@
   "telefono" : "5676584"
 }, {
   "id" : "77777",
-  "nombre" : "Kristel Peraza",
+  "nombre" : "Kristel ",
   "telefono" : "60092596"
+}, {
+  "id" : "44444444",
+  "nombre" : "Sofia",
+  "telefono" : "345623462"
 } ]

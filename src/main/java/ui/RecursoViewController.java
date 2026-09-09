@@ -7,7 +7,7 @@
 
     // imports necesarios para el reporte de PDF
     import Sistema.DTO.ReportConfigDTO;
-    import Sistema.Exception.ReportExceptionLogica;
+    import Sistema.Logica.Exception.ReportExceptionLogica;
 
     import java.util.List;
     import java.util.Optional;

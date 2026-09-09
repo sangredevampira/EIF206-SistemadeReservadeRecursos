@@ -2,7 +2,7 @@ package ui;
 
 import Sistema.DTO.EstadisticaCategoriaDTO;
 import Sistema.DTO.ReportConfigDTO;
-import Sistema.Exception.ReportExceptionLogica;
+import Sistema.Logica.Exception.ReportExceptionLogica;
 import Sistema.Logica.EstadisticasRecursosLogica.ResultadoEstadisticas;
 import Sistema.Service.EstadisticasRecursosService;
 

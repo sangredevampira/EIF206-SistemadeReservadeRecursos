@@ -4,7 +4,7 @@ import Sistema.DTO.CategoriaDTO;
 import Sistema.Logica.CategoriaLogica;
 import Sistema.Service.CategoriaService;
 import Sistema.DTO.ReportConfigDTO;
-import Sistema.Exception.ReportExceptionLogica;
+import Sistema.Logica.Exception.ReportExceptionLogica;
 
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;

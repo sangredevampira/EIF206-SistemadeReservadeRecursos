@@ -166,4 +166,62 @@
     }
   } ],
   "estado" : "ACTIVA"
+}, {
+  "idReserva" : "RES-000008",
+  "idFuncionario" : "123",
+  "nombreFuncionario" : "Javier",
+  "nombreActividad" : "Reunión de ventas",
+  "fecha" : "2026-09-14",
+  "horaInicio" : "08:00:00",
+  "horaFin" : "10:00:00",
+  "recursosReservados" : [ {
+    "id" : "343433",
+    "descripcion" : "Sala 1 primer piso",
+    "categoria" : {
+      "id" : "CAT-000003",
+      "descripcion" : "Sala para 10 personas"
+    }
+  }, {
+    "id" : "789013",
+    "descripcion" : "Puntero Láser Rojo",
+    "categoria" : {
+      "id" : "CAT-000005",
+      "descripcion" : "Accesorio de presentación"
+    }
+  } ],
+  "estado" : "CANCELADA"
+}, {
+  "idReserva" : "RES-000009",
+  "idFuncionario" : "123",
+  "nombreFuncionario" : "Javier",
+  "nombreActividad" : "Reunión de estudio",
+  "fecha" : "2026-09-09",
+  "horaInicio" : "10:30:00",
+  "horaFin" : "12:00:00",
+  "recursosReservados" : [ {
+    "id" : "771980",
+    "descripcion" : "Aula-2005",
+    "categoria" : {
+      "id" : "CAT-000001",
+      "descripcion" : "Sala de estudio"
+    }
+  } ],
+  "estado" : "CANCELADA"
+}, {
+  "idReserva" : "RES-000010",
+  "idFuncionario" : "123",
+  "nombreFuncionario" : "Javier",
+  "nombreActividad" : "Examen del tigre",
+  "fecha" : "2026-09-11",
+  "horaInicio" : "18:00:00",
+  "horaFin" : "19:30:00",
+  "recursosReservados" : [ {
+    "id" : "343433",
+    "descripcion" : "Sala 1 primer piso",
+    "categoria" : {
+      "id" : "CAT-000003",
+      "descripcion" : "Sala para 10 personas"
+    }
+  } ],
+  "estado" : "ACTIVA"
 } ]

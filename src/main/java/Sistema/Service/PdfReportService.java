@@ -2,7 +2,7 @@ package Sistema.Service;
 
 import Sistema.DTO.ReportHeaderDTO;
 import Sistema.DTO.ReportTableDTO;
-import Sistema.Exception.ReportExceptionLogica;
+import Sistema.Logica.Exception.ReportExceptionLogica;
 import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
 import com.lowagie.text.Element;
