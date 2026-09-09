@@ -16,6 +16,9 @@ import java.time.LocalTime;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
+import Sistema.DTO.ReportConfigDTO;
+import Sistema.Exception.ReportExceptionLogica;
+
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Alert;
@@ -45,6 +48,7 @@ public class ReservasViewController implements Initializable {
 
     private ReservaService reservaService;
     private CategoriaService categoriaService;
+    private final PdfController pdfController = new PdfController();
 
     @FXML private TextField txtFrase;
     @FXML private Button btnExtraerAI;
@@ -122,6 +126,7 @@ public class ReservasViewController implements Initializable {
         btnCancelarReserva.setOnAction(evento -> cancelarReserva());
         btnLimpiar.setOnAction(evento -> limpiarFormulario());
         btnExtraerAI.setOnAction(evento -> onAutocompletarIA());
+        btnImprimirReservas.setOnAction(evento -> generarPdf());
 
         cargarCategorias();
         limpiarFormulario();
@@ -185,9 +190,7 @@ public class ReservasViewController implements Initializable {
         try {
             List<ReservaDTO> reservas = reservaService.buscarPorFuncionario(idUsuario);
             cargarTabla(reservas);
-        } catch (Exception error) {
-            listaReservas.clear();
-        }
+        } catch (Exception error) { listaReservas.clear(); }
     }
 
     @FXML
@@ -238,9 +241,7 @@ public class ReservasViewController implements Initializable {
                 mostrarAlerta(AlertType.INFORMATION, "Éxito", "La reserva fue registrada correctamente");
                 limpiarFormulario();
                 cargarDatosDesdeSistema();
-            } else {
-                mostrarAlerta(AlertType.ERROR, "Sin disponibilidad", "No hay recursos disponibles en una o más de las categorías solicitadas");
-            }
+            } else  mostrarAlerta(AlertType.ERROR, "Sin disponibilidad", "No hay recursos disponibles en una o más de las categorías solicitadas");
 
         } catch (IllegalArgumentException ex) {
             mostrarAlerta(AlertType.WARNING, "Atención", ex.getMessage());
@@ -290,7 +291,6 @@ public class ReservasViewController implements Initializable {
             return;
         }
 
-        // Reutilizamos las categorías que ya cargaste en el ListView
         List<String> categoriasDisponibles = lvCategorias.getItems().stream()
                 .map(CategoriaDTO::getDescripcion)
                 .collect(Collectors.toList());
@@ -320,31 +320,19 @@ public class ReservasViewController implements Initializable {
     }
 
     private void llenarFormularioConDatosIA(ReservaExtraida datos) {
-        if (datos.getActividad() != null && !datos.getActividad().isBlank()) {
-            txtActividad.setText(datos.getActividad());
-        }
-        if (datos.getFecha() != null) {
-            dpFecha.setValue(datos.getFecha());
-        }
-        if (datos.getHoraInicio() != null) {
-            cbHoraInicio.setValue(horaMasCercana(cbHoraInicio.getItems(), datos.getHoraInicio()));
-        }
-        if (datos.getHoraFin() != null) {
-            cbHoraFin.setValue(horaMasCercana(cbHoraFin.getItems(), datos.getHoraFin()));
-        }
+        if (datos.getActividad() != null && !datos.getActividad().isBlank()) txtActividad.setText(datos.getActividad());
+        if (datos.getFecha() != null) dpFecha.setValue(datos.getFecha());
+        if (datos.getHoraInicio() != null) cbHoraInicio.setValue(horaMasCercana(cbHoraInicio.getItems(), datos.getHoraInicio()));
+        if (datos.getHoraFin() != null) cbHoraFin.setValue(horaMasCercana(cbHoraFin.getItems(), datos.getHoraFin()));
 
-        // Seleccionamos (no reemplazamos) las categorías del ListView que coincidan
         lvCategorias.getSelectionModel().clearSelection();
         for (CategoriaDTO categoria : lvCategorias.getItems()) {
             boolean sugerida = datos.getCategoriasSugeridas().stream()
                     .anyMatch(txt -> txt.trim().equalsIgnoreCase(categoria.getDescripcion()));
-            if (sugerida) {
-                lvCategorias.getSelectionModel().select(categoria);
-            }
+            if (sugerida) lvCategorias.getSelectionModel().select(categoria);
         }
     }
 
-    // como el combobox solo tiene horas cada 30 min, buscamos la más cercana a lo que devolvio la IA
     private LocalTime horaMasCercana(List<LocalTime> opciones, LocalTime horaIA) {
         return opciones.stream()
                 .min((a, b) -> {
@@ -353,5 +341,48 @@ public class ReservasViewController implements Initializable {
                     return Long.compare(difA, difB);
                 })
                 .orElse(null);
+    }
+
+    // metodos necesarios para generar el PDF
+    private boolean validarDatosParaPdf() {
+        if (tvMisReservas.getItems().isEmpty()) {
+            mostrarAlerta(AlertType.WARNING, "Atención", "No hay reservas registradas en la tabla para exportar.");
+            return false;
+        }
+        return true;
+    }
+
+    private ReportConfigDTO crearConfiguracionPdf() {
+        ReportConfigDTO configuracion = new ReportConfigDTO(
+                "Reporte de Reservas de Recursos",
+                "Mis Reservas Registradas",
+                "Reporte_Mis_Reservas.pdf"
+        );
+
+        configuracion.setTituloVentana("Guardar reporte de mis reservas");
+        configuracion.setHorizontal(true); // Se recomienda horizontal por la cantidad de columnas (Id, Actividad, Fecha, Horario, Recursos, Estado)
+
+        String idUsuario = SessionManager.getInstancia().getIdUsuario();
+        configuracion.agregarFiltro("Usuario", (idUsuario != null && !idUsuario.isBlank()) ? idUsuario : "No identificado");
+
+        return configuracion;
+    }
+
+    private void generarPdf() {
+        if (!validarDatosParaPdf()) return;
+
+        try {
+            boolean generado = pdfController.generar(
+                    crearConfiguracionPdf(),
+                    btnImprimirReservas.getScene().getWindow(),
+                    tvMisReservas
+            );
+
+            if (generado) mostrarAlerta(AlertType.INFORMATION, "Éxito", "El reporte PDF de reservas fue generado correctamente.");
+
+        } catch (ReportExceptionLogica excepcion) {
+            mostrarAlerta(AlertType.ERROR, "Error al generar PDF", excepcion.getMessage());
+            excepcion.printStackTrace();
+        }
     }
 }

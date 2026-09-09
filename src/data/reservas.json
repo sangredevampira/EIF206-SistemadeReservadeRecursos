@@ -104,4 +104,66 @@
     }
   } ],
   "estado" : "ACTIVA"
+}, {
+  "idReserva" : "RES-000006",
+  "idFuncionario" : "77777",
+  "nombreFuncionario" : "Kristel Peraza",
+  "nombreActividad" : "Reunion de coordinacion",
+  "fecha" : "2026-09-09",
+  "horaInicio" : "09:00:00",
+  "horaFin" : "11:00:00",
+  "recursosReservados" : [ {
+    "id" : "238715",
+    "descripcion" : "Laptop #238715",
+    "categoria" : {
+      "id" : "CAT-000002",
+      "descripcion" : "Laptop windows"
+    }
+  }, {
+    "id" : "343433",
+    "descripcion" : "Sala 1 primer piso",
+    "categoria" : {
+      "id" : "CAT-000003",
+      "descripcion" : "Sala para 10 personas"
+    }
+  }, {
+    "id" : "987654",
+    "descripcion" : "Pizarra Blanca Móvil",
+    "categoria" : {
+      "id" : "CAT-000006",
+      "descripcion" : "Mobiliario de apoyo"
+    }
+  } ],
+  "estado" : "CANCELADA"
+}, {
+  "idReserva" : "RES-000007",
+  "idFuncionario" : "77777",
+  "nombreFuncionario" : "Kristel Peraza",
+  "nombreActividad" : "Reunión de seguimiento de proyecto",
+  "fecha" : "2026-09-09",
+  "horaInicio" : "08:00:00",
+  "horaFin" : "10:00:00",
+  "recursosReservados" : [ {
+    "id" : "238715",
+    "descripcion" : "Laptop #238715",
+    "categoria" : {
+      "id" : "CAT-000002",
+      "descripcion" : "Laptop windows"
+    }
+  }, {
+    "id" : "343433",
+    "descripcion" : "Sala 1 primer piso",
+    "categoria" : {
+      "id" : "CAT-000003",
+      "descripcion" : "Sala para 10 personas"
+    }
+  }, {
+    "id" : "987654",
+    "descripcion" : "Pizarra Blanca Móvil",
+    "categoria" : {
+      "id" : "CAT-000006",
+      "descripcion" : "Mobiliario de apoyo"
+    }
+  } ],
+  "estado" : "ACTIVA"
 } ]
