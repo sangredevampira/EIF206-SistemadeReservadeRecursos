@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.*?>
 
-<VBox prefHeight="650.0" prefWidth="928.0" spacing="12.0" style="-fx-background-color: #E5E7EB;" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1">
+<VBox prefHeight="650.0" prefWidth="928.0" spacing="12.0" style="-fx-background-color: #E5E7EB;" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.ReservasViewController">
     <padding>
         <Insets bottom="12.0" left="15.0" right="15.0" top="12.0" />
     </padding>

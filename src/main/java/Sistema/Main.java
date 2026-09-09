@@ -4,6 +4,7 @@ import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import ui.LoginController;
 
@@ -18,7 +19,7 @@ public class Main extends Application {
 
         escenarioPrincipal.setTitle("SISTEMA DE RESERVAS");
         escenarioPrincipal.setScene(new Scene(raiz, 400, 320));
-
+        escenarioPrincipal.getIcons().add(new Image(getClass().getResourceAsStream("/Sistema/images/folder.png")));
         escenarioPrincipal.setResizable(false);
         escenarioPrincipal.show();
         escenarioPrincipal.centerOnScreen();

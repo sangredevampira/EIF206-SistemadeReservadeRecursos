@@ -38,11 +38,35 @@ public class RecursoLogica {
         return recurso;
     }
 
-    public List<RecursoDTO> filtrarPorCategoria(String categoria) {
-        List<RecursoDTO> listaRecursos = recursoDatos.filtrarPorCategoria(categoria);
-        if(listaRecursos == null)
-            throw new IllegalArgumentException("Los recursos no se pudieron filtrar correctamente");
-        return listaRecursos;
+    // sobrecarga para usar en CategoriaLogica
+    public List<RecursoDTO> filtrarRecursos(String idCategoria) {
+        String categoriaLimpia = (idCategoria != null && !idCategoria.isBlank())
+                ? idCategoria.trim()
+                : null;
+
+        List<RecursoDTO> filtrados = recursoDatos.filtrarRecursos(categoriaLimpia);
+
+        if (filtrados == null)
+            throw new IllegalArgumentException("No se pudieron filtrar los recursos por categoría");
+
+        return filtrados;
+    }
+
+    public List<RecursoDTO> filtrarRecursos(String idCategoria, String descripcion) {
+        String categoriaLimpia = (idCategoria != null && !idCategoria.isBlank())
+                ? idCategoria.trim()
+                : null;
+
+        String descripcionLimpia = (descripcion != null && !descripcion.isBlank())
+                ? descripcion.trim().toLowerCase()
+                : null;
+
+        List<RecursoDTO> filtrados = recursoDatos.filtrarRecursos(categoriaLimpia, descripcionLimpia);
+
+        if (filtrados == null)
+            throw new IllegalArgumentException("No se pudieron filtrar los recursos correctamente");
+
+        return filtrados;
     }
 
     public List<RecursoDTO> listarRecursos() {

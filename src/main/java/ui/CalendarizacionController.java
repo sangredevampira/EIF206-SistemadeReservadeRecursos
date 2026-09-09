@@ -1,23 +1,15 @@
 package ui;
 
-import Sistema.DTO.CategoriaDTO;
-import Sistema.DTO.EstadoReserva;
-import Sistema.DTO.RecursoDTO;
-import Sistema.DTO.ReportConfigDTO;
-import Sistema.DTO.ReservaDTO;
+import Sistema.DTO.*;
 import Sistema.Exception.ReportExceptionLogica;
 import Sistema.Service.CategoriaService;
 import Sistema.Service.RecursoService;
 import Sistema.Service.ReservaService;
+import Sistema.util.HorarioSistema;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
+import javafx.scene.control.*;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -25,8 +17,6 @@ import java.util.List;
 import java.util.Objects;
 
 public class CalendarizacionController {
-    private static final int HORA_INICIO_SERVICIO = 6;
-    private static final int HORA_FIN_SERVICIO = 22;
     @FXML private DatePicker dpFecha;
     @FXML private ComboBox<CategoriaDTO> cbCategoria;
     @FXML private Button btnCargar;
@@ -47,11 +37,11 @@ public class CalendarizacionController {
     @FXML
     private void initialize() {
         colHora.setCellValueFactory(fila -> new ReadOnlyStringWrapper(fila.getValue()));
-        cargarCategorias();
+        lblEstado.setText("Seleccione una fecha y una categoría para cargar la calendarización.");
         btnCargar.setOnAction(evento -> cargarCalendarizacion());
         btnLimpiar.setOnAction(evento -> limpiarCalendarizacion());
         btnGenerarPdf.setOnAction(evento -> generarPdf());
-        lblEstado.setText("Seleccione una fecha y una categoría para cargar la calendarización.");
+        cargarCategorias();
     }
     private void cargarCategorias() {
         try {
@@ -62,17 +52,20 @@ public class CalendarizacionController {
     }
     private void cargarHorasDelDia() {
         tvCalendarizacion.getItems().clear();
-        for (int hora = 0; hora < 24; hora++) {
-            tvCalendarizacion.getItems().add(String.format("%02d:00", hora));
+        LocalTime hora = LocalTime.MIDNIGHT;
+        int cantidadBloques = (24 * 60) / HorarioSistema.MINUTOS_POR_BLOQUE;
+        for (int bloque = 0; bloque < cantidadBloques; bloque++) {
+            tvCalendarizacion.getItems().add(hora.format(DateTimeFormatter.ofPattern("HH:mm")));
+            hora = hora.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
         }
     }
     private String obtenerEstadoRecurso(RecursoDTO recurso, String hora) {
-        int numeroHora = Integer.parseInt(hora.substring(0, 2));
-        if (numeroHora < HORA_INICIO_SERVICIO || numeroHora >= HORA_FIN_SERVICIO) {
+        LocalTime inicioBloque = LocalTime.parse(hora);
+        if (inicioBloque.isBefore(HorarioSistema.INICIO_SERVICIO)
+                || !inicioBloque.isBefore(HorarioSistema.FIN_SERVICIO)) {
             return "Fuera de horario";
         }
-        LocalTime inicioBloque = LocalTime.of(numeroHora, 0);
-        LocalTime finBloque = numeroHora == 23 ? LocalTime.MAX : LocalTime.of(numeroHora + 1, 0);
+        LocalTime finBloque = inicioBloque.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
 
         for (ReservaDTO reserva : reservasCargadas) {
             if (reserva.getEstado() != EstadoReserva.ACTIVA || !fechaCargada.equals(reserva.getFecha())) continue;
@@ -135,7 +128,7 @@ public class CalendarizacionController {
         fechaCargada = dpFecha.getValue();
         categoriaCargada = cbCategoria.getValue();
         try {
-            recursosCargados = recursoService.filtrarPorCategoria(categoriaCargada.getId());
+            recursosCargados = recursoService.filtrarRecursos(categoriaCargada.getId());
             if (recursosCargados.isEmpty()) {
                 tvCalendarizacion.getItems().clear();
                 tvCalendarizacion.getColumns().setAll(colHora);
