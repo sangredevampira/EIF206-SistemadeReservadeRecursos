@@ -129,4 +129,11 @@ class CategoriaServiceTest {
         assertEquals(1, resultado.size());
         assertEquals("CAT-000003", resultado.get(0).getId());
     }
+
+    @Test
+    void lanzaExcepcionSiElArchivoDeCategoriasEstaDanado() throws IOException {
+        Files.writeString(RUTA_CATEGORIAS, "{ esto no es una lista valida de categorias");
+
+        assertThrows(RuntimeException.class, () -> categoriaService.listarTodos());
+    }
 }

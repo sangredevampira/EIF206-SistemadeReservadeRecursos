@@ -116,6 +116,33 @@ class AuthServiceTest {
     }
 
     @Test
+    void loginFallaConClaveVacia() {
+        var resultado = authService.login("admin1", "");
+
+        assertFalse(resultado.isExitoso());
+        assertEquals("La clave no puede estar vacia.", resultado.getMensajeError());
+    }
+
+    @Test
+    void loginFallaSiElUsuarioNoTieneRolAsignado() throws IOException {
+        Files.writeString(RUTA_USUARIOS, """
+                [{"id":"sinRol","clave":"clave789","rol":null}]
+                """);
+
+        var resultado = authService.login("sinRol", "clave789");
+
+        assertFalse(resultado.isExitoso());
+        assertEquals("El usuario no tiene un rol asignado. Contacte al administrador.", resultado.getMensajeError());
+    }
+
+    @Test
+    void loginLanzaExcepcionSiElArchivoDeUsuariosEstaDanado() throws IOException {
+        Files.writeString(RUTA_USUARIOS, "{ esto no es una lista valida de usuarios");
+
+        assertThrows(RuntimeException.class, () -> authService.login("admin1", "clave123"));
+    }
+
+    @Test
     void cambioDeClaveExitosoQuedaPersistido() {
         var resultado = authService.cambiarClave("admin1", "clave123", "nuevaClave1", "nuevaClave1");
         assertTrue(resultado.isExitoso());
@@ -139,5 +166,13 @@ class AuthServiceTest {
 
         assertFalse(resultado.isExitoso());
         assertEquals("Las dos claves nuevas no coinciden.", resultado.getMensajeError());
+    }
+
+    @Test
+    void cambioDeClaveFallaConClaveNuevaVacia() {
+        var resultado = authService.cambiarClave("admin1", "clave123", "", "");
+
+        assertFalse(resultado.isExitoso());
+        assertEquals("La clave nueva no puede estar vacia.", resultado.getMensajeError());
     }
 }

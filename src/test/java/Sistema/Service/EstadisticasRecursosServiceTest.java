@@ -94,6 +94,27 @@ class EstadisticasRecursosServiceTest {
     }
 
     @Test
+    void calcularDevuelveListaVaciaSiNoHayReservasEnElPeriodo() {
+        var resultado = estadisticasRecursosService.calcular(
+                LocalDate.of(2027, 1, 1), LocalDate.of(2027, 1, 31));
+
+        assertTrue(resultado.isExitoso());
+        assertTrue(resultado.getDatos().isEmpty());
+    }
+
+    @Test
+    void calcularIncluyeReservasExactamenteEnLosBordesDelPeriodo() {
+        // El periodo es 2026-03-10 a 2026-03-10: mismo dia que RES-000001,
+        // que cae justo en el limite "desde" y "hasta" a la vez.
+        var resultado = estadisticasRecursosService.calcular(
+                LocalDate.of(2026, 3, 10), LocalDate.of(2026, 3, 10));
+
+        assertTrue(resultado.isExitoso());
+        assertEquals(1, resultado.getDatos().size());
+        assertEquals(1, resultado.getDatos().get(0).getCantidad());
+    }
+
+    @Test
     void calcularFallaSiFechaDesdeEsPosteriorAFechaHasta() {
         var resultado = estadisticasRecursosService.calcular(
                 LocalDate.of(2026, 5, 1), LocalDate.of(2026, 1, 1));

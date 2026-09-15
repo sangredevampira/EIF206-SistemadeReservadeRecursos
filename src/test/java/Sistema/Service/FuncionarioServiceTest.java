@@ -120,12 +120,61 @@ class FuncionarioServiceTest {
     }
 
     @Test
+    void registrarFallaConIdVacio() {
+        var resultado = funcionarioService.registrar(new Funcionario("   ", "Carla Ruiz", "85551111"));
+
+        assertFalse(resultado.isExitoso());
+        assertEquals("El ID no puede estar vacio.", resultado.getMensajeError());
+    }
+
+    @Test
+    void registrarFallaConNombreVacio() {
+        var resultado = funcionarioService.registrar(new Funcionario("func3", "   ", "85551111"));
+
+        assertFalse(resultado.isExitoso());
+        assertEquals("El nombre no puede estar vacio.", resultado.getMensajeError());
+    }
+
+    @Test
     void eliminarFallaSiTieneReservasFuturasActivas() {
         var resultado = funcionarioService.eliminar("func2");
 
         assertFalse(resultado.isExitoso());
         assertEquals("No se puede eliminar el funcionario porque tiene reservas futuras registradas.",
                 resultado.getMensajeError());
+    }
+
+    @Test
+    void eliminarFuncionaSiLaUnicaReservaFuturaEstaCancelada() throws IOException {
+        // Reserva futura pero CANCELADA: no debe bloquear la eliminacion
+        // (solo bloquean las reservas futuras y ACTIVAS a la vez).
+        Files.writeString(RUTA_RESERVAS, """
+                [
+                  {"idReserva":"RES-000002","idFuncionario":"func2","nombreFuncionario":"Beto Soto",
+                   "nombreActividad":"Reunion cancelada","fecha":"2099-01-01",
+                   "horaInicio":"08:00:00","horaFin":"10:00:00","recursosReservados":[],
+                   "estado":"CANCELADA"}
+                ]
+                """);
+
+        var resultado = funcionarioService.eliminar("func2");
+        assertTrue(resultado.isExitoso());
+    }
+
+    @Test
+    void eliminarFuncionaSiLaUnicaReservaActivaYaPaso() throws IOException {
+        // Reserva ACTIVA pero con fecha pasada: tampoco debe bloquear.
+        Files.writeString(RUTA_RESERVAS, """
+                [
+                  {"idReserva":"RES-000003","idFuncionario":"func2","nombreFuncionario":"Beto Soto",
+                   "nombreActividad":"Reunion pasada","fecha":"2020-01-01",
+                   "horaInicio":"08:00:00","horaFin":"10:00:00","recursosReservados":[],
+                   "estado":"ACTIVA"}
+                ]
+                """);
+
+        var resultado = funcionarioService.eliminar("func2");
+        assertTrue(resultado.isExitoso());
     }
 
     @Test
@@ -144,5 +193,12 @@ class FuncionarioServiceTest {
 
         assertEquals(1, resultado.size());
         assertEquals("func2", resultado.get(0).getId());
+    }
+
+    @Test
+    void lanzaExcepcionSiElArchivoDeFuncionariosEstaDanado() throws IOException {
+        Files.writeString(RUTA_FUNCIONARIOS, "{ esto no es una lista valida de funcionarios");
+
+        assertThrows(RuntimeException.class, () -> funcionarioService.listarTodos());
     }
 }
