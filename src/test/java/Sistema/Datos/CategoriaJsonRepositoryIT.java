@@ -103,4 +103,18 @@ class CategoriaJsonRepositoryIT {
         assertEquals(1, resultado.size());
         assertEquals("CAT-000002", resultado.get(0).getId());
     }
+
+    @Test
+    void listarTodosLeeTodosLosRegistrosDelArchivo() throws IOException {
+        Files.writeString(RUTA_CATEGORIAS, """
+                [
+                  {"id":"CAT-000001","descripcion":"Sala para 10 personas"},
+                  {"id":"CAT-000002","descripcion":"Laptop windows 11"}
+                ]
+                """);
+
+        List<CategoriaDTO> todas = new CategoriaDatos().listarTodos();
+
+        assertEquals(2, todas.size());
+    }
 }
