@@ -104,7 +104,7 @@ public class ExtractorIAReserva {
     }
 
     //arma { "contents": [ { "parts": [ { "text": "..." } ] } ] } con nodos de jackson
-    private static String construirCuerpoPeticion(String prompt) throws Exception {
+    static String construirCuerpoPeticion(String prompt) throws Exception {
         ObjectNode parte = MAPPER.createObjectNode().put("text", prompt);
         ArrayNode partes = MAPPER.createArrayNode().add(parte);
         ObjectNode contenido = MAPPER.createObjectNode();
@@ -116,7 +116,7 @@ public class ExtractorIAReserva {
     }
 
     // navega candidates -> content -> parts -> text, igual que en el manual de gemini
-    private static String extraerTexto(String jsonRespuesta) throws Exception {
+    static String extraerTexto(String jsonRespuesta) throws Exception {
         JsonNode raiz = MAPPER.readTree(jsonRespuesta);
         JsonNode candidatos = raiz.path("candidates");
 
@@ -131,7 +131,7 @@ public class ExtractorIAReserva {
                 .path("text").asText();
     }
 
-    private static String limpiarJson(String texto) {
+    static String limpiarJson(String texto) {
         String limpio = texto.trim();
         if (limpio.startsWith("```")) {
             limpio = limpio.replaceFirst("^```(json)?", "");
@@ -140,7 +140,7 @@ public class ExtractorIAReserva {
         return limpio.trim();
     }
 
-    private static ReservaExtraida construirReservaExtraida(JsonNode datos) {
+    static ReservaExtraida construirReservaExtraida(JsonNode datos) {
         ReservaExtraida r = new ReservaExtraida();
         r.setActividad(datos.path("actividad").asText(""));
 
@@ -171,10 +171,11 @@ public class ExtractorIAReserva {
         return r;
     }
 
-    private static String normalizarHora(String hora) {
+    static String normalizarHora(String hora) {
         String[] partes = hora.split(":");
         String hh = partes[0].length() == 1 ? "0" + partes[0] : partes[0];
         String mm = partes.length > 1 ? partes[1] : "00";
+        if (mm.length() == 1) mm = "0" + mm;
         return hh + ":" + mm;
     }
 }
