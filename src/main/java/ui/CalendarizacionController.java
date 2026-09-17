@@ -1,17 +1,19 @@
 package ui;
 
-import Sistema.DTO.*;
+import Sistema.DTO.CategoriaDTO;
+import Sistema.DTO.RecursoDTO;
+import Sistema.DTO.ReportConfigDTO;
+import Sistema.DTO.ReservaDTO;
 import Sistema.Logica.Exception.ReportExceptionLogica;
+import Sistema.Service.CalendarizacionService;
 import Sistema.Service.CategoriaService;
 import Sistema.Service.RecursoService;
 import Sistema.Service.ReservaService;
-import Sistema.util.HorarioSistema;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
@@ -33,6 +35,7 @@ public class CalendarizacionController {
     private final RecursoService recursoService = new RecursoService();
     private final ReservaService reservaService = new ReservaService();
     private final PdfController pdfController = new PdfController();
+    private final CalendarizacionService calendarizacionRecursosService = new CalendarizacionService();
 
     @FXML
     private void initialize() {
@@ -51,38 +54,11 @@ public class CalendarizacionController {
         }
     }
     private void cargarHorasDelDia() {
-        tvCalendarizacion.getItems().clear();
-        LocalTime hora = LocalTime.MIDNIGHT;
-        int cantidadBloques = (24 * 60) / HorarioSistema.MINUTOS_POR_BLOQUE;
-        for (int bloque = 0; bloque < cantidadBloques; bloque++) {
-            tvCalendarizacion.getItems().add(hora.format(DateTimeFormatter.ofPattern("HH:mm")));
-            hora = hora.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
-        }
+        tvCalendarizacion.getItems().setAll(calendarizacionRecursosService.generarHorasDelDia());
     }
     private String obtenerEstadoRecurso(RecursoDTO recurso, String hora) {
-        LocalTime inicioBloque = LocalTime.parse(hora);
-        if (inicioBloque.isBefore(HorarioSistema.INICIO_SERVICIO)
-                || !inicioBloque.isBefore(HorarioSistema.FIN_SERVICIO)) {
-            return "Fuera de horario";
-        }
-        LocalTime finBloque = inicioBloque.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
-
-        for (ReservaDTO reserva : reservasCargadas) {
-            if (reserva.getEstado() != EstadoReserva.ACTIVA || !fechaCargada.equals(reserva.getFecha())) continue;
-            if (reserva.getHoraInicio() == null || reserva.getHoraFin() == null) continue;
-
-            boolean contieneRecurso = reserva.getRecursosReservados() != null
-                    && reserva.getRecursosReservados().stream()
-                    .anyMatch(reservado -> Objects.equals(reservado.getId(), recurso.getId()));
-
-            boolean ocupaBloque = reserva.getHoraInicio().isBefore(finBloque)
-                    && reserva.getHoraFin().isAfter(inicioBloque);
-
-            if (contieneRecurso && ocupaBloque) {
-                return "Reservado - " + reserva.getNombreActividad() + " - " + reserva.getNombreFuncionario();
-            }
-        }
-        return "Disponible";
+        return calendarizacionRecursosService.obtenerEstadoRecurso(
+                recurso, fechaCargada, hora, reservasCargadas);
     }
     private void aplicarEstiloColumna(TableColumn<String, String> columnaRecurso) {
         columnaRecurso.setCellFactory(columna -> new TableCell<>() {
