@@ -1,17 +1,16 @@
 package ui;
 
-import Sistema.DTO.EstadoReserva;
 import Sistema.DTO.ReportConfigDTO;
 import Sistema.DTO.ReservaDTO;
 import Sistema.Logica.Exception.ReportExceptionLogica;
+import Sistema.Service.ProgramacionActividadesService;
 import Sistema.Service.ReservaService;
-import Sistema.util.HorarioSistema;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.HashMap;
@@ -20,7 +19,6 @@ import java.util.Map;
 import java.util.Objects;
 
 public class ProgramacionActividadesController {
-    private static final DateTimeFormatter FORMATO_HORA = DateTimeFormatter.ofPattern("HH:mm");
     @FXML private DatePicker dpFechaReferencia;
     @FXML private Button btnCargar;
     @FXML private Button btnLimpiar;
@@ -41,6 +39,7 @@ public class ProgramacionActividadesController {
     private final Map<LocalDate, Map<String, String>> actividadesPorFecha = new HashMap<>();
     private final PdfController pdfController = new PdfController();
     private final ReservaService reservaService = new ReservaService();
+    private final ProgramacionActividadesService programacionActividadesService = new ProgramacionActividadesService();
 
     @FXML
     private void initialize() {
@@ -54,45 +53,20 @@ public class ProgramacionActividadesController {
         lblRangoSemana.setText("Semana no seleccionada");
         lblEstado.setText("Seleccione una fecha para cargar la programación semanal.");
     }
-    private void mostrarActividadesEnTabla(List<ReservaDTO> reservaciones) {
-        int cantidadBloques = (24 * 60) / HorarioSistema.MINUTOS_POR_BLOQUE;
-        for (ReservaDTO reserva : reservaciones) {
-            if (reserva.getEstado() != EstadoReserva.ACTIVA
-                    || reserva.getFecha() == null
-                    || reserva.getHoraInicio() == null
-                    || reserva.getHoraFin() == null) {
-                continue;
-            }
-            LocalTime inicioBloque = LocalTime.MIDNIGHT;
-            for (int bloque = 0; bloque < cantidadBloques; bloque++) {
-                LocalTime finBloque = bloque == cantidadBloques - 1
-                        ? LocalTime.MAX
-                        : inicioBloque.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
-
-                boolean ocupaBloque = reserva.getHoraInicio().isBefore(finBloque)
-                        && reserva.getHoraFin().isAfter(inicioBloque);
-
-                if (ocupaBloque) {
-                    registrarActividadEnTabla(
-                            reserva.getFecha(),
-                            inicioBloque.format(FORMATO_HORA),
-                            reserva.getNombreActividad(),
-                            reserva.getNombreFuncionario()
-                    );
-                }
-                inicioBloque = inicioBloque.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
-            }
-        }
+    private void mostrarActividadesEnTabla(
+            List<ReservaDTO> reservaciones
+    ) {
+        actividadesPorFecha.putAll(
+                programacionActividadesService.construirProgramacion(
+                        reservaciones
+                )
+        );
     }
     private void cargarActividadesDesdeJson() {
         List<ReservaDTO> reservaciones = reservaService.buscarPorPeriodo(fechaInicioSemana, fechaFinSemana);
         mostrarActividadesEnTabla(reservaciones);
     }
-    private void registrarActividadEnTabla(LocalDate fecha, String hora, String nombreActividad, String nombreFuncionario) {
-        Map<String, String> actividadesDelDia = actividadesPorFecha.computeIfAbsent(fecha, clave -> new HashMap<>());
-        String textoActividad = nombreActividad + "\n" + nombreFuncionario;
-        actividadesDelDia.merge(hora, textoActividad, (actividadAnterior, actividadNueva) -> actividadAnterior + "\n\n" + actividadNueva);
-    }
+
     private void aplicarEstiloActividad(TableColumn<String, String> columna) {
         columna.setCellFactory(columnaActual -> new TableCell<>() {
             @Override
@@ -185,13 +159,9 @@ public class ProgramacionActividadesController {
         configurarColumnaDia(colDomingo, 6);
     }
     private void cargarHorasDelDia() {
-        tvActividades.getItems().clear();
-        LocalTime hora = LocalTime.MIDNIGHT;
-        int cantidadBloques = (24 * 60) / HorarioSistema.MINUTOS_POR_BLOQUE;
-        for (int bloque = 0; bloque < cantidadBloques; bloque++) {
-            tvActividades.getItems().add(hora.format(FORMATO_HORA));
-            hora = hora.plusMinutes(HorarioSistema.MINUTOS_POR_BLOQUE);
-        }
+        tvActividades.getItems().setAll(
+                programacionActividadesService.generarHorasDelDia()
+        );
     }
     private boolean validarDatosParaPdf() {
         if (tvActividades.getItems().isEmpty() || fechaInicioSemana == null || fechaFinSemana == null) {
