@@ -100,13 +100,26 @@
                   <Font name="System Bold" size="14.0" />
                </font>
             </Label>
-            <BarChart fx:id="barChartRecursos" animated="false" categoryGap="8.0" legendVisible="false" minHeight="160.0" prefHeight="190.0" VBox.vgrow="ALWAYS">
+            <BarChart fx:id="barChartRecursos"
+                      animated="false"
+                      barGap="3.0"
+                      categoryGap="8.0"
+                      legendVisible="false"
+                      minHeight="160.0"
+                      prefHeight="190.0"
+                      VBox.vgrow="ALWAYS">
+
                <xAxis>
-                  <CategoryAxis fx:id="ejeRecurso" side="BOTTOM" />
+                  <NumberAxis fx:id="ejeCantidadRecursos"
+                              label="Cantidad"
+                              side="BOTTOM" />
                </xAxis>
+
                <yAxis>
-                  <NumberAxis fx:id="ejeCantidadRecursos" label="Cantidad" side="LEFT" />
+                  <CategoryAxis fx:id="ejeRecurso"
+                                side="LEFT" />
                </yAxis>
+
             </BarChart>
             <Label fx:id="lblEstadoRecursos" text="Seleccione las fechas para consultar los recursos reservados." textFill="#555555" wrapText="true" />
          </children>

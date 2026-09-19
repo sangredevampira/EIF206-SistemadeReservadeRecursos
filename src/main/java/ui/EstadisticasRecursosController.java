@@ -35,7 +35,7 @@ public class EstadisticasRecursosController {
     @FXML private TableColumn<EstadisticaCategoriaDTO, String> colCategoria;
     @FXML private TableColumn<EstadisticaCategoriaDTO, Integer> colCantidadRecursos;
 
-    @FXML private BarChart<String, Number> barChartRecursos;
+    @FXML private BarChart<Number, String> barChartRecursos;
     @FXML private CategoryAxis ejeRecurso;
     @FXML private NumberAxis ejeCantidadRecursos;
 
@@ -56,9 +56,11 @@ public class EstadisticasRecursosController {
         colCategoria.setCellValueFactory(new PropertyValueFactory<>("categoria"));
         colCantidadRecursos.setCellValueFactory(new PropertyValueFactory<>("cantidad"));
 
-        ejeCantidadRecursos.setAutoRanging(true);
         ejeCantidadRecursos.setForceZeroInRange(true);
-        ejeRecurso.setTickLabelRotation(0);
+        ejeCantidadRecursos.setMinorTickVisible(false);
+
+        barChartRecursos.setBarGap(3);
+        barChartRecursos.setCategoryGap(8);
 
         btnCargarRecursos.setOnAction(evento -> cargarEstadisticas());
         btnGenerarPdfRecursos.setOnAction(evento -> generarPdf());
@@ -90,11 +92,25 @@ public class EstadisticasRecursosController {
     }
 
     private void actualizarGrafico(List<EstadisticaCategoriaDTO> datos) {
-        XYChart.Series<String, Number> serie = new XYChart.Series<>();
+        int cantidadMaxima = datos.stream()
+                .mapToInt(EstadisticaCategoriaDTO::getCantidad)
+                .max()
+                .orElse(0);
+
+        ejeCantidadRecursos.setAutoRanging(false);
+        ejeCantidadRecursos.setLowerBound(0);
+        ejeCantidadRecursos.setUpperBound(Math.max(1, cantidadMaxima + 1));
+        ejeCantidadRecursos.setTickUnit(1);
+        ejeCantidadRecursos.setMinorTickVisible(false);
+
+        XYChart.Series<Number, String> serie = new XYChart.Series<>();
+
         serie.setName("Recursos reservados");
+
         for (EstadisticaCategoriaDTO dato : datos) {
-            serie.getData().add(new XYChart.Data<>(dato.getCategoria(), dato.getCantidad()));
+            serie.getData().add(new XYChart.Data<>(dato.getCantidad(), dato.getCategoria()));
         }
+
         barChartRecursos.getData().setAll(serie);
     }
 
