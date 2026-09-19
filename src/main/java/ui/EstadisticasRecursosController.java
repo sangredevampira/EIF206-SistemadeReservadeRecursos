@@ -85,7 +85,7 @@ public class EstadisticasRecursosController {
         if (datos.isEmpty()) {
             mostrarEstado("No hay recursos reservados en el período seleccionado.", false);
         } else {
-            mostrarEstado("Se encontraron " + datos.size() + " categoría(s) con recursos reservados.", false);
+            mostrarEstado("Estadísticas cargadas correctamente.", false);
         }
     }
 

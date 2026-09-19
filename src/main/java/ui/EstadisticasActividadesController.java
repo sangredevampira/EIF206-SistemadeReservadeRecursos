@@ -13,6 +13,7 @@ import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
+import javafx.scene.paint.Color;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -82,12 +83,12 @@ public class EstadisticasActividadesController {
     }
     private void cargarEstadisticas() {
         if (dpDesdeActividades.getValue() == null || dpHastaActividades.getValue() == null) {
-            lblEstadoActividades.setText("Debe seleccionar la fecha inicial y la fecha final.");
+            mostrarEstado("Debe indicar ambas fechas del período.", true);
             return;
         }
 
         if (dpDesdeActividades.getValue().isAfter(dpHastaActividades.getValue())) {
-            lblEstadoActividades.setText("La fecha inicial no puede ser posterior a la fecha final.");
+            mostrarEstado("La fecha 'desde' no puede ser posterior a la fecha 'hasta'.", true);
             return;
         }
 
@@ -95,7 +96,7 @@ public class EstadisticasActividadesController {
         fechaHastaCargada = dpHastaActividades.getValue();
         try {
             cargarEstadisticasDesdeJson();
-            lblEstadoActividades.setText("Estadísticas cargadas correctamente.");
+            mostrarEstado("Estadísticas cargadas correctamente..", false);
         } catch (RuntimeException excepcion) {
             fechaDesdeCargada = null;
             fechaHastaCargada = null;
@@ -110,11 +111,11 @@ public class EstadisticasActividadesController {
     }
     private boolean validarDatosParaPdf() {
         if (tvEstadisticasActividades.getItems().isEmpty()) {
-            lblEstadoActividades.setText("Debe cargar las estadísticas antes de generar el PDF.");
+            mostrarEstado("Cargue primero las estadísticas antes de generar el PDF.", true);
             return false;
         }
         if (!filtrosCoincidenConConsulta()) {
-            lblEstadoActividades.setText("Las fechas cambiaron. Presione Cargar antes de generar el PDF.");
+            mostrarEstado("Las fechas cambiaron. Presione Cargar antes de generar el PDF.", true);
             return false;
         }
         return true;
@@ -154,4 +155,9 @@ public class EstadisticasActividadesController {
         public String getSemana() { return semana; }
         public int getCantidad() { return cantidad; }
     }
+    private void mostrarEstado(String mensaje, boolean esError) {
+        lblEstadoActividades.setTextFill(esError ? Color.web("#C0392B") : Color.web("#555555"));
+        lblEstadoActividades.setText(mensaje);
+    }
 }
+
