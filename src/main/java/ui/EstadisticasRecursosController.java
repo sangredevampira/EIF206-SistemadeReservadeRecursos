@@ -51,6 +51,15 @@ public class EstadisticasRecursosController {
     // el boton de generar PDF.
     private boolean datosCalculados = false;
 
+    // Fechas con las que se cargaron los datos actualmente mostrados en la
+    // tabla/grafico. Si el usuario cambia las fechas en los DatePicker sin
+    // volver a presionar "Cargar", estas quedan desactualizadas respecto a
+    // lo que hay seleccionado -- eso es lo que generarPdf() valida antes de
+    // usar el grafico/tabla actuales (que de lo contrario corresponderian
+    // al periodo anterior, no al que se ve seleccionado en pantalla).
+    private LocalDate desdeCargado;
+    private LocalDate hastaCargado;
+
     @FXML
     private void initialize() {
         colCategoria.setCellValueFactory(new PropertyValueFactory<>("categoria"));
@@ -74,6 +83,8 @@ public class EstadisticasRecursosController {
 
         if (!resultado.isExitoso()) {
             datosCalculados = false;
+            desdeCargado = null;
+            hastaCargado = null;
             mostrarEstado(resultado.getMensajeError(), true);
             limpiarTablaYGrafico();
             return;
@@ -81,6 +92,8 @@ public class EstadisticasRecursosController {
 
         List<EstadisticaCategoriaDTO> datos = resultado.getDatos();
         datosCalculados = true;
+        desdeCargado = desde;
+        hastaCargado = hasta;
         tvEstadisticasRecursos.setItems(FXCollections.observableArrayList(datos));
         actualizarGrafico(datos);
 
@@ -127,6 +140,11 @@ public class EstadisticasRecursosController {
 
         LocalDate desde = dpDesdeRecursos.getValue();
         LocalDate hasta = dpHastaRecursos.getValue();
+
+        if (!java.util.Objects.equals(desde, desdeCargado) || !java.util.Objects.equals(hasta, hastaCargado)) {
+            mostrarEstado("Las fechas seleccionadas cambiaron. Presione \"Cargar\" antes de generar el PDF.", true);
+            return;
+        }
 
         ReportConfigDTO configuracion = new ReportConfigDTO(
                 "Estadísticas de recursos", "Recursos reservados por categoría", "estadisticas_recursos");
