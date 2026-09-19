@@ -305,15 +305,18 @@ public class ReservasViewController implements Initializable {
         tarea.setOnSucceeded(event -> {
             llenarFormularioConDatosIA(tarea.getValue());
             btnExtraerAI.setDisable(false);
+            establecerCamposFormularioDisponibles(true);
         });
 
         tarea.setOnFailed(event -> {
             btnExtraerAI.setDisable(false);
+            establecerCamposFormularioDisponibles(true);
             mostrarAlerta(AlertType.ERROR, "Error de IA",
                     "No se pudo interpretar la frase: " + tarea.getException().getMessage());
         });
 
         btnExtraerAI.setDisable(true);
+        establecerCamposFormularioDisponibles(false);
         Thread hilo = new Thread(tarea);
         hilo.setDaemon(true);
         hilo.start();
@@ -331,6 +334,18 @@ public class ReservasViewController implements Initializable {
                     .anyMatch(txt -> txt.trim().equalsIgnoreCase(categoria.getDescripcion()));
             if (sugerida) lvCategorias.getSelectionModel().select(categoria);
         }
+    }
+
+    // metodo extra para bloquear los campos del formulario al usar el autocompletado de la IA
+    private void establecerCamposFormularioDisponibles(boolean disponible){
+        txtActividad.setDisable(!disponible);
+        txtActividad.setDisable(!disponible);
+        dpFecha.setDisable(!disponible);
+        cbHoraInicio.setDisable(!disponible);
+        cbHoraFin.setDisable(!disponible);
+        lvCategorias.setDisable(!disponible);
+        btnReservar.setDisable(!disponible);
+        btnLimpiar.setDisable(!disponible);
     }
 
     private LocalTime horaMasCercana(List<LocalTime> opciones, LocalTime horaIA) {
