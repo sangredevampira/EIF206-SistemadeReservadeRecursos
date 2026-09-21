@@ -28,6 +28,10 @@ public class MainController {
     @FXML private Tab tabActividades;
     @FXML private Tab tabEstadisticas;
 
+    // Inyectado automaticamente por JavaFX a partir de fx:id="recursosView"
+    // en el <fx:include> de MainView.fxml (convencion: <fx:id> + "Controller").
+    @FXML private RecursoViewController recursosViewController;
+
     @FXML private Button btnCambiarClave;
     @FXML private Button btnCerrarSesion;
 
@@ -36,6 +40,16 @@ public class MainController {
         mostrarUsuarioActivo();
         ajustarPestanasSegunRol();
         cargarVistaFuncionarios();
+
+        // RecursosView.fxml se carga una sola vez al iniciar sesion (via
+        // fx:include), asi que su combo de categorias queda desactualizado
+        // si se crea una categoria nueva despues. Este listener lo refresca
+        // cada vez que el usuario entra a la pestana de Recursos.
+        tabPanePrincipal.getSelectionModel().selectedItemProperty().addListener((obs, tabAnterior, tabNueva) -> {
+            if (tabNueva == tabRecursos) {
+                recursosViewController.cargarCategorias();
+            }
+        });
 
         btnCambiarClave.setOnAction(this::abrirCambiarClave);
         btnCerrarSesion.setOnAction(this::manejarCerrarSesion);

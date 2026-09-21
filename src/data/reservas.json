@@ -224,4 +224,28 @@
     }
   } ],
   "estado" : "ACTIVA"
+}, {
+  "idReserva" : "RES-000011",
+  "idFuncionario" : "44444",
+  "nombreFuncionario" : "Derek",
+  "nombreActividad" : "reunión de ventas",
+  "fecha" : "2026-09-28",
+  "horaInicio" : "08:00:00",
+  "horaFin" : "10:00:00",
+  "recursosReservados" : [ {
+    "id" : "343433",
+    "descripcion" : "Sala 1 primer piso",
+    "categoria" : {
+      "id" : "CAT-000003",
+      "descripcion" : "Sala para 10 personas"
+    }
+  }, {
+    "id" : "789013",
+    "descripcion" : "Puntero Láser Rojo",
+    "categoria" : {
+      "id" : "CAT-000005",
+      "descripcion" : "Accesorio de presentación"
+    }
+  } ],
+  "estado" : "CANCELADA"
 } ]
