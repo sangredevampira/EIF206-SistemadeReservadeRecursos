@@ -1,9 +1,9 @@
 package ui;
 
-import Sistema.DTO.EstadoReserva;
 import Sistema.DTO.ReportConfigDTO;
 import Sistema.DTO.ReservaDTO;
 import Sistema.Logica.Exception.ReportExceptionLogica;
+import Sistema.Service.EstadisticasActividadesService;
 import Sistema.Service.ReservaService;
 import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -12,19 +12,14 @@ import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
-import javafx.scene.control.Button;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import java.time.DayOfWeek;
+import javafx.scene.control.*;
+import javafx.scene.paint.Color;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 
 public class EstadisticasActividadesController {
     @FXML private DatePicker dpDesdeActividades;
@@ -42,6 +37,7 @@ public class EstadisticasActividadesController {
     private LocalDate fechaHastaCargada;
     private final ReservaService reservaService = new ReservaService();
     private final PdfController pdfController = new PdfController();
+    private final EstadisticasActividadesService estadisticasActividadesService = new EstadisticasActividadesService();
 
     @FXML
     private void initialize() {
@@ -54,22 +50,7 @@ public class EstadisticasActividadesController {
         btnGenerarPdfActividades.setOnAction(evento -> generarPdf());
         lblEstadoActividades.setText("Seleccione las fechas para consultar las actividades programadas.");
     }
-    private Map<LocalDate, Integer> contarActividadesPorSemana(LocalDate fechaDesde, LocalDate fechaHasta, List<LocalDate> fechasActividades) {
-        Map<LocalDate, Integer> conteoSemanal = new TreeMap<>();
-        LocalDate primeraSemana = fechaDesde.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate ultimaSemana = fechaHasta.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate semanaActual = primeraSemana;
-        while (!semanaActual.isAfter(ultimaSemana)) {
-            conteoSemanal.put(semanaActual, 0);
-            semanaActual = semanaActual.plusWeeks(1);
-        }
-        for (LocalDate fechaActividad : fechasActividades) {
-            if (fechaActividad.isBefore(fechaDesde) || fechaActividad.isAfter(fechaHasta)) continue;
-            LocalDate lunesDeLaSemana = fechaActividad.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-            conteoSemanal.computeIfPresent(lunesDeLaSemana, (semana, cantidad) -> cantidad + 1);
-        }
-        return conteoSemanal;
-    }
+
     private void mostrarEstadisticas(Map<LocalDate, Integer> conteoSemanal) {
         tvEstadisticasActividades.getItems().clear();
         barChartActividades.getData().clear();
@@ -89,24 +70,25 @@ public class EstadisticasActividadesController {
         barChartActividades.getData().add(serieActividades);
     }
     private void cargarEstadisticasDesdeJson() {
-        List<LocalDate> fechasActividades = reservaService.buscarPorPeriodo(fechaDesdeCargada, fechaHastaCargada).stream()
-                .filter(reserva -> reserva.getEstado() == EstadoReserva.ACTIVA)
-                .map(ReservaDTO::getFecha)
-                .toList();
+        List<ReservaDTO> reservas =
+                reservaService.buscarPorPeriodo(fechaDesdeCargada, fechaHastaCargada);
 
-        Map<LocalDate, Integer> conteoSemanal = contarActividadesPorSemana(
-                fechaDesdeCargada, fechaHastaCargada, fechasActividades
-        );
+        Map<LocalDate, Integer> conteoSemanal =
+                estadisticasActividadesService.contarActividadesPorSemana(
+                                fechaDesdeCargada,
+                                fechaHastaCargada,
+                                reservas
+                        );
         mostrarEstadisticas(conteoSemanal);
     }
     private void cargarEstadisticas() {
         if (dpDesdeActividades.getValue() == null || dpHastaActividades.getValue() == null) {
-            lblEstadoActividades.setText("Debe seleccionar la fecha inicial y la fecha final.");
+            mostrarEstado("Debe indicar ambas fechas del período.", true);
             return;
         }
 
         if (dpDesdeActividades.getValue().isAfter(dpHastaActividades.getValue())) {
-            lblEstadoActividades.setText("La fecha inicial no puede ser posterior a la fecha final.");
+            mostrarEstado("La fecha 'desde' no puede ser posterior a la fecha 'hasta'.", true);
             return;
         }
 
@@ -114,7 +96,7 @@ public class EstadisticasActividadesController {
         fechaHastaCargada = dpHastaActividades.getValue();
         try {
             cargarEstadisticasDesdeJson();
-            lblEstadoActividades.setText("Estadísticas cargadas correctamente.");
+            mostrarEstado("Estadísticas cargadas correctamente..", false);
         } catch (RuntimeException excepcion) {
             fechaDesdeCargada = null;
             fechaHastaCargada = null;
@@ -129,11 +111,11 @@ public class EstadisticasActividadesController {
     }
     private boolean validarDatosParaPdf() {
         if (tvEstadisticasActividades.getItems().isEmpty()) {
-            lblEstadoActividades.setText("Debe cargar las estadísticas antes de generar el PDF.");
+            mostrarEstado("Cargue primero las estadísticas antes de generar el PDF.", true);
             return false;
         }
         if (!filtrosCoincidenConConsulta()) {
-            lblEstadoActividades.setText("Las fechas cambiaron. Presione Cargar antes de generar el PDF.");
+            mostrarEstado("Las fechas cambiaron. Presione Cargar antes de generar el PDF.", true);
             return false;
         }
         return true;
@@ -173,4 +155,9 @@ public class EstadisticasActividadesController {
         public String getSemana() { return semana; }
         public int getCantidad() { return cantidad; }
     }
+    private void mostrarEstado(String mensaje, boolean esError) {
+        lblEstadoActividades.setTextFill(esError ? Color.web("#C0392B") : Color.web("#555555"));
+        lblEstadoActividades.setText(mensaje);
+    }
 }
+

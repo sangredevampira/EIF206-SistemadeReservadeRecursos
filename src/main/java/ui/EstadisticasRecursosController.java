@@ -35,7 +35,7 @@ public class EstadisticasRecursosController {
     @FXML private TableColumn<EstadisticaCategoriaDTO, String> colCategoria;
     @FXML private TableColumn<EstadisticaCategoriaDTO, Integer> colCantidadRecursos;
 
-    @FXML private BarChart<String, Number> barChartRecursos;
+    @FXML private BarChart<Number, String> barChartRecursos;
     @FXML private CategoryAxis ejeRecurso;
     @FXML private NumberAxis ejeCantidadRecursos;
 
@@ -51,14 +51,25 @@ public class EstadisticasRecursosController {
     // el boton de generar PDF.
     private boolean datosCalculados = false;
 
+    // Fechas con las que se cargaron los datos actualmente mostrados en la
+    // tabla/grafico. Si el usuario cambia las fechas en los DatePicker sin
+    // volver a presionar "Cargar", estas quedan desactualizadas respecto a
+    // lo que hay seleccionado -- eso es lo que generarPdf() valida antes de
+    // usar el grafico/tabla actuales (que de lo contrario corresponderian
+    // al periodo anterior, no al que se ve seleccionado en pantalla).
+    private LocalDate desdeCargado;
+    private LocalDate hastaCargado;
+
     @FXML
     private void initialize() {
         colCategoria.setCellValueFactory(new PropertyValueFactory<>("categoria"));
         colCantidadRecursos.setCellValueFactory(new PropertyValueFactory<>("cantidad"));
 
-        ejeCantidadRecursos.setAutoRanging(true);
         ejeCantidadRecursos.setForceZeroInRange(true);
-        ejeRecurso.setTickLabelRotation(0);
+        ejeCantidadRecursos.setMinorTickVisible(false);
+
+        barChartRecursos.setBarGap(3);
+        barChartRecursos.setCategoryGap(8);
 
         btnCargarRecursos.setOnAction(evento -> cargarEstadisticas());
         btnGenerarPdfRecursos.setOnAction(evento -> generarPdf());
@@ -72,6 +83,8 @@ public class EstadisticasRecursosController {
 
         if (!resultado.isExitoso()) {
             datosCalculados = false;
+            desdeCargado = null;
+            hastaCargado = null;
             mostrarEstado(resultado.getMensajeError(), true);
             limpiarTablaYGrafico();
             return;
@@ -79,22 +92,38 @@ public class EstadisticasRecursosController {
 
         List<EstadisticaCategoriaDTO> datos = resultado.getDatos();
         datosCalculados = true;
+        desdeCargado = desde;
+        hastaCargado = hasta;
         tvEstadisticasRecursos.setItems(FXCollections.observableArrayList(datos));
         actualizarGrafico(datos);
 
         if (datos.isEmpty()) {
             mostrarEstado("No hay recursos reservados en el período seleccionado.", false);
         } else {
-            mostrarEstado("Se encontraron " + datos.size() + " categoría(s) con recursos reservados.", false);
+            mostrarEstado("Estadísticas cargadas correctamente.", false);
         }
     }
 
     private void actualizarGrafico(List<EstadisticaCategoriaDTO> datos) {
-        XYChart.Series<String, Number> serie = new XYChart.Series<>();
+        int cantidadMaxima = datos.stream()
+                .mapToInt(EstadisticaCategoriaDTO::getCantidad)
+                .max()
+                .orElse(0);
+
+        ejeCantidadRecursos.setAutoRanging(false);
+        ejeCantidadRecursos.setLowerBound(0);
+        ejeCantidadRecursos.setUpperBound(Math.max(1, cantidadMaxima + 1));
+        ejeCantidadRecursos.setTickUnit(1);
+        ejeCantidadRecursos.setMinorTickVisible(false);
+
+        XYChart.Series<Number, String> serie = new XYChart.Series<>();
+
         serie.setName("Recursos reservados");
+
         for (EstadisticaCategoriaDTO dato : datos) {
-            serie.getData().add(new XYChart.Data<>(dato.getCategoria(), dato.getCantidad()));
+            serie.getData().add(new XYChart.Data<>(dato.getCantidad(), dato.getCategoria()));
         }
+
         barChartRecursos.getData().setAll(serie);
     }
 
@@ -111,6 +140,11 @@ public class EstadisticasRecursosController {
 
         LocalDate desde = dpDesdeRecursos.getValue();
         LocalDate hasta = dpHastaRecursos.getValue();
+
+        if (!java.util.Objects.equals(desde, desdeCargado) || !java.util.Objects.equals(hasta, hastaCargado)) {
+            mostrarEstado("Las fechas seleccionadas cambiaron. Presione \"Cargar\" antes de generar el PDF.", true);
+            return;
+        }
 
         ReportConfigDTO configuracion = new ReportConfigDTO(
                 "Estadísticas de recursos", "Recursos reservados por categoría", "estadisticas_recursos");
