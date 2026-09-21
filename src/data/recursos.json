@@ -47,4 +47,11 @@
     "id" : "CAT-000002",
     "descripcion" : "Laptop windows"
   }
+}, {
+  "id" : "118554",
+  "descripcion" : "Cubiculo 2005",
+  "categoria" : {
+    "id" : "CAT-000007",
+    "descripcion" : "Cubiculo personal"
+  }
 } ]
