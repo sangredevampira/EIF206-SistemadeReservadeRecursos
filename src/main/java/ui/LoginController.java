@@ -97,10 +97,10 @@ public class LoginController {
 
             Stage escenario = (Stage) ((Node) evento.getSource()).getScene().getWindow();
             escenario.setTitle(titulo);
-            escenario.setScene(new Scene(raiz, 1150, 720));
+            escenario.setScene(new Scene(raiz, 1400, 720));
 
             // Bloquea el cambio de tamaño
-            escenario.setResizable(false);
+            escenario.setResizable(true);
 
             // Muestra y centra exactamente en la pantalla
             escenario.show();

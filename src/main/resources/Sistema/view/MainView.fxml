@@ -143,5 +143,12 @@
                 </Tab>
             </tabs>
         </TabPane>
+
     </center>
+
+    <right>
+        <fx:include fx:id="alertasPanel"
+                    source="AlertasPanelView.fxml"/>
+    </right>
+
 </BorderPane>
