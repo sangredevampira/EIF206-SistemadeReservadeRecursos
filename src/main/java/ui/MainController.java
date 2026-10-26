@@ -1,5 +1,6 @@
 package ui;
 
+import Sistema.DTO.ReservaDTO;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -32,6 +33,8 @@ public class MainController {
     // en el <fx:include> de MainView.fxml (convencion: <fx:id> + "Controller").
     @FXML private RecursoViewController recursosViewController;
 
+    @FXML private AlertasPanelController alertasPanelController;
+
     @FXML private Button btnCambiarClave;
     @FXML private Button btnCerrarSesion;
 
@@ -53,6 +56,12 @@ public class MainController {
 
         btnCambiarClave.setOnAction(this::abrirCambiarClave);
         btnCerrarSesion.setOnAction(this::manejarCerrarSesion);
+    }
+
+    public void recibirAlertaReserva(ReservaDTO reserva) {
+        if (reserva != null && alertasPanelController != null) {
+            alertasPanelController.agregarAlerta(reserva);
+        }
     }
 
     private void cargarVistaFuncionarios() {
