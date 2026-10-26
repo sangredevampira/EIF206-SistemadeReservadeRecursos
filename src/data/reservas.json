@@ -248,4 +248,52 @@
     }
   } ],
   "estado" : "CANCELADA"
+}, {
+  "idReserva" : "RES-000011",
+  "idFuncionario" : "77777",
+  "nombreFuncionario" : "Kristel ",
+  "nombreActividad" : "Revision de proyectos",
+  "fecha" : "2026-09-20",
+  "horaInicio" : "11:30:00",
+  "horaFin" : "12:00:00",
+  "recursosReservados" : [ {
+    "id" : "771980",
+    "descripcion" : "Aula-2005",
+    "categoria" : {
+      "id" : "CAT-000001",
+      "descripcion" : "Sala de estudio"
+    }
+  }, {
+    "id" : "238715",
+    "descripcion" : "Laptop W #238715",
+    "categoria" : {
+      "id" : "CAT-000004",
+      "descripcion" : "Dispositivo electrónico"
+    }
+  }, {
+    "id" : "987654",
+    "descripcion" : "Pizarra Blanca Móvil",
+    "categoria" : {
+      "id" : "CAT-000006",
+      "descripcion" : "Mobiliario de apoyo"
+    }
+  } ],
+  "estado" : "CANCELADA"
+}, {
+  "idReserva" : "RES-000012",
+  "idFuncionario" : "77777",
+  "nombreFuncionario" : "Kristel ",
+  "nombreActividad" : "Reunion finanzas",
+  "fecha" : "2026-09-20",
+  "horaInicio" : "13:00:00",
+  "horaFin" : "13:30:00",
+  "recursosReservados" : [ {
+    "id" : "318911",
+    "descripcion" : "Laptop windows #318911",
+    "categoria" : {
+      "id" : "CAT-000002",
+      "descripcion" : "Laptop windows"
+    }
+  } ],
+  "estado" : "ACTIVA"
 } ]
