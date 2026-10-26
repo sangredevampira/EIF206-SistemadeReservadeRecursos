@@ -90,7 +90,7 @@
                         </ImageView>
                     </graphic>
                     <content>
-                        <fx:include source="RecursosView.fxml" />
+                        <fx:include fx:id="recursosView" source="RecursosView.fxml" />
                     </content>
                 </Tab>
                 <Tab fx:id="tabReservas" text="Reservas">
