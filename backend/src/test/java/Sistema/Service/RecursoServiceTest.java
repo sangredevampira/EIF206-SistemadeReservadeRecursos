@@ -64,6 +64,7 @@ public class RecursoServiceTest {
             if (excepcionARetornar != null) throw excepcionARetornar;
             return valorARetornarEliminar;
         }
+    }
 
         // pruebas
 
@@ -156,5 +157,4 @@ public class RecursoServiceTest {
             assertTrue(service.eliminarRecurso("100002"));
             assertEquals("100002", fake.parametroRecibidoEliminar);
         }
-    }
 }
