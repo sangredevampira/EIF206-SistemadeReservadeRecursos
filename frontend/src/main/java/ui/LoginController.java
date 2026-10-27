@@ -75,6 +75,11 @@ public class LoginController {
             UsuarioLogica.ResultadoLogin resultado = authService.login(id, clave);
 
             if (resultado.isExitoso()) {
+                SessionManager.getInstancia().iniciarSesion(
+                        resultado.getUsuario().getId(),
+                        resultado.getUsuario().getRol().name(),
+                        resultado.getFuncionarioAsociado()
+                );
                 lblMensaje.setText("");
                 abrirVentanaPrincipal(evento);
             } else {

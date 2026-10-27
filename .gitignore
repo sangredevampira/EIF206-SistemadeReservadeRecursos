@@ -41,3 +41,5 @@ out/
 
 # Logs
 *.log
+frontend/src/data/
+.mcp.json
