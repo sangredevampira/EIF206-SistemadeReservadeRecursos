@@ -18,9 +18,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.concurrent.CompletableFuture;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
@@ -457,6 +454,98 @@ class ClienteRedTest {
             cliente.setReceptorAlertas(mensaje -> {});
             cliente.setReceptorErrores(error -> {});
 
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void excepcionEnReceptorDeAlertasNoCierraLaConexion()
+            throws Exception {
+
+        ClienteRed cliente = ClienteRed.getInstancia();
+        ObjectMapper json = new ObjectMapper();
+        CountDownLatch errorNotificado = new CountDownLatch(1);
+        CountDownLatch finalizarServidor = new CountDownLatch(1);
+        AtomicReference<Exception> errorRecibido = new AtomicReference<>();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+
+        try (ServerSocket servidor = new ServerSocket(0)) {
+            Future<?> tareaServidor = executor.submit(() -> {
+                try (Socket conexion = servidor.accept();
+                     BufferedReader entrada = new BufferedReader(
+                             new InputStreamReader(
+                                     conexion.getInputStream(),
+                                     StandardCharsets.UTF_8
+                             )
+                     );
+                     BufferedWriter salida = new BufferedWriter(
+                             new OutputStreamWriter(
+                                     conexion.getOutputStream(),
+                                     StandardCharsets.UTF_8
+                             )
+                     )) {
+                    salida.write(
+                            "{\"tipo\":\"EVENTO\","
+                                    + "\"operacion\":\"RESERVA_CREADA\","
+                                    + "\"datos\":{}}"
+                    );
+                    salida.newLine();
+                    salida.flush();
+
+                    JsonNode solicitud = json.readTree(entrada.readLine());
+                    ObjectNode respuesta = json.createObjectNode();
+                    respuesta.put("tipo", "RESPUESTA");
+                    respuesta.put(
+                            "idSolicitud",
+                            solicitud.path("idSolicitud").asText()
+                    );
+                    respuesta.put("exito", true);
+                    respuesta.put("datos", "OK");
+
+                    salida.write(json.writeValueAsString(respuesta));
+                    salida.newLine();
+                    salida.flush();
+
+                    finalizarServidor.await(5, TimeUnit.SECONDS);
+                }
+                return null;
+            });
+
+            cliente.setReceptorAlertas(mensaje -> {
+                throw new IllegalStateException(
+                        "Error simulado del receptor"
+                );
+            });
+            cliente.setReceptorErrores(error -> {
+                errorRecibido.set(error);
+                errorNotificado.countDown();
+            });
+            cliente.conectar("127.0.0.1", servidor.getLocalPort());
+
+            assertTrue(errorNotificado.await(5, TimeUnit.SECONDS));
+            assertInstanceOf(
+                    IllegalStateException.class,
+                    errorRecibido.get()
+            );
+            assertTrue(cliente.estaConectado());
+
+            String textoRespuesta = cliente.enviarSolicitud(
+                    "CONSULTAR_DESPUES_DE_ALERTA",
+                    json.createObjectNode()
+            ).get(5, TimeUnit.SECONDS);
+            JsonNode respuesta = json.readTree(textoRespuesta);
+
+            assertEquals("OK", respuesta.path("datos").asText());
+            assertTrue(cliente.estaConectado());
+
+            finalizarServidor.countDown();
+            tareaServidor.get(5, TimeUnit.SECONDS);
+        } finally {
+            finalizarServidor.countDown();
+            cliente.cerrar();
+            cliente.setReceptorAlertas(null);
+            cliente.setReceptorMensajes(null);
+            cliente.setReceptorErrores(null);
             executor.shutdownNow();
         }
     }
