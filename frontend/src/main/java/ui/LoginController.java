@@ -1,6 +1,6 @@
 package ui;
 
-import Sistema.Logica.UsuarioLogica;
+import Sistema.DTO.LoginResultadoDTO;
 import Sistema.Service.AuthService;
 import Sistema.util.SessionManager;
 
@@ -72,19 +72,19 @@ public class LoginController {
         String clave = campoClave.getText();
 
         try {
-            UsuarioLogica.ResultadoLogin resultado = authService.login(id, clave);
+            // un login fallido llega como IllegalArgumentException con el mensaje
+            // (igual antes y despues del proxy del paso 6)
+            LoginResultadoDTO resultado = authService.login(id, clave);
 
-            if (resultado.isExitoso()) {
-                SessionManager.getInstancia().iniciarSesion(
-                        resultado.getUsuario().getId(),
-                        resultado.getUsuario().getRol().name(),
-                        resultado.getFuncionarioAsociado()
-                );
-                lblMensaje.setText("");
-                abrirVentanaPrincipal(evento);
-            } else {
-                lblMensaje.setText(resultado.getMensajeError());
-            }
+            SessionManager.getInstancia().iniciarSesion(
+                    resultado.getIdUsuario(),
+                    resultado.getRol().name(),
+                    resultado.getFuncionario()
+            );
+            lblMensaje.setText("");
+            abrirVentanaPrincipal(evento);
+        } catch (IllegalArgumentException e) {
+            lblMensaje.setText(e.getMessage());
         } catch (RuntimeException e) {
             lblMensaje.setText("No se pudo verificar el usuario. Intente de nuevo.");
         }
