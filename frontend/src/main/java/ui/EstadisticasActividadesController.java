@@ -54,6 +54,19 @@ public class EstadisticasActividadesController {
     private void mostrarEstadisticas(Map<LocalDate, Integer> conteoSemanal) {
         tvEstadisticasActividades.getItems().clear();
         barChartActividades.getData().clear();
+
+        int cantidadMaxima = conteoSemanal.values().stream()
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .max()
+                .orElse(0);
+
+        ejeCantidad.setAutoRanging(false);
+        ejeCantidad.setLowerBound(0);
+        ejeCantidad.setUpperBound(Math.max(1, cantidadMaxima + 1));
+        ejeCantidad.setTickUnit(1);
+        ejeCantidad.setMinorTickVisible(false);
+
         DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         DateTimeFormatter formatoGrafico = DateTimeFormatter.ofPattern("dd/MM");
         XYChart.Series<String, Number> serieActividades = new XYChart.Series<>();
@@ -68,6 +81,17 @@ public class EstadisticasActividadesController {
             serieActividades.getData().add(new XYChart.Data<>(textoSemanaGrafico, cantidad));
         }
         barChartActividades.getData().add(serieActividades);
+
+        boolean sinActividades = conteoSemanal.isEmpty()
+                || conteoSemanal.values().stream()
+                .allMatch(cantidad -> cantidad == null || cantidad == 0);
+
+        mostrarEstado(
+                sinActividades
+                        ? "No hay actividades programadas en el período seleccionado."
+                        : "Estadísticas cargadas correctamente.",
+                false
+        );
     }
     private void cargarEstadisticasDesdeJson() {
         List<ReservaDTO> reservas =
@@ -96,13 +120,16 @@ public class EstadisticasActividadesController {
         fechaHastaCargada = dpHastaActividades.getValue();
         try {
             cargarEstadisticasDesdeJson();
-            mostrarEstado("Estadísticas cargadas correctamente..", false);
         } catch (RuntimeException excepcion) {
             fechaDesdeCargada = null;
             fechaHastaCargada = null;
             tvEstadisticasActividades.getItems().clear();
             barChartActividades.getData().clear();
-            lblEstadoActividades.setText("No se pudieron cargar las estadísticas: " + excepcion.getMessage());
+            mostrarEstado(
+                    "No se pudieron cargar las estadísticas: "
+                            + excepcion.getMessage(),
+                    true
+            );
         }
     }
     private boolean filtrosCoincidenConConsulta() {
@@ -160,4 +187,3 @@ public class EstadisticasActividadesController {
         lblEstadoActividades.setText(mensaje);
     }
 }
-

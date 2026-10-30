@@ -2,7 +2,6 @@
 package Sistema.Red;
 
 import javafx.application.Platform;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -16,16 +15,16 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class TareaRedTest {
 
-    private static boolean inicioJavaFX = false;
-
     @BeforeAll
     static void iniciarJavaFX() throws Exception {
 
         CountDownLatch iniciado = new CountDownLatch(1);
 
         try {
-            Platform.startup(iniciado::countDown);
-            inicioJavaFX = true;
+            Platform.startup(() -> {
+                Platform.setImplicitExit(false);
+                iniciado.countDown();
+            });
         } catch (IllegalStateException e) {
             // JavaFX ya estaba inicializado.
             Platform.runLater(iniciado::countDown);
@@ -35,13 +34,6 @@ class TareaRedTest {
                 iniciado.await(10, TimeUnit.SECONDS),
                 "No se pudo iniciar JavaFX."
         );
-    }
-
-    @AfterAll
-    static void cerrarJavaFX() {
-        if (inicioJavaFX) {
-            Platform.exit();
-        }
     }
 
     @Test
