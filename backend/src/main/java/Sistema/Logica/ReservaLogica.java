@@ -17,6 +17,9 @@ public class ReservaLogica {
     private final ReservaDatos reservaDatos;
     private RecursoLogica recursoLogica;
 
+    // lo usan también RecursoLogica y FuncionarioLogica para las bajas
+    static final Object CANDADO_RESERVAS = new Object();
+
     public ReservaLogica() { this.reservaDatos = new ReservaDatos("src/data/reservas.json"); }
 
     // constructor solo para pruebas, permite inyectar ambas dependencias
