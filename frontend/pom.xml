@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>proyecto2</groupId>
+        <artifactId>Sistema_de_Reserva_de_Recursos</artifactId>
+        <version>2.0-SNAPSHOT</version>
+    </parent>
+
+    <!-- Cliente JavaFX: vistas, controllers, proxies, PDF e IA.
+         Al terminar el proyecto NO debe depender de backend ni de JDBC. -->
+    <artifactId>frontend</artifactId>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>proyecto2</groupId>
+            <artifactId>comun</artifactId>
+        </dependency>
+
+        <!-- ===== DEPENDENCIA TEMPORAL DE TRANSICION =====
+             Permite que los controllers sigan usando los Service locales
+             mientras cada integrante los cambia por su proxy.
+             Se ELIMINA antes de la entrega: si al quitarla algo no compila,
+             es que ese controller todavia usa el backend directamente. -->
+        <dependency>
+            <groupId>proyecto2</groupId>
+            <artifactId>backend</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-swing</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>Sistema.Main</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
