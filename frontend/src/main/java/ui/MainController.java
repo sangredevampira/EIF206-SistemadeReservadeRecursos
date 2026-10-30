@@ -15,6 +15,8 @@ import javafx.stage.Stage;
 import javafx.stage.Modality;
 import java.io.IOException;
 import javafx.scene.control.Alert;
+import Sistema.Red.ClienteRed;
+import Sistema.Red.ProcesadorAlertaReserva;
 
 public class MainController {
 
@@ -38,6 +40,8 @@ public class MainController {
     @FXML private Button btnCambiarClave;
     @FXML private Button btnCerrarSesion;
 
+    private final ProcesadorAlertaReserva procesadorAlertas = new ProcesadorAlertaReserva();
+
     @FXML
     private void initialize() {
         mostrarUsuarioActivo();
@@ -56,12 +60,30 @@ public class MainController {
 
         btnCambiarClave.setOnAction(this::abrirCambiarClave);
         btnCerrarSesion.setOnAction(this::manejarCerrarSesion);
+        configurarAlertasRed();
     }
 
     public void recibirAlertaReserva(ReservaDTO reserva) {
         if (reserva != null && alertasPanelController != null) {
             alertasPanelController.agregarAlerta(reserva);
         }
+    }
+
+    private void configurarAlertasRed() {
+
+        ClienteRed.getInstancia().setReceptorAlertas(mensaje -> {
+
+            try {
+                procesadorAlertas.procesar(mensaje)
+                        .ifPresent(this::recibirAlertaReserva);
+
+            } catch (IOException e) {
+                System.err.println(
+                        "Error al procesar notificación: "
+                                + e.getMessage()
+                );
+            }
+        });
     }
 
     private void cargarVistaFuncionarios() {
@@ -107,6 +129,7 @@ public class MainController {
 
     private void manejarCerrarSesion(javafx.event.ActionEvent evento) {
         SessionManager.getInstancia().cerrarSesion();
+        ClienteRed.getInstancia().setReceptorAlertas(null);
 
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sistema/view/LoginView.fxml"));
