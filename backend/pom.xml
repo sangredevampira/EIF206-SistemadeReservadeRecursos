@@ -25,4 +25,32 @@
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
     </dependencies>
+
+    <!-- Las pruebas nunca tocan reservas_db: ConexionBD lee la propiedad
+         servidor.config y usa servidor-test.properties (base reservas_test).
+         Surefire tambien, como proteccion: una prueba de unidad no deberia
+         usar MySQL, pero si lo hiciera por error, iria a reservas_test.
+         La version de los plugins se hereda del pom.xml raiz. -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <servidor.config>${project.basedir}/servidor-test.properties</servidor.config>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <servidor.config>${project.basedir}/servidor-test.properties</servidor.config>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

@@ -43,3 +43,9 @@ out/
 *.log
 frontend/src/data/
 .mcp.json
+
+# Configuracion local con contrasenas o datos de cada maquina (decision 15).
+# Solo se suben los .example.
+backend/servidor.properties
+backend/servidor-test.properties
+frontend/config.properties
