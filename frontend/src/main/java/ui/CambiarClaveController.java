@@ -1,6 +1,6 @@
 package ui;
 
-import Sistema.Logica.UsuarioLogica;
+import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.Service.AuthService;
 import Sistema.util.SessionManager;
 
@@ -50,13 +50,13 @@ public class CambiarClaveController {
         String confirmacion = campoClaveNuevaConfirmacion.getText();
 
         try {
-            UsuarioLogica.ResultadoCambioClave resultado =
+            ResultadoOperacionDTO resultado =
                     authService.cambiarClave(id, claveActual, claveNueva, confirmacion);
 
-            if (resultado.isExitoso()) {
+            if (resultado.isExito()) {
                 cerrarVentana(evento);
             } else {
-                lblMensaje.setText(resultado.getMensajeError());
+                lblMensaje.setText(resultado.getMensaje());
             }
         } catch (RuntimeException e) {
             lblMensaje.setText("No se pudo actualizar la clave. Intente de nuevo.");

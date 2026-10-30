@@ -4,18 +4,19 @@ import Sistema.DTO.Funcionario;
 import Sistema.DTO.Rol;
 import Sistema.DTO.Usuario;
 import Sistema.Datos.FuncionarioDatos;
-import Sistema.Datos.UsuarioDatos;
+import Sistema.Datos.UsuarioJsonDatos;
 
 import java.util.List;
 
 // Capa Logica: reglas de negocio de Funcionarios. Coordina FuncionarioDatos
-// y UsuarioDatos porque el enunciado exige que registrar un funcionario
+// y UsuarioJsonDatos porque el enunciado exige que registrar un funcionario
 // cree automaticamente su usuario asociado (clave = id, rol = FUNCIONARIO).
+// TEMPORAL: sigue con los JSON hasta el paso 5 (el login ya usa MySQL).
 
 public class FuncionarioLogica {
 
     private final FuncionarioDatos funcionarioDatos = new FuncionarioDatos();
-    private final UsuarioDatos usuarioDatos = new UsuarioDatos();
+    private final UsuarioJsonDatos usuarioDatos = new UsuarioJsonDatos();
 
     // Dependencia directa a ReservaLogica (no a ReservaDatos): a diferencia
     // del caso de CategoriaLogica->RecursoDatos, aca sí conviene pasar por
