@@ -211,6 +211,11 @@ public class AlertasPanelController {
     }
 
     public void limpiarAlertas() {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(this::limpiarAlertas);
+            return;
+        }
+
         alertas.clear();
     }
 }

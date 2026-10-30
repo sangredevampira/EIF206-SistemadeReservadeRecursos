@@ -126,6 +126,36 @@ class EstadisticasRecursosProxyTest {
         assertTrue(error.getMessage().contains("lista válida"));
     }
 
+    @Test
+    void rechazaCamposYCantidadesInvalidas() throws Exception {
+        verificarFilaInvalida(
+                JSON.createObjectNode().put("cantidad", 2)
+        );
+        verificarFilaInvalida(
+                JSON.createObjectNode().put("categoria", "Laboratorio")
+        );
+        verificarFilaInvalida(
+                JSON.createObjectNode()
+                        .put("categoria", "Laboratorio")
+                        .putNull("cantidad")
+        );
+        verificarFilaInvalida(
+                JSON.createObjectNode()
+                        .put("categoria", "Laboratorio")
+                        .put("cantidad", -1)
+        );
+        verificarFilaInvalida(
+                JSON.createObjectNode()
+                        .put("categoria", "Laboratorio")
+                        .put("cantidad", 1.5)
+        );
+        verificarFilaInvalida(
+                JSON.createObjectNode()
+                        .put("categoria", "Laboratorio")
+                        .put("cantidad", "2")
+        );
+    }
+
     private List<EstadisticaCategoriaDTO> consultarConRespuesta(
             JsonNode datos
     ) throws Exception {
@@ -147,6 +177,23 @@ class EstadisticasRecursosProxyTest {
                 .put("categoria", "Laboratorio")
                 .put("cantidad", 2);
         return datos;
+    }
+
+    private void verificarFilaInvalida(ObjectNode fila) throws Exception {
+        ArrayNode datos = JSON.createArrayNode().add(fila);
+
+        IllegalStateException error = probarConServidor(
+                solicitud -> respuestaExitosa(solicitud, datos),
+                () -> assertThrows(
+                        IllegalStateException.class,
+                        () -> new EstadisticasRecursosProxy().consultar(
+                                LocalDate.of(2026, 3, 1),
+                                LocalDate.of(2026, 3, 31)
+                        )
+                )
+        );
+
+        assertTrue(error.getMessage().contains("estadística de recursos inválida"));
     }
 
     private ObjectNode respuestaExitosa(

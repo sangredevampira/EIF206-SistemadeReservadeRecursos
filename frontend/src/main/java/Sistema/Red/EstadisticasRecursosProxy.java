@@ -38,17 +38,19 @@ public class EstadisticasRecursosProxy extends ProxyBase {
             );
         }
 
+        for (JsonNode estadistica : resultado) {
+            if (esEstadisticaInvalida(estadistica)) {
+                throw new IllegalStateException(
+                        "El servidor devolvió una estadística de recursos inválida."
+                );
+            }
+        }
+
         try {
             List<EstadisticaCategoriaDTO> estadisticas = json.convertValue(
                     resultado,
                     new TypeReference<List<EstadisticaCategoriaDTO>>() { }
             );
-
-            if (estadisticas.stream().anyMatch(this::esEstadisticaInvalida)) {
-                throw new IllegalStateException(
-                        "El servidor devolvió una estadística de recursos inválida."
-                );
-            }
 
             return List.copyOf(estadisticas);
         } catch (IllegalArgumentException e) {
@@ -59,11 +61,21 @@ public class EstadisticasRecursosProxy extends ProxyBase {
         }
     }
 
-    private boolean esEstadisticaInvalida(EstadisticaCategoriaDTO estadistica) {
-        return estadistica == null
-                || estadistica.getCategoria() == null
-                || estadistica.getCategoria().isBlank()
-                || estadistica.getCantidad() < 0;
+    private boolean esEstadisticaInvalida(JsonNode estadistica) {
+        if (estadistica == null || !estadistica.isObject()) {
+            return true;
+        }
+
+        JsonNode categoria = estadistica.get("categoria");
+        JsonNode cantidad = estadistica.get("cantidad");
+
+        return categoria == null
+                || !categoria.isTextual()
+                || categoria.asText().isBlank()
+                || cantidad == null
+                || !cantidad.isIntegralNumber()
+                || !cantidad.canConvertToInt()
+                || cantidad.intValue() < 0;
     }
 
     private void validarPeriodo(LocalDate desde, LocalDate hasta) {

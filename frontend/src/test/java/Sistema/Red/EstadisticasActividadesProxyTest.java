@@ -125,7 +125,7 @@ class EstadisticasActividadesProxyTest {
     @Test
     void rechazaDatosInesperados() throws Exception {
         ObjectNode datos = JSON.createObjectNode();
-        datos.put("semana-invalida", "tres");
+        datos.put("2026-04-06", "tres");
 
         IllegalStateException error = probarConServidor(
                 solicitud -> respuestaExitosa(solicitud, datos),
@@ -141,6 +141,32 @@ class EstadisticasActividadesProxyTest {
         assertTrue(error.getMessage().contains("cantidad semanal inválida"));
     }
 
+    @Test
+    void rechazaCantidadesNulasNegativasODecimales() throws Exception {
+        verificarCantidadInvalida(JSON.nullNode());
+        verificarCantidadInvalida(JSON.getNodeFactory().numberNode(-1));
+        verificarCantidadInvalida(JSON.getNodeFactory().numberNode(1.5));
+    }
+
+    @Test
+    void rechazaFechaSemanalInvalida() throws Exception {
+        ObjectNode datos = JSON.createObjectNode();
+        datos.put("semana-invalida", 3);
+
+        IllegalStateException error = probarConServidor(
+                solicitud -> respuestaExitosa(solicitud, datos),
+                () -> assertThrows(
+                        IllegalStateException.class,
+                        () -> new EstadisticasActividadesProxy().consultar(
+                                LocalDate.of(2026, 4, 1),
+                                LocalDate.of(2026, 4, 30)
+                        )
+                )
+        );
+
+        assertTrue(error.getMessage().contains("fecha semanal inválida"));
+    }
+
     private Map<LocalDate, Integer> consultarConRespuesta(
             JsonNode datos
     ) throws Exception {
@@ -151,6 +177,25 @@ class EstadisticasActividadesProxyTest {
                         LocalDate.of(2026, 4, 30)
                 )
         );
+    }
+
+    private void verificarCantidadInvalida(JsonNode cantidad)
+            throws Exception {
+        ObjectNode datos = JSON.createObjectNode();
+        datos.set("2026-04-06", cantidad);
+
+        IllegalStateException error = probarConServidor(
+                solicitud -> respuestaExitosa(solicitud, datos),
+                () -> assertThrows(
+                        IllegalStateException.class,
+                        () -> new EstadisticasActividadesProxy().consultar(
+                                LocalDate.of(2026, 4, 1),
+                                LocalDate.of(2026, 4, 30)
+                        )
+                )
+        );
+
+        assertTrue(error.getMessage().contains("cantidad semanal inválida"));
     }
 
     private ObjectNode respuestaExitosa(
