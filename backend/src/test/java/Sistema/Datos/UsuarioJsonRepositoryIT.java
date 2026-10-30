@@ -14,11 +14,11 @@ import java.nio.file.Paths;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Prueba de integracion: verifica que UsuarioDatos efectivamente lee y
- * escribe src/data/usuarios.json en disco (a diferencia de AuthServiceTest,
- * que prueba reglas de negocio; aqui se prueba la persistencia en si).
+ * Prueba de integracion: verifica que UsuarioJsonDatos efectivamente lee y
+ * escribe src/data/usuarios.json en disco (aqui se prueba la persistencia
+ * en si). Se borra en el paso 5, junto con UsuarioJsonDatos.
  *
- * Cada metodo crea una instancia NUEVA de UsuarioDatos despues de guardar,
+ * Cada metodo crea una instancia NUEVA de UsuarioJsonDatos despues de guardar,
  * para forzar una lectura real del archivo y no de un objeto en memoria.
  */
 class UsuarioJsonRepositoryIT {
@@ -45,9 +45,9 @@ class UsuarioJsonRepositoryIT {
     void guardarPersisteElUsuarioYSePuedeLeerConUnaInstanciaNueva() throws IOException {
         Files.writeString(RUTA_USUARIOS, "[]");
 
-        new UsuarioDatos().guardar(new Usuario("user_it1", "clave1", Rol.FUNCIONARIO));
+        new UsuarioJsonDatos().guardar(new Usuario("user_it1", "clave1", Rol.FUNCIONARIO));
 
-        Usuario leido = new UsuarioDatos().buscarPorId("user_it1");
+        Usuario leido = new UsuarioJsonDatos().buscarPorId("user_it1");
         assertNotNull(leido);
         assertEquals("clave1", leido.getClave());
         assertEquals(Rol.FUNCIONARIO, leido.getRol());
@@ -57,7 +57,7 @@ class UsuarioJsonRepositoryIT {
     void buscarPorIdDevuelveNullSiNoExisteEnElArchivo() throws IOException {
         Files.writeString(RUTA_USUARIOS, "[]");
 
-        assertNull(new UsuarioDatos().buscarPorId("noExiste"));
+        assertNull(new UsuarioJsonDatos().buscarPorId("noExiste"));
     }
 
     @Test
@@ -66,9 +66,9 @@ class UsuarioJsonRepositoryIT {
                 [{"id":"user_it2","clave":"vieja","rol":"ADMINISTRADOR"}]
                 """);
 
-        new UsuarioDatos().actualizarClave("user_it2", "nueva");
+        new UsuarioJsonDatos().actualizarClave("user_it2", "nueva");
 
-        Usuario leido = new UsuarioDatos().buscarPorId("user_it2");
+        Usuario leido = new UsuarioJsonDatos().buscarPorId("user_it2");
         assertEquals("nueva", leido.getClave());
     }
 
@@ -78,16 +78,16 @@ class UsuarioJsonRepositoryIT {
                 [{"id":"user_it3","clave":"clave3","rol":"FUNCIONARIO"}]
                 """);
 
-        new UsuarioDatos().eliminar("user_it3");
+        new UsuarioJsonDatos().eliminar("user_it3");
 
-        assertNull(new UsuarioDatos().buscarPorId("user_it3"));
+        assertNull(new UsuarioJsonDatos().buscarPorId("user_it3"));
     }
 
     @Test
     void siElArchivoNoExisteSeCreaConElAdministradorInicial() throws IOException {
         Files.deleteIfExists(RUTA_USUARIOS);
 
-        Usuario admin = new UsuarioDatos().buscarPorId("admin");
+        Usuario admin = new UsuarioJsonDatos().buscarPorId("admin");
 
         assertNotNull(admin);
         assertEquals("admin", admin.getClave());

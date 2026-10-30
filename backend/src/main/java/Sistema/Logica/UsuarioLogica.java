@@ -1,125 +1,114 @@
 package Sistema.Logica;
 
 import Sistema.DTO.Funcionario;
+import Sistema.DTO.LoginResultadoDTO;
+import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.DTO.Rol;
-import Sistema.DTO.Usuario;
-import Sistema.Datos.FuncionarioDatos;
 import Sistema.Datos.UsuarioDatos;
+import Sistema.Datos.UsuarioRegistro;
 
+/**
+ * Reglas del login y del cambio de clave (claves con HashClave).
+ *
+ * Mensajes: "no existe" y "clave incorrecta" dan el MISMO mensaje, para no
+ * revelar que IDs existen. Si el usuario no existe igual se calcula un hash
+ * (contra HASH_FICTICIO), para que la respuesta tarde lo mismo. "Inactivo"
+ * tiene mensaje propio, pero solo despues de verificar la clave: solo lo ve
+ * el dueno de la cuenta.
+ */
 public class UsuarioLogica {
 
-    private final UsuarioDatos usuarioDatos = new UsuarioDatos();
-    private final FuncionarioDatos funcionarioDatos = new FuncionarioDatos();
+    static final String MENSAJE_CREDENCIALES = "ID o clave incorrectos.";
+    static final String MENSAJE_CREDENCIALES_CAMBIO = "ID o clave actual incorrectos.";
+    static final String MENSAJE_INACTIVO = "Su usuario está inactivo. Contacte al administrador.";
 
-    public ResultadoLogin iniciarSesion(String id, String clave) {
+    // mismas iteraciones que un hash real, para que verificarlo tarde lo mismo
+    private static final String HASH_FICTICIO = HashClave.generar("clave-ficticia-para-igualar-el-tiempo");
 
-        if (id == null || id.isBlank()) {
-            return ResultadoLogin.fallo("El ID no puede estar vacio.");
-        }
-        if (clave == null || clave.isBlank()) {
-            return ResultadoLogin.fallo("La clave no puede estar vacia.");
-        }
+    private final UsuarioDatos usuarioDatos;
 
-        Usuario usuario = usuarioDatos.buscarPorId(id);
+    public UsuarioLogica() {
+        this(new UsuarioDatos());
+    }
 
-        if (usuario == null) {
-            return ResultadoLogin.fallo("El usuario ingresado no existe.");
-        }
-
-        if (!usuario.getClave().equals(clave)) {
-            return ResultadoLogin.fallo("La clave ingresada es incorrecta.");
-        }
-
-        if (usuario.getRol() == null) {
-            return ResultadoLogin.fallo("El usuario no tiene un rol asignado. Contacte al administrador.");
-        }
-
-        Funcionario funcionarioAsociado = null;
-        if (usuario.getRol() == Rol.FUNCIONARIO) {
-            funcionarioAsociado = funcionarioDatos.buscarPorId(usuario.getId());
-        }
-
-        return ResultadoLogin.exito(usuario, funcionarioAsociado);
+    // para las pruebas: permite usar un UsuarioDatos falso sin MySQL
+    public UsuarioLogica(UsuarioDatos usuarioDatos) {
+        this.usuarioDatos = usuarioDatos;
     }
 
     /**
-     * Valida y aplica un cambio de clave. Reglas del plan detallado (2.4):
-     * la clave actual debe coincidir con la real, la nueva no puede estar
-     * vacia, y las dos confirmaciones de la nueva clave deben ser iguales.
+     * Devuelve los datos de la sesion o lanza IllegalArgumentException con un
+     * mensaje legible. Nunca devuelve la clave ni el hash. El ID devuelto es
+     * el que esta guardado en la base, no el que escribio el usuario.
      */
-    public ResultadoCambioClave cambiarClave(String id, String claveActual, String claveNueva, String claveNuevaConfirmacion) {
-
-        Usuario usuario = usuarioDatos.buscarPorId(id);
-
-        if (usuario == null) {
-            return ResultadoCambioClave.fallo("El usuario no existe.");
+    public LoginResultadoDTO iniciarSesion(String id, String clave) {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("Debe ingresar el ID.");
+        }
+        if (clave == null || clave.isBlank()) {
+            throw new IllegalArgumentException("Debe ingresar la clave.");
         }
 
+        UsuarioRegistro usuario = usuarioDatos.buscarPorId(id.trim());
+        if (!claveCorrecta(usuario, clave)) {
+            throw new IllegalArgumentException(MENSAJE_CREDENCIALES);
+        }
+        if (!usuario.activo()) {
+            throw new IllegalArgumentException(MENSAJE_INACTIVO);
+        }
+
+        Funcionario funcionario = null;   // el administrador no tiene funcionario
+        if (usuario.rol() == Rol.FUNCIONARIO) {
+            funcionario = usuarioDatos.buscarFuncionarioAsociado(usuario.id());
+            if (funcionario == null) {
+                throw new IllegalArgumentException(
+                        "El usuario no tiene datos de funcionario. Contacte al administrador.");
+            }
+        }
+        return new LoginResultadoDTO(usuario.id(), usuario.rol(), funcionario);
+    }
+
+    /**
+     * Reglas: la clave actual debe coincidir, la nueva no puede estar vacia y
+     * las dos confirmaciones deben ser iguales. Se permite sin sesion (desde
+     * la pantalla de login) porque se valida la clave actual.
+     */
+    public ResultadoOperacionDTO cambiarClave(String id, String claveActual, String claveNueva, String claveNuevaConfirmacion) {
+        // primero lo que no necesita la base
+        if (id == null || id.isBlank()) {
+            return ResultadoOperacionDTO.fallo("Debe indicar el usuario.");
+        }
         if (claveActual == null || claveActual.isBlank()) {
-            return ResultadoCambioClave.fallo("Debe ingresar la clave actual.");
+            return ResultadoOperacionDTO.fallo("Debe ingresar la clave actual.");
         }
-
-        if (!usuario.getClave().equals(claveActual)) {
-            return ResultadoCambioClave.fallo("La clave actual es incorrecta.");
-        }
-
         if (claveNueva == null || claveNueva.isBlank()) {
-            return ResultadoCambioClave.fallo("La clave nueva no puede estar vacia.");
+            return ResultadoOperacionDTO.fallo("La clave nueva no puede estar vacía.");
         }
-
         if (!claveNueva.equals(claveNuevaConfirmacion)) {
-            return ResultadoCambioClave.fallo("Las dos claves nuevas no coinciden.");
+            return ResultadoOperacionDTO.fallo("Las dos claves nuevas no coinciden.");
         }
 
-        usuarioDatos.actualizarClave(id, claveNueva);
-        return ResultadoCambioClave.exito();
+        UsuarioRegistro usuario = usuarioDatos.buscarPorId(id.trim());
+        if (!claveCorrecta(usuario, claveActual)) {
+            return ResultadoOperacionDTO.fallo(MENSAJE_CREDENCIALES_CAMBIO);
+        }
+        if (!usuario.activo()) {
+            return ResultadoOperacionDTO.fallo(MENSAJE_INACTIVO);
+        }
+
+        if (!usuarioDatos.actualizarClaveHash(usuario.id(), HashClave.generar(claveNueva))) {
+            return ResultadoOperacionDTO.fallo("No se pudo actualizar la clave. Intente de nuevo.");
+        }
+        return ResultadoOperacionDTO.exito();
     }
 
-    public static class ResultadoCambioClave {
-        private final boolean exitoso;
-        private final String mensajeError;
-
-        private ResultadoCambioClave(boolean exitoso, String mensajeError) {
-            this.exitoso = exitoso;
-            this.mensajeError = mensajeError;
+    // si el usuario no existe se verifica contra HASH_FICTICIO: tarda lo mismo
+    // que una clave incorrecta y asi el tiempo no revela que IDs existen
+    private static boolean claveCorrecta(UsuarioRegistro usuario, String clave) {
+        if (usuario == null) {
+            HashClave.verificar(clave, HASH_FICTICIO);
+            return false;
         }
-
-        public static ResultadoCambioClave exito() {
-            return new ResultadoCambioClave(true, null);
-        }
-
-        public static ResultadoCambioClave fallo(String mensajeError) {
-            return new ResultadoCambioClave(false, mensajeError);
-        }
-
-        public boolean isExitoso() { return exitoso; }
-        public String getMensajeError() { return mensajeError; }
-    }
-
-    public static class ResultadoLogin {
-        private final boolean exitoso;
-        private final Usuario usuario;
-        private final Funcionario funcionarioAsociado;
-        private final String mensajeError;
-
-        private ResultadoLogin(boolean exitoso, Usuario usuario, Funcionario funcionarioAsociado, String mensajeError) {
-            this.exitoso = exitoso;
-            this.usuario = usuario;
-            this.funcionarioAsociado = funcionarioAsociado;
-            this.mensajeError = mensajeError;
-        }
-
-        public static ResultadoLogin exito(Usuario usuario, Funcionario funcionarioAsociado) {
-            return new ResultadoLogin(true, usuario, funcionarioAsociado, null);
-        }
-
-        public static ResultadoLogin fallo(String mensajeError) {
-            return new ResultadoLogin(false, null, null, mensajeError);
-        }
-
-        public boolean isExitoso() { return exitoso; }
-        public Usuario getUsuario() { return usuario; }
-        public Funcionario getFuncionarioAsociado() { return funcionarioAsociado; }
-        public String getMensajeError() { return mensajeError; }
+        return HashClave.verificar(clave, usuario.claveHash());
     }
 }

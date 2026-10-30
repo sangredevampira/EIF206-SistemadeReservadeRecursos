@@ -1,0 +1,9 @@
+# Configuracion del Backend (base reservas_db).
+# Copiar como servidor.properties (en esta misma carpeta, backend/) y
+# completar bd.usuario y bd.clave. servidor.properties NO se sube a Git.
+# Si la clave tiene una barra invertida (\), escribirla doble (\\).
+
+puerto=5050
+bd.url=jdbc:mysql://localhost:3306/reservas_db?characterEncoding=UTF-8&connectTimeout=5000
+bd.usuario=root
+bd.clave=ESCRIBA_AQUI_SU_CLAVE
