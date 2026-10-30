@@ -1,6 +1,9 @@
 package Sistema.Service;
 
 import Sistema.DTO.CategoriaDTO;
+import Sistema.Datos.RecursoDatos;
+import Sistema.Datos.UsuarioDatos;
+import Sistema.Logica.CategoriaLogica;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,29 +13,41 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Pruebas unitarias de CategoriaService (que es un passthrough puro hacia
- * CategoriaLogica). Igual que en AuthServiceTest: se respaldan y restauran
- * categorias.json y recursos.json en cada prueba para no depender ni
- * corromper los datos reales.
+ * CategoriaLogica). Las categorias siguen en JSON hasta el paso 5b: se
+ * respalda y restaura categorias.json en cada prueba. La revision de
+ * "tiene recursos" ya es de MySQL, asi que se reemplaza por un RecursoDatos
+ * falso (la consulta real se prueba en RecursoDatosIT).
  */
 class CategoriaServiceTest {
 
     private static final Path RUTA_CATEGORIAS = Paths.get("src/data/categorias.json");
-    private static final Path RUTA_RECURSOS = Paths.get("src/data/recursos.json");
+
+    // RecursoDatos falso: responde desde un conjunto en memoria, sin MySQL
+    static class RecursoDatosFake extends RecursoDatos {
+        Set<String> categoriasConRecursos = Set.of("CAT-000003");
+        boolean baseCaida = false;
+
+        @Override
+        public boolean categoriaTieneRecursos(String idCategoria) {
+            if (baseCaida) throw new IllegalStateException(UsuarioDatos.MENSAJE_ERROR_BD);
+            return categoriasConRecursos.contains(idCategoria);
+        }
+    }
 
     private String backupCategorias;
-    private String backupRecursos;
 
+    private RecursoDatosFake recursoDatos;
     private CategoriaService categoriaService;
 
     @BeforeEach
     void prepararDatosDePrueba() throws IOException {
         backupCategorias = leerSiExiste(RUTA_CATEGORIAS);
-        backupRecursos = leerSiExiste(RUTA_RECURSOS);
 
         Files.writeString(RUTA_CATEGORIAS, """
                 [
@@ -41,20 +56,13 @@ class CategoriaServiceTest {
                 ]
                 """);
 
-        Files.writeString(RUTA_RECURSOS, """
-                [
-                  {"id":"REC-0001","descripcion":"Laptop #238715",
-                   "categoria":{"id":"CAT-000003","descripcion":"Laptop windows 11"}}
-                ]
-                """);
-
-        categoriaService = new CategoriaService();
+        recursoDatos = new RecursoDatosFake();
+        categoriaService = new CategoriaService(new CategoriaLogica(recursoDatos));
     }
 
     @AfterEach
     void restaurarDatosOriginales() throws IOException {
         restaurar(RUTA_CATEGORIAS, backupCategorias);
-        restaurar(RUTA_RECURSOS, backupRecursos);
     }
 
     private String leerSiExiste(Path ruta) throws IOException {
@@ -108,8 +116,20 @@ class CategoriaServiceTest {
         var resultado = categoriaService.eliminar("CAT-000003");
 
         assertFalse(resultado.isExitoso());
-        assertEquals("No se puede eliminar la categoria porque tiene recursos asociados.",
+        assertEquals("No se puede eliminar la categoria porque tiene recursos asociados"
+                        + " (tambien cuentan los recursos dados de baja).",
                 resultado.getMensajeError());
+    }
+
+    @Test
+    void eliminarConLaBaseCaidaDevuelveFalloConMensajeGenericoYNoBorra() {
+        recursoDatos.baseCaida = true;
+
+        var resultado = categoriaService.eliminar("CAT-000001");
+
+        assertFalse(resultado.isExitoso());
+        assertEquals(UsuarioDatos.MENSAJE_ERROR_BD, resultado.getMensajeError());
+        assertTrue(categoriaService.listarTodos().stream().anyMatch(c -> c.getId().equals("CAT-000001")));
     }
 
     @Test

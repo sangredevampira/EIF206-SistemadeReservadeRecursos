@@ -1,9 +1,9 @@
 package Sistema.Logica;
 
 import Sistema.DTO.CategoriaDTO;
-import Sistema.DTO.RecursoDTO;
 import Sistema.Datos.CategoriaDatos;
 import Sistema.Datos.RecursoDatos;
+import Sistema.Datos.UsuarioDatos;
 
 import java.util.List;
 
@@ -14,9 +14,14 @@ public class CategoriaLogica {
     // Dependencia directa a RecursoDatos (no a RecursoLogica ni
     // RecursoService): es el mismo patron que ya usa FuncionarioLogica
     // para revisar UsuarioDatos al eliminar. Solo se necesita LEER
-    // (filtrarPorCategoria), no hace falta pasar por las otras capas de
-    // Recursos para esa consulta puntual.
-    private final RecursoDatos recursoDatos = new RecursoDatos("src/data/recursos.json");
+    // (categoriaTieneRecursos, en MySQL), no hace falta pasar por las otras
+    // capas de Recursos para esa consulta puntual.
+    private final RecursoDatos recursoDatos;
+
+    public CategoriaLogica() { this(new RecursoDatos()); }
+
+    // para pruebas: CategoriaServiceTest pasa un RecursoDatos falso (sin MySQL)
+    public CategoriaLogica(RecursoDatos recursoDatos) { this.recursoDatos = recursoDatos; }
 
     public ResultadoOperacion registrar(CategoriaDTO categoria) {
         String descripcion = categoria.getDescripcion();
@@ -53,18 +58,26 @@ public class CategoriaLogica {
     /**
      * Regla del enunciado (funcionalidad 4) y del plan detallado (2.6):
      * "Impedir la eliminacion de una categoria que contenga recursos."
-     * Se apoya en el metodo que ya existia en RecursoDatos
-     * (filtrarPorCategoria), sin tocar nada del modulo de Kris.
+     * La revision se hace en MySQL y cuenta tambien los recursos inactivos,
+     * porque la FK RESTRICT de recurso los incluye (decision 3 del equipo).
+     * Las categorias siguen en JSON hasta el paso 5b.
      */
     public ResultadoOperacion eliminar(String id) {
         if (categoriaDatos.buscarPorId(id) == null) {
             return ResultadoOperacion.fallo("La categoria no existe.");
         }
 
-        List<RecursoDTO> recursosDeEstaCategoria = recursoDatos.filtrarRecursos(id);
-        if (!recursosDeEstaCategoria.isEmpty()) {
+        boolean tieneRecursos;
+        try {
+            tieneRecursos = recursoDatos.categoriaTieneRecursos(id);
+        } catch (IllegalStateException e) {
+            // base caida: se mantiene el contrato de devolver siempre un ResultadoOperacion
+            return ResultadoOperacion.fallo(UsuarioDatos.MENSAJE_ERROR_BD);
+        }
+        if (tieneRecursos) {
             return ResultadoOperacion.fallo(
-                    "No se puede eliminar la categoria porque tiene recursos asociados.");
+                    "No se puede eliminar la categoria porque tiene recursos asociados"
+                            + " (tambien cuentan los recursos dados de baja).");
         }
 
         categoriaDatos.eliminar(id);

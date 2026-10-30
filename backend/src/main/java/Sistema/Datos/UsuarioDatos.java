@@ -20,7 +20,8 @@ import java.sql.SQLException;
  */
 public class UsuarioDatos {
 
-    static final String MENSAJE_ERROR_BD = "No se pudo acceder a la base de datos. Intente de nuevo más tarde.";
+    // public: RecursoLogica y CategoriaLogica (paquete Logica) tambien lo usan
+    public static final String MENSAJE_ERROR_BD ="No se pudo acceder a la base de datos. Intente de nuevo más tarde.";
 
     // --- buscar por ID ---
 
