@@ -1,5 +1,7 @@
 package Sistema.Logica;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.ArrayList;
 import java.time.LocalDate;
@@ -127,17 +129,12 @@ public class ReservaLogica {
 
     // metodo para coordinar la eliminacion de un recurso con RecursoLogica
     public boolean tieneReservasFuturasActivas(String idRecurso){
-        LocalDate hoy = LocalDate.now();
-        List<ReservaDTO> reservasDelRecurso = reservaDatos.filtrarReservaPorRecurso(idRecurso);
+        return reservaDatos.existenReservasFuturasActivasDeRecurso(idRecurso);
+    }
 
-        for(ReservaDTO r : reservasDelRecurso){
-            boolean esFutura = !r.getFecha().isBefore(hoy);
-            boolean estaActiva = r.getEstado() == EstadoReserva.ACTIVA;
-
-            if(esFutura && estaActiva) return true;
-        }
-
-        return false;
+    // version para transacciones: usa la conexion recibida y no la cierra
+    public boolean tieneReservasFuturasActivas(Connection conexion, String idRecurso) throws SQLException {
+        return reservaDatos.existenReservasFuturasActivasDeRecurso(conexion, idRecurso);
     }
 
     private String generarNuevoId(){
@@ -207,16 +204,11 @@ public class ReservaLogica {
     }
 
     public boolean tieneReservasFuturas(String idFuncionario) {
-        List<ReservaDTO> reservas = reservaDatos.filtrarReservaFuncionario(idFuncionario);
-        LocalDate hoy = LocalDate.now();
+        return reservaDatos.existenReservasFuturasDeFuncionario(idFuncionario);
+    }
 
-        for (ReservaDTO reserva : reservas) {
-            boolean esFutura = !reserva.getFecha().isBefore(hoy);
-            boolean estaActiva = reserva.getEstado() == EstadoReserva.ACTIVA;
-            if (esFutura && estaActiva) {
-                return true;
-            }
-        }
-        return false;
+    // version para transacciones: usa la conexion recibida y no la cierra
+    public boolean tieneReservasFuturas(Connection conexion, String idFuncionario) throws SQLException {
+        return reservaDatos.existenReservasFuturasDeFuncionario(conexion, idFuncionario);
     }
 }

@@ -2,6 +2,10 @@ package Sistema.Datos;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 
 import Sistema.DTO.ReservaDTO;
@@ -82,5 +86,55 @@ public class ReservaDatos extends Datos<ReservaDTO> {
             }
         if (modificado) serializar(reservas);
         return modificado;
+    }
+
+    // --- consultas SQL (MySQL) ---
+    // Dos versiones por metodo, como en UsuarioDatos: la que recibe la conexion
+    // no la cierra y lanza SQLException; la otra abre y cierra la suya.
+    // "Futura" = fecha de hoy o posterior (no se mira la hora); "activa" = estado ACTIVA.
+
+    public boolean existenReservasFuturasDeFuncionario(String idFuncionario) {
+        try (Connection conexion = ConexionBD.obtenerConexion()) {
+            return existenReservasFuturasDeFuncionario(conexion, idFuncionario);
+        } catch (SQLException e) {
+            throw new IllegalStateException(UsuarioDatos.MENSAJE_ERROR_BD, e);
+        }
+    }
+
+    public boolean existenReservasFuturasDeFuncionario(Connection conexion, String idFuncionario)
+            throws SQLException {
+        return existe(conexion,
+                "SELECT EXISTS (SELECT 1 FROM reserva"
+                        + " WHERE id_funcionario = ? AND fecha >= ? AND estado = 'ACTIVA')",
+                idFuncionario);
+    }
+
+    public boolean existenReservasFuturasActivasDeRecurso(String idRecurso) {
+        try (Connection conexion = ConexionBD.obtenerConexion()) {
+            return existenReservasFuturasActivasDeRecurso(conexion, idRecurso);
+        } catch (SQLException e) {
+            throw new IllegalStateException(UsuarioDatos.MENSAJE_ERROR_BD, e);
+        }
+    }
+
+    public boolean existenReservasFuturasActivasDeRecurso(Connection conexion, String idRecurso)
+            throws SQLException {
+        return existe(conexion,
+                "SELECT EXISTS (SELECT 1 FROM reserva r"
+                        + " JOIN reserva_recurso rr ON rr.id_reserva = r.id_reserva"
+                        + " WHERE rr.id_recurso = ? AND r.fecha >= ? AND r.estado = 'ACTIVA')",
+                idRecurso);
+    }
+
+    // el primer parametro es el ID y el segundo la fecha de hoy
+    private boolean existe(Connection conexion, String sql, String id) throws SQLException {
+        try (PreparedStatement sentencia = conexion.prepareStatement(sql)) {
+            sentencia.setString(1, id);
+            sentencia.setObject(2, LocalDate.now());
+            try (ResultSet resultado = sentencia.executeQuery()) {
+                resultado.next();
+                return resultado.getBoolean(1);
+            }
+        }
     }
 }

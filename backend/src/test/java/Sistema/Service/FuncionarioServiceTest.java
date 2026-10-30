@@ -3,6 +3,7 @@ package Sistema.Service;
 import Sistema.DTO.Funcionario;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -14,20 +15,23 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Pruebas unitarias de FuncionarioService. FuncionarioLogica toca tres
- * archivos (funcionarios.json, usuarios.json y reservas.json, esta ultima
- * a traves de ReservaLogica.tieneReservasFuturas), asi que los tres se
- * respaldan y restauran en cada prueba.
+ * Pruebas unitarias de FuncionarioService. FuncionarioLogica toca dos
+ * archivos JSON (funcionarios.json y usuarios.json), que se respaldan y
+ * restauran en cada prueba.
+ *
+ * La regla "no eliminar con reservas futuras" ya no lee reservas.json sino
+ * MySQL (ReservaLogica.tieneReservasFuturas), asi que las pruebas de
+ * eliminar estan deshabilitadas hasta que FuncionarioLogica use JDBC (paso 5).
+ * El criterio de futura y activa lo cubre ReservaDatosIT.
  */
 class FuncionarioServiceTest {
 
     private static final Path RUTA_FUNCIONARIOS = Paths.get("src/data/funcionarios.json");
     private static final Path RUTA_USUARIOS = Paths.get("src/data/usuarios.json");
-    private static final Path RUTA_RESERVAS = Paths.get("src/data/reservas.json");
+    private static final Path RUTA_RESERVAS = Paths.get("src/data/reservas.json"); // solo las pruebas deshabilitadas
 
     private String backupFuncionarios;
     private String backupUsuarios;
-    private String backupReservas;
 
     private FuncionarioService funcionarioService;
 
@@ -35,7 +39,6 @@ class FuncionarioServiceTest {
     void prepararDatosDePrueba() throws IOException {
         backupFuncionarios = leerSiExiste(RUTA_FUNCIONARIOS);
         backupUsuarios = leerSiExiste(RUTA_USUARIOS);
-        backupReservas = leerSiExiste(RUTA_RESERVAS);
 
         Files.writeString(RUTA_FUNCIONARIOS, """
                 [
@@ -52,17 +55,6 @@ class FuncionarioServiceTest {
                 ]
                 """);
 
-        // func2 tiene una reserva futura activa (para la regla de eliminacion);
-        // func1 no tiene ninguna reserva.
-        Files.writeString(RUTA_RESERVAS, """
-                [
-                  {"idReserva":"RES-000001","idFuncionario":"func2","nombreFuncionario":"Beto Soto",
-                   "nombreActividad":"Reunion de ventas","fecha":"2099-01-01",
-                   "horaInicio":"08:00:00","horaFin":"10:00:00","recursosReservados":[],
-                   "estado":"ACTIVA"}
-                ]
-                """);
-
         funcionarioService = new FuncionarioService();
     }
 
@@ -70,7 +62,6 @@ class FuncionarioServiceTest {
     void restaurarDatosOriginales() throws IOException {
         restaurar(RUTA_FUNCIONARIOS, backupFuncionarios);
         restaurar(RUTA_USUARIOS, backupUsuarios);
-        restaurar(RUTA_RESERVAS, backupReservas);
     }
 
     private String leerSiExiste(Path ruta) throws IOException {
@@ -135,6 +126,7 @@ class FuncionarioServiceTest {
         assertEquals("El nombre no puede estar vacio.", resultado.getMensajeError());
     }
 
+    @Disabled("Depende de ReservaLogica.tieneReservasFuturas, que ahora consulta MySQL; se rehace en el paso 5")
     @Test
     void eliminarFallaSiTieneReservasFuturasActivas() {
         var resultado = funcionarioService.eliminar("func2");
@@ -144,6 +136,7 @@ class FuncionarioServiceTest {
                 resultado.getMensajeError());
     }
 
+    @Disabled("Depende de ReservaLogica.tieneReservasFuturas, que ahora consulta MySQL; se rehace en el paso 5")
     @Test
     void eliminarFuncionaSiLaUnicaReservaFuturaEstaCancelada() throws IOException {
         // Reserva futura pero CANCELADA: no debe bloquear la eliminacion
@@ -161,6 +154,7 @@ class FuncionarioServiceTest {
         assertTrue(resultado.isExitoso());
     }
 
+    @Disabled("Depende de ReservaLogica.tieneReservasFuturas, que ahora consulta MySQL; se rehace en el paso 5")
     @Test
     void eliminarFuncionaSiLaUnicaReservaActivaYaPaso() throws IOException {
         // Reserva ACTIVA pero con fecha pasada: tampoco debe bloquear.
@@ -177,6 +171,7 @@ class FuncionarioServiceTest {
         assertTrue(resultado.isExitoso());
     }
 
+    @Disabled("Depende de ReservaLogica.tieneReservasFuturas, que ahora consulta MySQL; se rehace en el paso 5")
     @Test
     void eliminarFuncionaSinReservasFuturasYBorraElUsuarioAsociado() {
         var resultado = funcionarioService.eliminar("func1");
