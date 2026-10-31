@@ -9,7 +9,12 @@ import java.util.List;
 // validaciones" (cita textual del diagrama del profesor).
 public class CategoriaService {
 
-    private final CategoriaLogica categoriaLogica = new CategoriaLogica();
+    private final CategoriaLogica categoriaLogica;
+
+    public CategoriaService() { this(new CategoriaLogica()); }
+
+    // para pruebas: permite pasar una CategoriaLogica con datos falsos
+    public CategoriaService(CategoriaLogica categoriaLogica) { this.categoriaLogica = categoriaLogica; }
 
     public CategoriaLogica.ResultadoOperacion registrar(CategoriaDTO categoria) {
         return categoriaLogica.registrar(categoria);
