@@ -79,4 +79,41 @@ class ProcesadorAlertaReservaTest {
 
         assertTrue(resultado.isEmpty());
     }
+
+    @Test
+    void rechazaEventoSinDatosDeReserva() {
+        String mensaje = """
+                {
+                  "tipo": "EVENTO",
+                  "operacion": "RESERVA_CREADA"
+                }
+                """;
+
+        Exception error = assertThrows(
+                java.io.IOException.class,
+                () -> procesador.procesar(mensaje)
+        );
+
+        assertTrue(error.getMessage().contains("datos de la reserva"));
+    }
+
+    @Test
+    void rechazaEventoSinIdDeReserva() {
+        String mensaje = """
+                {
+                  "tipo": "EVENTO",
+                  "operacion": "RESERVA_CREADA",
+                  "datos": {
+                    "nombreActividad": "Reunión"
+                  }
+                }
+                """;
+
+        Exception error = assertThrows(
+                java.io.IOException.class,
+                () -> procesador.procesar(mensaje)
+        );
+
+        assertTrue(error.getMessage().contains("ID de reserva válido"));
+    }
 }

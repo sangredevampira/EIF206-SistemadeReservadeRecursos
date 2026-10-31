@@ -1,0 +1,5 @@
+# Configuracion de conexion del Frontend
+# Copiar este archivo como config.properties
+
+servidor.host=127.0.0.1
+servidor.puerto=5050

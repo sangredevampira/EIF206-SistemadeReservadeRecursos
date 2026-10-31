@@ -21,13 +21,13 @@ public final class ClienteRed {
 
     private static final ClienteRed INSTANCIA = new ClienteRed();
 
-    private Socket socket;
+    private volatile Socket socket;
     private BufferedReader entrada;
     private BufferedWriter salida;
     private Thread hiloLector;
 
-    private Consumer<String> receptorMensajes = mensaje -> {};
-    private Consumer<Exception> receptorErrores = error -> {};
+    private volatile Consumer<String> receptorMensajes = mensaje -> {};
+    private volatile Consumer<Exception> receptorErrores = error -> {};
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private volatile Consumer<String> receptorAlertas =
@@ -59,24 +59,29 @@ public final class ClienteRed {
                     5000
             );
 
-            entrada = new BufferedReader(
+            BufferedReader nuevaEntrada = new BufferedReader(
                     new InputStreamReader(
                             nuevoSocket.getInputStream(),
                             StandardCharsets.UTF_8
                     )
             );
 
-            salida = new BufferedWriter(
+            BufferedWriter nuevaSalida = new BufferedWriter(
                     new OutputStreamWriter(
                             nuevoSocket.getOutputStream(),
                             StandardCharsets.UTF_8
                     )
             );
 
+            entrada = nuevaEntrada;
+            salida = nuevaSalida;
             socket = nuevoSocket;
 
             hiloLector = new Thread(
-                    () -> escucharMensajes(nuevoSocket),
+                    () -> escucharMensajes(
+                            nuevoSocket,
+                            nuevaEntrada
+                    ),
                     "ClienteRed-Lector"
             );
 
@@ -89,24 +94,31 @@ public final class ClienteRed {
         }
     }
 
-    private void escucharMensajes(Socket conexion) {
+    private void escucharMensajes(
+            Socket conexion,
+            BufferedReader lector
+    ) {
 
         try {
             String mensaje;
 
-            while ((mensaje = entrada.readLine()) != null) {
+            while ((mensaje = lector.readLine()) != null) {
                 procesarMensaje(mensaje);
             }
 
         } catch (Exception e) {
             if (!conexion.isClosed()) {
-                receptorErrores.accept(e);
+                notificarError(e);
             }
 
         } finally {
-            if (socket == conexion) {
-                cerrar();
-            }
+            cerrarSiActual(conexion);
+        }
+    }
+
+    private synchronized void cerrarSiActual(Socket conexion) {
+        if (socket == conexion) {
+            cerrar();
         }
     }
 
@@ -144,13 +156,15 @@ public final class ClienteRed {
     public void setReceptorMensajes(
             Consumer<String> receptor
     ) {
-        this.receptorMensajes = receptor;
+        this.receptorMensajes =
+                receptor == null ? mensaje -> {} : receptor;
     }
 
     public void setReceptorErrores(
             Consumer<Exception> receptor
     ) {
-        this.receptorErrores = receptor;
+        this.receptorErrores =
+                receptor == null ? error -> {} : receptor;
     }
 
     public synchronized void cerrar() {
@@ -162,7 +176,7 @@ public final class ClienteRed {
             try {
                 conexion.close();
             } catch (IOException e) {
-                receptorErrores.accept(e);
+                notificarError(e);
             }
         }
         solicitudesPendientes.forEach((id, futuro) ->
@@ -186,7 +200,7 @@ public final class ClienteRed {
                 String tipo = contenido.path("tipo").asText("");
 
                 if ("EVENTO".equalsIgnoreCase(tipo)) {
-                    receptorAlertas.accept(mensaje);
+                    notificarReceptor(receptorAlertas, mensaje);
                     return;
                 }
 
@@ -207,10 +221,29 @@ public final class ClienteRed {
                 }
             }
 
-            receptorMensajes.accept(mensaje);
+            notificarReceptor(receptorMensajes, mensaje);
 
         } catch (JsonProcessingException e) {
-            receptorErrores.accept(e);
+            notificarError(e);
+        }
+    }
+
+    private <T> void notificarReceptor(
+            Consumer<T> receptor,
+            T valor
+    ) {
+        try {
+            receptor.accept(valor);
+        } catch (RuntimeException e) {
+            notificarError(e);
+        }
+    }
+
+    private void notificarError(Exception error) {
+        try {
+            receptorErrores.accept(error);
+        } catch (RuntimeException ignorada) {
+            // Un receptor defectuoso no debe finalizar el hilo lector.
         }
     }
 
