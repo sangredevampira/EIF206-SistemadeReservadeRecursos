@@ -10,9 +10,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -31,8 +28,9 @@ import static org.junit.jupiter.api.Assertions.*;
  *   - RecursoDatosFake: los recursos viven en un mapa en memoria;
  *   - ReservaLogicaFake: responde si hay reservas futuras y anota si se le
  *     pregunto con el candado tomado;
- *   - ConexionFalsa: una java.sql.Connection hecha con Proxy que anota que
- *     metodos le llamaron (setAutoCommit, commit, rollback, close).
+ *   - ConexionFalsa (su propia clase, en este paquete): una java.sql.Connection
+ *     hecha con Proxy que anota que metodos le llamaron (setAutoCommit,
+ *     commit, rollback, close).
  * Las consultas SQL reales se prueban aparte en RecursoDatosIT.
  */
 class RecursoLogicaTest {
@@ -148,67 +146,6 @@ class RecursoLogicaTest {
             // Thread.holdsLock dice si ESTE hilo esta dentro de synchronized (candado)
             consultoConElCandadoTomado = Thread.holdsLock(ReservaLogica.CANDADO_RESERVAS);
             return tieneReservas;
-        }
-    }
-
-    /**
-     * Connection falsa hecha con java.lang.reflect.Proxy.
-     *
-     * Que es: java.sql.Connection es una interfaz con mas de 50 metodos.
-     * Escribir una clase que los implemente todos seria enorme, y Mockito no
-     * esta en el proyecto. Proxy.newProxyInstance crea, mientras corre el
-     * programa, un objeto que SI implementa Connection, y manda CADA llamada
-     * a un unico metodo: invoke(...) de esta clase (el InvocationHandler).
-     *
-     * Como funciona: si RecursoLogica llama conexion.commit(), Java ejecuta
-     * invoke(proxy, <el Method "commit">, null). Aqui se anota el nombre en
-     * la lista "llamadas" y se responde lo que haria una conexion real:
-     * nada para commit/rollback/close, el valor guardado para
-     * getAutoCommit, etc. Un metodo no previsto (por ejemplo prepareStatement)
-     * lanza UnsupportedOperationException: asi una prueba falla si la Logica
-     * intentara usar SQL directo en vez de pasar por RecursoDatos.
-     *
-     * Por que existe: permite comprobar sin MySQL que la baja apaga el
-     * autocommit, hace commit si todo sale bien, rollback si algo falla, y
-     * siempre cierra la conexion.
-     */
-    static class ConexionFalsa implements InvocationHandler {
-        final List<String> llamadas = new ArrayList<>();
-        private boolean autoCommit = true;
-        private boolean cerrada = false;
-
-        // el objeto que se le entrega a RecursoLogica a traves de FuenteConexion
-        final Connection conexion = (Connection) Proxy.newProxyInstance(
-                RecursoLogicaTest.class.getClassLoader(),
-                new Class<?>[] { Connection.class },
-                this);
-
-        @Override
-        public Object invoke(Object proxy, Method metodo, Object[] argumentos) {
-            String nombre = metodo.getName();
-            switch (nombre) {
-                case "setAutoCommit" -> {
-                    autoCommit = (Boolean) argumentos[0];
-                    llamadas.add("setAutoCommit(" + autoCommit + ")");
-                    return null;
-                }
-                case "getAutoCommit" -> { return autoCommit; }
-                case "commit", "rollback" -> {
-                    llamadas.add(nombre);
-                    return null;
-                }
-                case "close" -> {
-                    cerrada = true;
-                    llamadas.add(nombre);
-                    return null;
-                }
-                case "isClosed" -> { return cerrada; }
-                // metodos de Object, por si una asercion imprime o compara la conexion
-                case "toString" -> { return "ConexionFalsa" + llamadas; }
-                case "hashCode" -> { return System.identityHashCode(proxy); }
-                case "equals" -> { return proxy == argumentos[0]; }
-                default -> throw new UnsupportedOperationException("La conexion falsa no implementa " + nombre);
-            }
         }
     }
 
