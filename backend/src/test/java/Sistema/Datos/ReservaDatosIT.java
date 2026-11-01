@@ -1,5 +1,9 @@
 package Sistema.Datos;
 
+import Sistema.DTO.CategoriaDTO;
+import Sistema.DTO.EstadoReserva;
+import Sistema.DTO.RecursoDTO;
+import Sistema.DTO.ReservaDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -11,14 +15,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * Prueba de integracion de las consultas de reservas futuras de ReservaDatos
- * contra MySQL (base reservas_test). Se salta igual que GeneradorIdsBDIT si
- * no existe servidor-test.properties.
+ * Prueba de integracion de ReservaDatos contra MySQL (base reservas_test). Se salta igual que
+ * GeneradorIdsBDIT si no existe servidor-test.properties.
  *
  * Cada prueba trabaja dentro de una transaccion y termina SIEMPRE con
  * rollback. Antes de tocar datos comprueba que la base sea reservas_test.
@@ -189,6 +194,118 @@ public class ReservaDatosIT {
         });
     }
 
+    // --- lectura y escritura de reservas (con sus recursos) ---
+
+    @Test
+    void agregarReservaGuardaLaReservaYSusRecursos() throws SQLException {
+        enTransaccionDePrueba(conexion -> {
+            reservaDatos.agregarReserva(conexion, reservaDe("RES-IT0009", ID_FUNCIONARIO,
+                    LocalDate.now().plusDays(3), EstadoReserva.ACTIVA, ID_RECURSO, ID_OTRO_RECURSO));
+
+            ReservaDTO leida = reservaDatos.buscarReservaID(conexion, "RES-IT0009");
+
+            assertNotNull(leida);
+            assertEquals(ID_FUNCIONARIO, leida.getIdFuncionario());
+            assertEquals("Prueba ReservaDatosIT", leida.getNombreFuncionario());   // sale del JOIN con funcionario
+            assertEquals(LocalTime.of(9, 0), leida.getHoraInicio());
+            assertEquals(EstadoReserva.ACTIVA, leida.getEstado());
+            assertEquals(2, leida.getRecursosReservados().size());
+            assertEquals(ID_RECURSO, leida.getRecursosReservados().get(0).getId());
+            assertEquals(ID_CATEGORIA, leida.getRecursosReservados().get(0).getCategoria().getId());
+        });
+    }
+
+    @Test
+    void buscarUnaReservaInexistenteDevuelveNull() throws SQLException {
+        enTransaccionDePrueba(conexion ->
+                assertNull(reservaDatos.buscarReservaID(conexion, "RES-NO-EXISTE")));
+    }
+
+    @Test
+    void listarReservasDevuelveTodas() throws SQLException {
+        enTransaccionDePrueba(conexion -> {
+            insertarReserva(conexion, "RES-IT0001", ID_FUNCIONARIO, LocalDate.now().plusDays(1), "ACTIVA");
+            insertarReserva(conexion, "RES-IT0002", ID_OTRO_FUNCIONARIO, LocalDate.now().plusDays(2), "CANCELADA");
+
+            assertEquals(2, reservaDatos.listarReservas(conexion).size());
+        });
+    }
+
+    @Test
+    void filtrarPorFuncionarioSoloDevuelveLasSuyas() throws SQLException {
+        enTransaccionDePrueba(conexion -> {
+            insertarReserva(conexion, "RES-IT0001", ID_FUNCIONARIO, LocalDate.now().plusDays(1), "ACTIVA");
+            insertarReserva(conexion, "RES-IT0002", ID_OTRO_FUNCIONARIO, LocalDate.now().plusDays(1), "ACTIVA");
+
+            List<ReservaDTO> suyas = reservaDatos.filtrarReservaFuncionario(conexion, ID_FUNCIONARIO);
+
+            assertEquals(1, suyas.size());
+            assertEquals("RES-IT0001", suyas.get(0).getIdReserva());
+            assertTrue(suyas.get(0).getRecursosReservados().isEmpty());   // sin recursos: lista vacia, no null
+        });
+    }
+
+    @Test
+    void filtrarPorRangoDeFechasIncluyeLosExtremos() throws SQLException {
+        enTransaccionDePrueba(conexion -> {
+            LocalDate hoy = LocalDate.now();
+            insertarReserva(conexion, "RES-IT0001", ID_FUNCIONARIO, hoy.minusDays(1), "ACTIVA");
+            insertarReserva(conexion, "RES-IT0002", ID_FUNCIONARIO, hoy, "ACTIVA");
+            insertarReserva(conexion, "RES-IT0003", ID_FUNCIONARIO, hoy.plusDays(2), "CANCELADA");
+            insertarReserva(conexion, "RES-IT0004", ID_FUNCIONARIO, hoy.plusDays(5), "ACTIVA");
+
+            List<ReservaDTO> enRango = reservaDatos.filtrarReservasRangoFechas(conexion, hoy, hoy.plusDays(2));
+
+            assertEquals(List.of("RES-IT0002", "RES-IT0003"),
+                    enRango.stream().map(ReservaDTO::getIdReserva).toList());
+        });
+    }
+
+    @Test
+    void filtrarPorRecursoDevuelveLasReservasQueLoUsanConTodosSusRecursos() throws SQLException {
+        enTransaccionDePrueba(conexion -> {
+            LocalDate fecha = LocalDate.now().plusDays(1);
+            insertarReserva(conexion, "RES-IT0001", ID_FUNCIONARIO, fecha, "ACTIVA");
+            asignarRecurso(conexion, "RES-IT0001", ID_RECURSO);
+            asignarRecurso(conexion, "RES-IT0001", ID_OTRO_RECURSO);
+            insertarReserva(conexion, "RES-IT0002", ID_FUNCIONARIO, fecha, "ACTIVA");
+            asignarRecurso(conexion, "RES-IT0002", ID_OTRO_RECURSO);
+
+            List<ReservaDTO> conElPrimero = reservaDatos.filtrarReservaPorRecurso(conexion, ID_RECURSO);
+
+            assertEquals(1, conElPrimero.size());
+            assertEquals("RES-IT0001", conElPrimero.get(0).getIdReserva());
+            assertEquals(2, conElPrimero.get(0).getRecursosReservados().size());   // aparecen TODOS sus recursos
+            assertEquals(2, reservaDatos.filtrarReservaPorRecurso(conexion, ID_OTRO_RECURSO).size());
+        });
+    }
+
+    @Test
+    void modificarReservaCambiaElEstado() throws SQLException {
+        enTransaccionDePrueba(conexion -> {
+            insertarReserva(conexion, "RES-IT0001", ID_FUNCIONARIO, LocalDate.now().plusDays(1), "ACTIVA");
+            ReservaDTO reserva = reservaDatos.buscarReservaID(conexion, "RES-IT0001");
+
+            reserva.setEstado(EstadoReserva.CANCELADA);
+            assertTrue(reservaDatos.modificarReserva(conexion, reserva));
+            assertEquals(EstadoReserva.CANCELADA,
+                    reservaDatos.buscarReservaID(conexion, "RES-IT0001").getEstado());
+
+            reserva.setIdReserva("RES-NO-EXISTE");
+            assertFalse(reservaDatos.modificarReserva(conexion, reserva));
+        });
+    }
+
+    @Test
+    void generarNuevoIdDaElSiguienteNumero() throws SQLException {
+        enTransaccionDePrueba(conexion -> {
+            assertEquals("RES-000001", reservaDatos.generarNuevoId(conexion));
+
+            insertarReserva(conexion, "RES-000005", ID_FUNCIONARIO, LocalDate.now().plusDays(1), "CANCELADA");
+            assertEquals("RES-000006", reservaDatos.generarNuevoId(conexion));   // las canceladas cuentan
+        });
+    }
+
     // --- apoyo ---
 
     private static void enTransaccionDePrueba(PruebaConConexion prueba) throws SQLException {
@@ -257,6 +374,18 @@ public class ReservaDatosIT {
             throws SQLException {
         ejecutar(conexion, "INSERT INTO reserva_recurso (id_reserva, id_recurso) VALUES (?, ?)",
                 idReserva, idRecurso);
+    }
+
+    // una reserva armada en memoria (nombreFuncionario se ignora: al guardar no se escribe)
+    private static ReservaDTO reservaDe(String idReserva, String idFuncionario, LocalDate fecha,
+                                        EstadoReserva estado, String... idsRecursos) {
+        List<RecursoDTO> recursos = new ArrayList<>();
+        for (String id : idsRecursos) {
+            recursos.add(new RecursoDTO(id, "Prueba ReservaDatosIT " + id,
+                    new CategoriaDTO(ID_CATEGORIA, "Prueba ReservaDatosIT")));
+        }
+        return new ReservaDTO(idReserva, idFuncionario, "ignorado", "Prueba ReservaDatosIT", fecha,
+                LocalTime.of(9, 0), LocalTime.of(10, 0), recursos, estado);
     }
 
     // los parametros se pasan con setObject: LocalDate y LocalTime viajan sin java.sql.Date

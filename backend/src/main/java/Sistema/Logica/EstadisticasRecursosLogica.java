@@ -20,7 +20,12 @@ public class EstadisticasRecursosLogica {
     private final ReservaLogica reservaLogica;
 
     public EstadisticasRecursosLogica() {
-        this.reservaLogica = new ReservaLogica();
+        this(new ReservaLogica());
+    }
+
+    // permite inyectar la ReservaLogica (lo usan las pruebas)
+    public EstadisticasRecursosLogica(ReservaLogica reservaLogica) {
+        this.reservaLogica = reservaLogica;
     }
 
     public ResultadoEstadisticas calcular(LocalDate fechaDesde, LocalDate fechaHasta) {

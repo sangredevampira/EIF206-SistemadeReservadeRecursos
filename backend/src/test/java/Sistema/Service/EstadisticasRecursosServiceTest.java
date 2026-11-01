@@ -1,72 +1,35 @@
 package Sistema.Service;
 
+import Sistema.DTO.CategoriaDTO;
 import Sistema.DTO.EstadisticaCategoriaDTO;
-import org.junit.jupiter.api.AfterEach;
+import Sistema.DTO.EstadoReserva;
+import Sistema.DTO.RecursoDTO;
+import Sistema.DTO.ReservaDTO;
+import Sistema.Logica.EstadisticasRecursosLogica;
+import Sistema.Logica.ReservaLogica;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Pruebas unitarias de EstadisticasRecursosService. Internamente delega en
- * ReservaLogica.buscarPorPeriodo, que lee reservas.json, asi que ese archivo
- * se respalda y se restaura en cada prueba.
+ * ReservaLogica.buscarPorPeriodo; aqui se reemplaza por una ReservaLogica falsa
+ * con reservas en memoria, asi que no se usa MySQL ni archivos.
  */
 class EstadisticasRecursosServiceTest {
-
-    private static final Path RUTA_RESERVAS = Paths.get("src/data/reservas.json");
-
-    private String backupReservas;
 
     private EstadisticasRecursosService estadisticasRecursosService;
 
     @BeforeEach
-    void prepararDatosDePrueba() throws IOException {
-        backupReservas = Files.exists(RUTA_RESERVAS) ? Files.readString(RUTA_RESERVAS) : null;
-
-        // RES-000001: activa, dentro del rango de marzo -> cuenta.
-        // RES-000002: cancelada, dentro del rango de marzo -> NO debe contarse.
-        // RES-000003: activa, fuera del rango de marzo (abril) -> no cuenta en ese rango.
-        Files.writeString(RUTA_RESERVAS, """
-                [
-                  {"idReserva":"RES-000001","idFuncionario":"func1","nombreFuncionario":"Ana Perez",
-                   "nombreActividad":"Reunion","fecha":"2026-03-10",
-                   "horaInicio":"08:00:00","horaFin":"09:00:00",
-                   "recursosReservados":[{"id":"REC-0001","descripcion":"Sala 1",
-                     "categoria":{"id":"CAT-000001","descripcion":"Sala para 10 personas"}}],
-                   "estado":"ACTIVA"},
-                  {"idReserva":"RES-000002","idFuncionario":"func1","nombreFuncionario":"Ana Perez",
-                   "nombreActividad":"Capacitacion","fecha":"2026-03-12",
-                   "horaInicio":"10:00:00","horaFin":"11:00:00",
-                   "recursosReservados":[{"id":"REC-0002","descripcion":"Laptop 1",
-                     "categoria":{"id":"CAT-000002","descripcion":"Laptop windows 11"}}],
-                   "estado":"CANCELADA"},
-                  {"idReserva":"RES-000003","idFuncionario":"func1","nombreFuncionario":"Ana Perez",
-                   "nombreActividad":"Otra reunion","fecha":"2026-04-01",
-                   "horaInicio":"08:00:00","horaFin":"09:00:00",
-                   "recursosReservados":[{"id":"REC-0003","descripcion":"Sala 2",
-                     "categoria":{"id":"CAT-000001","descripcion":"Sala para 10 personas"}}],
-                   "estado":"ACTIVA"}
-                ]
-                """);
-
-        estadisticasRecursosService = new EstadisticasRecursosService();
-    }
-
-    @AfterEach
-    void restaurarDatosOriginales() throws IOException {
-        if (backupReservas == null) {
-            Files.deleteIfExists(RUTA_RESERVAS);
-        } else {
-            Files.writeString(RUTA_RESERVAS, backupReservas);
-        }
+    void prepararDatosDePrueba() {
+        estadisticasRecursosService =
+                new EstadisticasRecursosService(new EstadisticasRecursosLogica(new ReservaLogicaFake()));
     }
 
     @Test
@@ -129,5 +92,43 @@ class EstadisticasRecursosServiceTest {
 
         assertFalse(resultado.isExitoso());
         assertEquals("Debe indicar ambas fechas del período.", resultado.getMensajeError());
+    }
+
+    /**
+     * ReservaLogica falsa: devuelve de una lista en memoria las reservas cuya
+     * fecha cae en el rango (extremos incluidos). No toca MySQL.
+     */
+    private static class ReservaLogicaFake extends ReservaLogica {
+
+        private final List<ReservaDTO> reservas = new ArrayList<>();
+
+        ReservaLogicaFake() {
+            CategoriaDTO sala = new CategoriaDTO("CAT-000001", "Sala para 10 personas");
+            CategoriaDTO laptop = new CategoriaDTO("CAT-000002", "Laptop windows 11");
+
+            // RES-000001: activa, dentro del rango de marzo -> cuenta.
+            reservas.add(new ReservaDTO("RES-000001", "func1", "Ana Perez", "Reunion",
+                    LocalDate.of(2026, 3, 10), LocalTime.of(8, 0), LocalTime.of(9, 0),
+                    List.of(new RecursoDTO("REC-0001", "Sala 1", sala)), EstadoReserva.ACTIVA));
+            // RES-000002: cancelada, dentro del rango de marzo -> NO debe contarse.
+            reservas.add(new ReservaDTO("RES-000002", "func1", "Ana Perez", "Capacitacion",
+                    LocalDate.of(2026, 3, 12), LocalTime.of(10, 0), LocalTime.of(11, 0),
+                    List.of(new RecursoDTO("REC-0002", "Laptop 1", laptop)), EstadoReserva.CANCELADA));
+            // RES-000003: activa, fuera del rango de marzo (abril) -> no cuenta en ese rango.
+            reservas.add(new ReservaDTO("RES-000003", "func1", "Ana Perez", "Otra reunion",
+                    LocalDate.of(2026, 4, 1), LocalTime.of(8, 0), LocalTime.of(9, 0),
+                    List.of(new RecursoDTO("REC-0003", "Sala 2", sala)), EstadoReserva.ACTIVA));
+        }
+
+        @Override
+        public List<ReservaDTO> buscarPorPeriodo(LocalDate desde, LocalDate hasta) {
+            List<ReservaDTO> enRango = new ArrayList<>();
+            for (ReservaDTO reserva : reservas) {
+                if (!reserva.getFecha().isBefore(desde) && !reserva.getFecha().isAfter(hasta)) {
+                    enRango.add(reserva);
+                }
+            }
+            return enRango;
+        }
     }
 }
