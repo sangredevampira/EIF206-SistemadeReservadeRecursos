@@ -43,14 +43,14 @@ Se usa Jackson con `JavaTimeModule` y `WRITE_DATES_AS_TIMESTAMPS` desactivado en
 ### 2.2 RESPUESTA (Backend → Frontend)
 
 ```json
-{"tipo":"RESPUESTA","idSolicitud":"3f1c...","operacion":"RES_CREAR","exito":true,"mensaje":"","datos":{...}}
+{"tipo":"RESPUESTA","idSolicitud":"3f1c...","operacion":"RES_CREAR","exito":true,"datos":{...}}
 ```
 
 | Campo | Descripción |
 |---|---|
 | `idSolicitud` | El mismo de la solicitud (así `ClienteRed` empareja la respuesta) |
 | `exito` | `true` si la operación se realizó |
-| `mensaje` | Texto legible para el usuario cuando `exito=false`; nunca trazas ni contraseñas |
+| `mensaje` | Texto legible para el usuario cuando `exito=false`; en una respuesta exitosa se omite. Nunca trazas ni contraseñas |
 | `datos` | Resultado, o `null` |
 
 Reglas de errores:
@@ -88,7 +88,7 @@ pide a Kristel registrar el manejador.
 | Módulo | Operación | Datos de entrada | Datos de salida | Define |
 |---|---|---|---|---|
 | Sesión (manejador: Kristel) | `AUTH_LOGIN` | idUsuario, clave | `LoginResultadoDTO` (`idUsuario`, `rol`, `funcionario`; `funcionario` es `null` para el administrador) | Derek |
-| Sesión | `AUTH_CAMBIAR_CLAVE` | idUsuario, clave actual, clave nueva | — | Derek |
+| Sesión | `AUTH_CAMBIAR_CLAVE` | `idUsuario`, `claveActual`, `claveNueva`, `confirmacion` | — | Derek |
 | Sesión | `AUTH_LOGOUT` | — | — | Derek / Kristel |
 | Funcionarios | `FUNC_CREAR`, `FUNC_EDITAR`, `FUNC_BAJA`, `FUNC_BUSCAR`, `FUNC_LISTAR` | por definir | por definir | Derek |
 | Categorías | `CAT_CREAR`, `CAT_EDITAR`, `CAT_ELIMINAR`, `CAT_BUSCAR`, `CAT_LISTAR` | por definir | por definir | Derek |
