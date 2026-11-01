@@ -1,33 +1,42 @@
 package Sistema.Logica;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.ArrayList;
-import java.time.LocalDate;
-import java.time.LocalTime;
-
+import Sistema.DTO.EstadoReserva;
 import Sistema.DTO.RecursoDTO;
 import Sistema.DTO.ReservaDTO;
-import Sistema.DTO.Funcionario;
-import Sistema.DTO.EstadoReserva;
+import Sistema.Datos.ConexionBD;
+import Sistema.Datos.FuenteConexion;
 import Sistema.Datos.ReservaDatos;
+import Sistema.Datos.UsuarioDatos;
 import Sistema.util.HorarioSistema;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 
 public class ReservaLogica {
 
+    // codigo de error de MySQL: la clave foranea no existe (aqui, el funcionario de la reserva)
+    static final int ERROR_CLAVE_FORANEA = 1452;
+
     private final ReservaDatos reservaDatos;
+    private final FuenteConexion fuenteConexion;
     private RecursoLogica recursoLogica;
 
     // lo usan también RecursoLogica y FuncionarioLogica para las bajas
     static final Object CANDADO_RESERVAS = new Object();
 
-    public ReservaLogica() { this.reservaDatos = new ReservaDatos(); }
+    public ReservaLogica() { this(new ReservaDatos(), null, ConexionBD::obtenerConexion); }
 
-    // constructor solo para pruebas, permite inyectar ambas dependencias
-    public ReservaLogica(ReservaDatos reservaDatos, RecursoLogica recursoLogica) {
+    // constructor solo para pruebas: permite inyectar datos, recursos y conexiones falsas.
+    // Si recursoLogica es null se crea la real cuando se necesite.
+    public ReservaLogica(ReservaDatos reservaDatos, RecursoLogica recursoLogica, FuenteConexion fuenteConexion) {
         this.reservaDatos = reservaDatos;
         this.recursoLogica = recursoLogica;
+        this.fuenteConexion = fuenteConexion;
     }
 
     private RecursoLogica getRecursoLogica() {
@@ -35,42 +44,68 @@ public class ReservaLogica {
         return recursoLogica;
     }
 
-    private RecursoDTO buscarPrimerRecursoDisponible(String idCategoria, LocalDate fecha,
-                                                     LocalTime horaInicio, LocalTime horaFin) {
-        List<RecursoDTO> recursosDeLaCategoria = getRecursoLogica().filtrarRecursos(idCategoria);
-        for (RecursoDTO recurso : recursosDeLaCategoria)
-            if (recursoDisponible(recurso, fecha, horaInicio, horaFin))
-                return recurso;
-        return null;
-    }
-
-    public int registrarReserva(String idFuncionario, String nombreFuncionario, String nombreActividad,
-                                LocalDate fecha, LocalTime horaInicio, LocalTime horaFin,
-                                List<String> idsCategoriasSolicitadas) {
+    /**
+     * Registra una reserva y devuelve la reserva creada (con su ID y los recursos asignados).
+     * Si alguna categoria no tiene un recurso libre lanza IllegalArgumentException con esas categorias.
+     *
+     * "Buscar recursos libres -> generar el ID -> guardar" son pasos que no pueden mezclarse con los de otra
+     * reserva (dos clientes podrian quedarse con el mismo recurso), asi que van dentro del candado y de una
+     * transaccion: se guarda todo junto o nada.
+     *
+     * Orden: primero el candado y despues la conexion (igual que RecursoLogica.eliminarRecurso), para que
+     * los hilos que esperan el candado no tengan conexiones abiertas sin usar. El commit se hace antes de
+     * soltar el candado, asi que quien lo tome despues ya ve la reserva guardada.
+     */
+    public ReservaDTO registrarReserva(String idFuncionario, String nombreFuncionario, String nombreActividad,
+                                       LocalDate fecha, LocalTime horaInicio, LocalTime horaFin,
+                                       List<String> idsCategoriasSolicitadas) {
 
         validarDatosGenerales(nombreActividad, fecha, horaInicio, horaFin, idsCategoriasSolicitadas);
 
-        List<RecursoDTO> recursosAsignados = new ArrayList<>();
-        List<String> categoriasNoDisponibles = new ArrayList<>();
+        synchronized (CANDADO_RESERVAS) {
+            try (Connection conexion = fuenteConexion.abrir()) {
+                conexion.setAutoCommit(false);
+                try {
+                    ReservaDTO nueva = armarReserva(conexion, idFuncionario, nombreFuncionario, nombreActividad,
+                            fecha, horaInicio, horaFin, idsCategoriasSolicitadas);
+                    reservaDatos.agregarReserva(conexion, nueva);
+                    conexion.commit();
+                    return nueva;
+                } catch (SQLException | RuntimeException e) {
+                    deshacer(conexion, e);
+                    throw e;
+                }
+            } catch (SQLException e) {
+                throw traducirError(e);
+            }
+        }
+    }
 
-        for (String idCategoria : idsCategoriasSolicitadas) {
-            RecursoDTO disponible = buscarPrimerRecursoDisponible(
-                    idCategoria, fecha, horaInicio, horaFin
-            );
+    // Dentro del candado y de la transaccion: asigna un recurso por categoria, genera el ID y arma la reserva.
+    private ReservaDTO armarReserva(Connection conexion, String idFuncionario, String nombreFuncionario,
+                                    String nombreActividad, LocalDate fecha, LocalTime horaInicio,
+                                    LocalTime horaFin, List<String> idsCategorias) throws SQLException {
+        List<RecursoDTO> recursosAsignados = new ArrayList<>();
+        List<String> categoriasSinRecursos = new ArrayList<>();
+
+        // LinkedHashSet: si una categoria viene repetida no se le asigna el mismo recurso dos veces
+        for (String idCategoria : new LinkedHashSet<>(idsCategorias)) {
+            List<RecursoDTO> recursosDeLaCategoria = getRecursoLogica().filtrarRecursos(idCategoria);
+            RecursoDTO disponible = buscarPrimerRecursoDisponible(conexion, recursosDeLaCategoria,
+                    fecha, horaInicio, horaFin);
 
             if (disponible == null)
-                categoriasNoDisponibles.add(idCategoria);
+                categoriasSinRecursos.add(nombreDeCategoria(idCategoria, recursosDeLaCategoria));
             else
                 recursosAsignados.add(disponible);
         }
 
-        if (!categoriasNoDisponibles.isEmpty()) {
-            String listado = String.join(", ", categoriasNoDisponibles);
-            return 0;
-        }
+        if (!categoriasSinRecursos.isEmpty())
+            throw new IllegalArgumentException("No hay recursos disponibles en las categorías: "
+                    + String.join(", ", categoriasSinRecursos));
 
-        ReservaDTO nuevaReserva = new ReservaDTO(
-                generarNuevoId(),
+        return new ReservaDTO(
+                reservaDatos.generarNuevoId(conexion),
                 idFuncionario,
                 nombreFuncionario,
                 nombreActividad,
@@ -80,10 +115,24 @@ public class ReservaLogica {
                 recursosAsignados,
                 EstadoReserva.ACTIVA
         );
+    }
 
-        reservaDatos.agregarReserva(nuevaReserva);
+    private RecursoDTO buscarPrimerRecursoDisponible(Connection conexion, List<RecursoDTO> recursos,
+                                                     LocalDate fecha, LocalTime horaInicio, LocalTime horaFin)
+            throws SQLException {
+        for (RecursoDTO recurso : recursos)
+            if (recursoDisponible(conexion, recurso, fecha, horaInicio, horaFin))
+                return recurso;
+        return null;
+    }
 
-        return 1;
+    // para el mensaje: la descripcion de la categoria sale de sus recursos; si no tiene ninguno, se usa el ID
+    private String nombreDeCategoria(String idCategoria, List<RecursoDTO> recursosDeLaCategoria) {
+        if (!recursosDeLaCategoria.isEmpty()
+                && recursosDeLaCategoria.get(0).getCategoria() != null
+                && recursosDeLaCategoria.get(0).getCategoria().getDescripcion() != null)
+            return recursosDeLaCategoria.get(0).getCategoria().getDescripcion();
+        return idCategoria;
     }
 
     public boolean cancelarReserva(String idReserva){
@@ -137,23 +186,6 @@ public class ReservaLogica {
         return reservaDatos.existenReservasFuturasActivasDeRecurso(conexion, idRecurso);
     }
 
-    private String generarNuevoId(){
-        List<ReservaDTO> reservas = reservaDatos.listarReservas();
-        int numeroMasAlto = 0;
-
-        for(ReservaDTO r : reservas){
-            String id = r.getIdReserva();
-            if(id != null && id.startsWith("RES-")){
-                try{
-                    int numero = Integer.parseInt(id.substring(4));
-                    if (numero > numeroMasAlto) numeroMasAlto = numero;
-                } catch (NumberFormatException error){ }
-            }
-        }
-        int siguienteNumero = numeroMasAlto + 1;
-        return String.format("RES-%06d", siguienteNumero);
-    }
-
     // metodos de comprobacion
     private void validarDatosGenerales(String nombreActividad, LocalDate fecha,
                                        LocalTime horaInicio, LocalTime horaFin,
@@ -187,9 +219,10 @@ public class ReservaLogica {
         return false;
     }
 
-    private boolean recursoDisponible(RecursoDTO recurso, LocalDate fecha,
-                                      LocalTime horaInicio, LocalTime horaFin){
-        List<ReservaDTO> reservasRecurso = reservaDatos.filtrarReservaPorRecurso(recurso.getId());
+    // usa la conexion de la transaccion: lee las reservas de ese recurso y busca un traslape
+    private boolean recursoDisponible(Connection conexion, RecursoDTO recurso, LocalDate fecha,
+                                      LocalTime horaInicio, LocalTime horaFin) throws SQLException {
+        List<ReservaDTO> reservasRecurso = reservaDatos.filtrarReservaPorRecurso(conexion, recurso.getId());
 
         for(ReservaDTO r : reservasRecurso){
             boolean estaActiva = r.getEstado() == EstadoReserva.ACTIVA;
@@ -210,5 +243,22 @@ public class ReservaLogica {
     // version para transacciones: usa la conexion recibida y no la cierra
     public boolean tieneReservasFuturas(Connection conexion, String idFuncionario) throws SQLException {
         return reservaDatos.existenReservasFuturasDeFuncionario(conexion, idFuncionario);
+    }
+
+    // --- apoyo de la transaccion ---
+
+    private static RuntimeException traducirError(SQLException e) {
+        if (e.getErrorCode() == ERROR_CLAVE_FORANEA)
+            return new IllegalArgumentException("El funcionario de la reserva no está registrado en la base de datos.");
+        return new IllegalStateException(UsuarioDatos.MENSAJE_ERROR_BD, e);
+    }
+
+    // si el rollback tambien falla, ese error se adjunta al original y no lo tapa
+    private static void deshacer(Connection conexion, Exception original) {
+        try {
+            conexion.rollback();
+        } catch (SQLException errorRollback) {
+            original.addSuppressed(errorRollback);
+        }
     }
 }

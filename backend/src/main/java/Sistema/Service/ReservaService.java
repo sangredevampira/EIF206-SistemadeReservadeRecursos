@@ -15,8 +15,8 @@ public class ReservaService {
     public ReservaService(){}
     public ReservaService(ReservaLogica reservaLogica) { this.reservaLogica = reservaLogica; }
 
-    public int registrarReserva(String idFuncionario, String nombreFuncionario, String nombreActividad,
-                                   LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, List<String> idsCategoriasSolicitadas){
+    public ReservaDTO registrarReserva(String idFuncionario, String nombreFuncionario, String nombreActividad,
+                                       LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, List<String> idsCategoriasSolicitadas){
         return reservaLogica.registrarReserva(idFuncionario, nombreFuncionario, nombreActividad,
                 fecha, horaInicio, horaFin, idsCategoriasSolicitadas);
     }

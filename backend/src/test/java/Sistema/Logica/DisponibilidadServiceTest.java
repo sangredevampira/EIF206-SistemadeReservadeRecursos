@@ -8,6 +8,7 @@ import Sistema.DTO.ReservaDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.sql.Connection;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.HashMap;
@@ -17,11 +18,10 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Prueba el algoritmo de disponibilidad de recursos, que vive dentro de
- * ReservaLogica (metodos privados recursoDisponible/buscarPrimerRecursoDisponible).
- * No existe una clase "DisponibilidadService" separada en la implementacion real;
- * este archivo ejercita ReservaLogica de forma real, fingiendo (Fake) sus
- * dos dependencias: ReservaDatos y RecursoLogica.
+ * Prueba el algoritmo de disponibilidad de recursos y la transaccion de registrarReserva, que viven
+ * dentro de ReservaLogica. No existe una clase "DisponibilidadService" separada en la implementacion real;
+ * este archivo ejercita ReservaLogica de forma real, fingiendo (Fake) sus tres dependencias:
+ * ReservaDatos, RecursoLogica y la conexion (ConexionFalsa), asi que no usa MySQL.
  */
 class DisponibilidadServiceTest {
 
@@ -34,27 +34,31 @@ class DisponibilidadServiceTest {
 
     static class ReservaDatosFake extends ReservaDatos {
         Map<String, List<ReservaDTO>> reservasPorRecurso = new HashMap<>();
-        List<ReservaDTO> todasLasReservas = List.of();
         ReservaDTO ultimaReservaGuardada;
+        Connection conexionDelGuardado;
         boolean seLlamoAgregar = false;
 
         void definirReservasDe(String idRecurso, List<ReservaDTO> reservas) { reservasPorRecurso.put(idRecurso, reservas); }
 
         @Override
-        public List<ReservaDTO> filtrarReservaPorRecurso(String idRecurso) { return reservasPorRecurso.getOrDefault(idRecurso, List.of()); }
+        public List<ReservaDTO> filtrarReservaPorRecurso(Connection conexion, String idRecurso) {
+            return reservasPorRecurso.getOrDefault(idRecurso, List.of());
+        }
 
         @Override
-        public List<ReservaDTO> listarReservas() { return todasLasReservas; }
+        public String generarNuevoId(Connection conexion) { return "RES-000001"; }
 
         @Override
-        public void agregarReserva(ReservaDTO nuevaReserva) {
+        public void agregarReserva(Connection conexion, ReservaDTO nuevaReserva) {
             seLlamoAgregar = true;
             ultimaReservaGuardada = nuevaReserva;
+            conexionDelGuardado = conexion;
         }
     }
 
     private ReservaDatosFake reservaDatos;
     private RecursoLogicaFake recursoLogica;
+    private ConexionFalsa conexionFalsa;
     private ReservaLogica reservaLogica;
 
     private final CategoriaDTO categoriaSalas = new CategoriaDTO("CAT-000001", "Salas");
@@ -66,7 +70,8 @@ class DisponibilidadServiceTest {
         reservaDatos = new ReservaDatosFake();
         recursoLogica = new RecursoLogicaFake();
         recursoLogica.recursosDeLaCategoria = List.of(recursoUnico);
-        reservaLogica = new ReservaLogica(reservaDatos, recursoLogica);
+        conexionFalsa = new ConexionFalsa();
+        reservaLogica = new ReservaLogica(reservaDatos, recursoLogica, () -> conexionFalsa.conexion);
     }
 
     private void existeReservaActivaParaRecursoUnico(LocalTime horaInicioExistente, LocalTime horaFinExistente) {
@@ -76,12 +81,19 @@ class DisponibilidadServiceTest {
         ));
     }
 
+    // registra una reserva de FUNC-01 para "manana" y la categoria de salas
+    private ReservaDTO registrar(LocalTime horaInicio, LocalTime horaFin) {
+        return reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
+                manana, horaInicio, horaFin, List.of("CAT-000001"));
+    }
+
     @Test
     void sinReservasPreviasElRecursoQuedaDisponibleYSeRegistra() {
-        int resultado = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
-                manana, LocalTime.of(8, 0), LocalTime.of(10, 0), List.of("CAT-000001"));
+        ReservaDTO reserva = registrar(LocalTime.of(8, 0), LocalTime.of(10, 0));
 
-        assertEquals(1, resultado);
+        assertNotNull(reserva);
+        assertEquals("RES-000001", reserva.getIdReserva());
+        assertEquals(EstadoReserva.ACTIVA, reserva.getEstado());
         assertTrue(reservaDatos.seLlamoAgregar);
         assertEquals("REC-0001", reservaDatos.ultimaReservaGuardada.getRecursosReservados().get(0).getId());
     }
@@ -90,10 +102,7 @@ class DisponibilidadServiceTest {
     void nuevaReservaEmpiezaDentroDeLaExistenteHayConflictoNoSeRegistra() {
         existeReservaActivaParaRecursoUnico(LocalTime.of(8, 0), LocalTime.of(10, 0));
 
-        int resultado = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
-                manana, LocalTime.of(9, 0), LocalTime.of(11, 0), List.of("CAT-000001"));
-
-        assertEquals(0, resultado);
+        assertThrows(IllegalArgumentException.class, () -> registrar(LocalTime.of(9, 0), LocalTime.of(11, 0)));
         assertFalse(reservaDatos.seLlamoAgregar);
     }
 
@@ -101,30 +110,21 @@ class DisponibilidadServiceTest {
     void nuevaReservaTerminaDentroDeLaExistenteHayConflictoNoSeRegistra() {
         existeReservaActivaParaRecursoUnico(LocalTime.of(8, 0), LocalTime.of(10, 0));
 
-        int resultado = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
-                manana, LocalTime.of(7, 0), LocalTime.of(9, 0), List.of("CAT-000001"));
-
-        assertEquals(0, resultado);
+        assertThrows(IllegalArgumentException.class, () -> registrar(LocalTime.of(7, 0), LocalTime.of(9, 0)));
     }
 
     @Test
     void nuevaReservaIdenticaALaExistenteHayConflictoNoSeRegistra() {
         existeReservaActivaParaRecursoUnico(LocalTime.of(8, 0), LocalTime.of(10, 0));
 
-        int resultado = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
-                manana, LocalTime.of(8, 0), LocalTime.of(10, 0), List.of("CAT-000001"));
-
-        assertEquals(0, resultado);
+        assertThrows(IllegalArgumentException.class, () -> registrar(LocalTime.of(8, 0), LocalTime.of(10, 0)));
     }
 
     @Test
     void nuevaReservaInmediatamenteDespuesNoHayConflictoSeRegistra() {
         existeReservaActivaParaRecursoUnico(LocalTime.of(8, 0), LocalTime.of(10, 0));
 
-        int resultado = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
-                manana, LocalTime.of(10, 0), LocalTime.of(11, 0), List.of("CAT-000001"));
-
-        assertEquals(1, resultado);
+        assertNotNull(registrar(LocalTime.of(10, 0), LocalTime.of(11, 0)));
         assertTrue(reservaDatos.seLlamoAgregar);
     }
 
@@ -132,10 +132,7 @@ class DisponibilidadServiceTest {
     void nuevaReservaInmediatamenteAntesNoHayConflictoSeRegistra() {
         existeReservaActivaParaRecursoUnico(LocalTime.of(8, 0), LocalTime.of(10, 0));
 
-        int resultado = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
-                manana, LocalTime.of(7, 0), LocalTime.of(8, 0), List.of("CAT-000001"));
-
-        assertEquals(1, resultado);
+        assertNotNull(registrar(LocalTime.of(7, 0), LocalTime.of(8, 0)));
     }
 
     @Test
@@ -146,20 +143,17 @@ class DisponibilidadServiceTest {
                         List.of(recursoUnico), EstadoReserva.CANCELADA)
         ));
 
-        int resultado = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
-                manana, LocalTime.of(8, 0), LocalTime.of(10, 0), List.of("CAT-000001"));
-
-        assertEquals(1, resultado);
+        assertNotNull(registrar(LocalTime.of(8, 0), LocalTime.of(10, 0)));
     }
 
     @Test
     void otraFechaNoBloqueaElRecursoSeRegistra() {
         existeReservaActivaParaRecursoUnico(LocalTime.of(8, 0), LocalTime.of(10, 0));
 
-        int resultado = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
+        ReservaDTO reserva = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
                 manana.plusDays(1), LocalTime.of(8, 0), LocalTime.of(10, 0), List.of("CAT-000001"));
 
-        assertEquals(1, resultado);
+        assertNotNull(reserva);
     }
 
     @Test
@@ -174,10 +168,9 @@ class DisponibilidadServiceTest {
                         List.of(recursoOcupado), EstadoReserva.ACTIVA)
         ));
 
-        int resultado = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
-                manana, LocalTime.of(8, 0), LocalTime.of(10, 0), List.of("CAT-000001"));
+        ReservaDTO reserva = registrar(LocalTime.of(8, 0), LocalTime.of(10, 0));
 
-        assertEquals(1, resultado);
+        assertNotNull(reserva);
         assertEquals("REC-0002", reservaDatos.ultimaReservaGuardada.getRecursosReservados().get(0).getId());
     }
 
@@ -192,10 +185,7 @@ class DisponibilidadServiceTest {
         reservaDatos.definirReservasDe("REC-0001", List.of(conflicto));
         reservaDatos.definirReservasDe("REC-0002", List.of(conflicto));
 
-        int resultado = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
-                manana, LocalTime.of(8, 0), LocalTime.of(10, 0), List.of("CAT-000001"));
-
-        assertEquals(0, resultado);
+        assertThrows(IllegalArgumentException.class, () -> registrar(LocalTime.of(8, 0), LocalTime.of(10, 0)));
         assertFalse(reservaDatos.seLlamoAgregar);
     }
 
@@ -203,10 +193,60 @@ class DisponibilidadServiceTest {
     void categoriaSinRecursosRegistradosNoSeRegistraNada() {
         recursoLogica.recursosDeLaCategoria = List.of();
 
-        int resultado = reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion",
-                manana, LocalTime.of(8, 0), LocalTime.of(10, 0), List.of("CAT-000099"));
-
-        assertEquals(0, resultado);
+        assertThrows(IllegalArgumentException.class, () -> reservaLogica.registrarReserva(
+                "FUNC-01", "Ana", "Reunion", manana, LocalTime.of(8, 0), LocalTime.of(10, 0),
+                List.of("CAT-000099")));
         assertFalse(reservaDatos.seLlamoAgregar);
+    }
+
+    // --- mensaje de las categorias sin recursos libres (decision 17) ---
+
+    @Test
+    void elMensajeNombraLaCategoriaSinRecursosLibres() {
+        existeReservaActivaParaRecursoUnico(LocalTime.of(8, 0), LocalTime.of(10, 0));
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> registrar(LocalTime.of(9, 0), LocalTime.of(11, 0)));
+
+        assertEquals("No hay recursos disponibles en las categorías: Salas", error.getMessage());
+    }
+
+    @Test
+    void siLaCategoriaNoTieneRecursosElMensajeUsaSuId() {
+        recursoLogica.recursosDeLaCategoria = List.of();
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> reservaLogica.registrarReserva("FUNC-01", "Ana", "Reunion", manana,
+                        LocalTime.of(8, 0), LocalTime.of(10, 0), List.of("CAT-000099")));
+
+        assertEquals("No hay recursos disponibles en las categorías: CAT-000099", error.getMessage());
+    }
+
+    // --- transaccion ---
+
+    @Test
+    void siSeRegistraSeHaceCommitYSeCierraLaConexion() {
+        registrar(LocalTime.of(8, 0), LocalTime.of(10, 0));
+
+        assertEquals(List.of("setAutoCommit(false)", "commit", "close"), conexionFalsa.llamadas);
+        // la reserva se guardo con la MISMA conexion de la transaccion
+        assertSame(conexionFalsa.conexion, reservaDatos.conexionDelGuardado);
+    }
+
+    @Test
+    void siNoHayDisponibilidadSeHaceRollbackYSeCierraLaConexion() {
+        existeReservaActivaParaRecursoUnico(LocalTime.of(8, 0), LocalTime.of(10, 0));
+
+        assertThrows(IllegalArgumentException.class, () -> registrar(LocalTime.of(9, 0), LocalTime.of(11, 0)));
+
+        assertEquals(List.of("setAutoCommit(false)", "rollback", "close"), conexionFalsa.llamadas);
+    }
+
+    @Test
+    void conDatosInvalidosNoSeAbreNingunaConexion() {
+        assertThrows(IllegalArgumentException.class, () -> reservaLogica.registrarReserva(
+                "FUNC-01", "Ana", "", manana, LocalTime.of(8, 0), LocalTime.of(10, 0), List.of("CAT-000001")));
+
+        assertTrue(conexionFalsa.llamadas.isEmpty());
     }
 }

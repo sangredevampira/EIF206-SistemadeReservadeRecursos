@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ReservaServiceTest {
 
     static class ReservaLogicaFake extends ReservaLogica {
-        int valorARetornarRegistrar;
+        ReservaDTO reservaARetornarRegistrar;
         boolean valorARetornarCancelar;
         ReservaDTO reservaARetornarBuscar;
         List<ReservaDTO> listaARetornar;
@@ -23,11 +23,11 @@ class ReservaServiceTest {
         String idBuscadaRecibido;
 
         @Override
-        public int registrarReserva(String idFuncionario, String nombreFuncionario, String nombreActividad,
-                                    LocalDate fecha, LocalTime horaInicio, LocalTime horaFin,
-                                    List<String> idsCategoriasSolicitadas) {
+        public ReservaDTO registrarReserva(String idFuncionario, String nombreFuncionario, String nombreActividad,
+                                           LocalDate fecha, LocalTime horaInicio, LocalTime horaFin,
+                                           List<String> idsCategoriasSolicitadas) {
             if (excepcionARetornar != null) throw excepcionARetornar;
-            return valorARetornarRegistrar;
+            return reservaARetornarRegistrar;
         }
 
         @Override
@@ -58,29 +58,32 @@ class ReservaServiceTest {
     }
 
     @Test
-    void registrarReservaConDisponibilidadTotalDevuelveUno() {
+    void registrarReservaDevuelveLaReservaCreada() {
         ReservaLogicaFake fake = new ReservaLogicaFake();
-        fake.valorARetornarRegistrar = 1;
+        fake.reservaARetornarRegistrar = new ReservaDTO();
+        fake.reservaARetornarRegistrar.setIdReserva("RES-000001");
         ReservaService service = new ReservaService(fake);
 
-        int resultado = service.registrarReserva("FUNC-01", "Ana Pérez", "Reunión de ventas",
+        ReservaDTO resultado = service.registrarReserva("FUNC-01", "Ana Pérez", "Reunión de ventas",
                 LocalDate.now().plusDays(1), LocalTime.of(8, 0), LocalTime.of(10, 0),
                 List.of("CAT-000001"));
 
-        assertEquals(1, resultado);
+        assertSame(fake.reservaARetornarRegistrar, resultado);
     }
 
     @Test
-    void registrarReservaSinDisponibilidadEnAlgunaCategoriaDevuelveCero() {
+    void registrarReservaSinDisponibilidadPropagaLaExcepcionConElMensaje() {
         ReservaLogicaFake fake = new ReservaLogicaFake();
-        fake.valorARetornarRegistrar = 0; // así responde ReservaLogica cuando falta una categoría
+        // así responde ReservaLogica cuando falta una categoría
+        fake.excepcionARetornar = new IllegalArgumentException("No hay recursos disponibles en las categorías: Salas");
         ReservaService service = new ReservaService(fake);
 
-        int resultado = service.registrarReserva("FUNC-01", "Ana Pérez", "Reunión",
-                LocalDate.now().plusDays(1), LocalTime.of(8, 0), LocalTime.of(9, 0),
-                List.of("CAT-000002"));
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () ->
+                service.registrarReserva("FUNC-01", "Ana Pérez", "Reunión",
+                        LocalDate.now().plusDays(1), LocalTime.of(8, 0), LocalTime.of(9, 0),
+                        List.of("CAT-000002")));
 
-        assertEquals(0, resultado);
+        assertEquals("No hay recursos disponibles en las categorías: Salas", error.getMessage());
     }
 
     @Test

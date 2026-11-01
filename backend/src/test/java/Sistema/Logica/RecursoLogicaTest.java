@@ -126,8 +126,8 @@ class RecursoLogicaTest {
     }
 
     /**
-     * ReservaLogica falsa: super(null, null) usa el constructor de pruebas de
-     * Kristel, que no crea ReservaDatos ni archivos. Solo se sobrescribe la
+     * ReservaLogica falsa: super(null, null, null) usa el constructor de pruebas,
+     * que no crea ReservaDatos ni abre conexiones. Solo se sobrescribe la
      * version con conexion de tieneReservasFuturasActivas, que es la que usa
      * eliminarRecurso dentro de su transaccion.
      */
@@ -137,7 +137,7 @@ class RecursoLogicaTest {
         boolean consultoConElCandadoTomado = false;
         Connection conexionRecibida;
 
-        ReservaLogicaFake() { super(null, null); }
+        ReservaLogicaFake() { super(null, null, null); }
 
         @Override
         public boolean tieneReservasFuturasActivas(Connection conexion, String idRecurso) {

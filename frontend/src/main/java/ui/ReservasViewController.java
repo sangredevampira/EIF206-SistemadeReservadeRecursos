@@ -227,7 +227,7 @@ public class ReservasViewController implements Initializable {
                 .collect(Collectors.toList());
 
         try {
-            int resultado = reservaService.registrarReserva(
+            reservaService.registrarReserva(
                     idUsuario,
                     nombreFuncionario,
                     actividad,
@@ -237,11 +237,9 @@ public class ReservasViewController implements Initializable {
                     idsCategorias
             );
 
-            if (resultado == 1) {
-                mostrarAlerta(AlertType.INFORMATION, "Éxito", "La reserva fue registrada correctamente");
-                limpiarFormulario();
-                cargarDatosDesdeSistema();
-            } else  mostrarAlerta(AlertType.ERROR, "Sin disponibilidad", "No hay recursos disponibles en una o más de las categorías solicitadas");
+            mostrarAlerta(AlertType.INFORMATION, "Éxito", "La reserva fue registrada correctamente");
+            limpiarFormulario();
+            cargarDatosDesdeSistema();
 
         } catch (IllegalArgumentException ex) {
             mostrarAlerta(AlertType.WARNING, "Atención", ex.getMessage());
