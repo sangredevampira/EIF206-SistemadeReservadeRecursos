@@ -4,6 +4,9 @@ import Sistema.Red.DespachadorPeticiones;
 import Sistema.Red.GestorClientes;
 import Sistema.Red.ServidorReservas;
 
+import Sistema.Red.ManejadorAuth;
+import Sistema.Service.AuthService;
+
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +28,8 @@ public class ServidorMain {
         GestorClientes gestor = new GestorClientes();
         ServidorReservas servidor = new ServidorReservas(despachador, gestor);
 
-        // Aquí se registrarán los manejadores (AUTH, RES, CAL, ACT...)
+        new ManejadorAuth(new AuthService()).registrarEn(despachador);
+        // Aquí se registrarán los demás manejadores (RES, CAL, ACT...)
 
         servidor.iniciar(puerto);
         System.out.println("Servidor escuchando en el puerto " + servidor.getPuerto());
