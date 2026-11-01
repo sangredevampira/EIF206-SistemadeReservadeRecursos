@@ -85,7 +85,7 @@ public class RecursoDatos {
         }
         if (descripcion != null) {
             sql.append(" AND r.descripcion LIKE ? ESCAPE '!'");
-            valores.add("%" + escaparLike(descripcion) + "%");
+            valores.add("%" + TextoSql.escaparLike(descripcion) + "%");
         }
         sql.append(ORDEN);
 
@@ -228,12 +228,5 @@ public class RecursoDatos {
                 resultado.getString("id_recurso"),
                 resultado.getString("descripcion"),
                 new CategoriaDTO(resultado.getString("id_categoria"), resultado.getString("descripcion_categoria")));
-    }
-
-    // Con ESCAPE '!' los comodines del usuario se buscan como texto: "50%"
-    // no encuentra "500". Primero se escapa el propio '!'. Se usa '!' y no
-    // '\' porque el significado de '\' depende del sql_mode (NO_BACKSLASH_ESCAPES).
-    static String escaparLike(String texto) {
-        return texto.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 }

@@ -1,6 +1,7 @@
 package Sistema.Service;
 
 import Sistema.DTO.CategoriaDTO;
+import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.Logica.CategoriaLogica;
 
 import java.util.List;
@@ -13,18 +14,18 @@ public class CategoriaService {
 
     public CategoriaService() { this(new CategoriaLogica()); }
 
-    // para pruebas: permite pasar una CategoriaLogica con datos falsos
+    // para pruebas: permite pasar una CategoriaLogica falsa
     public CategoriaService(CategoriaLogica categoriaLogica) { this.categoriaLogica = categoriaLogica; }
 
-    public CategoriaLogica.ResultadoOperacion registrar(CategoriaDTO categoria) {
+    public ResultadoOperacionDTO registrar(CategoriaDTO categoria) {
         return categoriaLogica.registrar(categoria);
     }
 
-    public CategoriaLogica.ResultadoOperacion modificar(CategoriaDTO categoria) {
+    public ResultadoOperacionDTO modificar(CategoriaDTO categoria) {
         return categoriaLogica.modificar(categoria);
     }
 
-    public CategoriaLogica.ResultadoOperacion eliminar(String id) {
+    public ResultadoOperacionDTO eliminar(String id) {
         return categoriaLogica.eliminar(id);
     }
 

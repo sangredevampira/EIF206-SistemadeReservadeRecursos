@@ -1,7 +1,7 @@
 package ui;
 
 import Sistema.DTO.CategoriaDTO;
-import Sistema.Logica.CategoriaLogica;
+import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.Service.CategoriaService;
 import Sistema.DTO.ReportConfigDTO;
 import Sistema.Logica.Exception.ReportExceptionLogica;
@@ -105,17 +105,17 @@ public class CategoriaController {
                 : new CategoriaDTO(categoriaSeleccionada.getId(), campoDescripcion.getText());
 
         try {
-            CategoriaLogica.ResultadoOperacion resultado = esNueva
+            ResultadoOperacionDTO resultado = esNueva
                     ? categoriaService.registrar(categoria)
                     : categoriaService.modificar(categoria);
 
-            if (resultado.isExitoso()) {
+            if (resultado.isExito()) {
                 mostrarMensajeExito(esNueva ? "Categoria registrada correctamente."
                         : "Categoria modificada correctamente.");
                 limpiar();
                 cargarListadoCompleto();
             } else {
-                mostrarErrorValidacion(resultado.getMensajeError());
+                mostrarErrorValidacion(resultado.getMensaje());
             }
         } catch (RuntimeException e) {
             mostrarErrorSistema("No se pudo guardar la categoria.\n" + e.getMessage());
@@ -141,17 +141,17 @@ public class CategoriaController {
                 return;
             }
             try {
-                CategoriaLogica.ResultadoOperacion resultado =
+                ResultadoOperacionDTO resultado =
                         categoriaService.eliminar(categoriaSeleccionada.getId());
 
-                if (resultado.isExitoso()) {
+                if (resultado.isExito()) {
                     mostrarMensajeExito("Categoria eliminada correctamente.");
                     limpiar();
                     cargarListadoCompleto();
                 } else {
                     // Aca cae, por ejemplo, "tiene recursos asociados" --
                     // error de regla de negocio, no de sistema.
-                    mostrarErrorValidacion(resultado.getMensajeError());
+                    mostrarErrorValidacion(resultado.getMensaje());
                 }
             } catch (RuntimeException e) {
                 mostrarErrorSistema("No se pudo borrar la categoria.\n" + e.getMessage());
