@@ -3,9 +3,15 @@ package Sistema;
 import Sistema.Red.DespachadorPeticiones;
 import Sistema.Red.GestorClientes;
 import Sistema.Red.ManejadorAuth;
+import Sistema.Red.ManejadorCategorias;
+import Sistema.Red.ManejadorFuncionarios;
+import Sistema.Red.ManejadorRecursos;
 import Sistema.Red.ManejadorReservas;
 import Sistema.Red.ServidorReservas;
 import Sistema.Service.AuthService;
+import Sistema.Service.CategoriaService;
+import Sistema.Service.FuncionarioService;
+import Sistema.Service.RecursoService;
 import Sistema.Service.ReservaService;
 
 import java.io.IOException;
@@ -31,8 +37,11 @@ public class ServidorMain {
 
         // Manejadores: cada uno registra sus propias operaciones
         new ManejadorAuth(new AuthService()).registrarEn(despachador);
+        new ManejadorFuncionarios(new FuncionarioService()).registrarEn(despachador);
+        new ManejadorCategorias(new CategoriaService()).registrarEn(despachador);
+        new ManejadorRecursos(new RecursoService()).registrarEn(despachador);
         new ManejadorReservas(new ReservaService(), gestor).registrarEn(despachador);
-        // Aquí se registrarán los demás (FUNC, CAT, REC, CAL, ACT, EST...)
+        // Aquí se registrarán los demás (CAL, ACT, EST...)
 
         servidor.iniciar(puerto);
         System.out.println("Servidor escuchando en el puerto " + servidor.getPuerto());

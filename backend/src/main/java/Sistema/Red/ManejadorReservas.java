@@ -41,13 +41,14 @@ public class ManejadorReservas {
         Funcionario funcionario = contexto.getFuncionario();
         String nombreFuncionario = (funcionario != null) ? funcionario.getNombre() : idFuncionario;
 
-        // si algo falla (datos o disponibilidad) lanza IllegalArgumentException y no se difunde nada
+        // Si falta un dato, llega null y la Logica responde con su mensaje ("Debe indicar la fecha...").
+        // Si algo falla (datos o disponibilidad) lanza IllegalArgumentException y no se difunde nada.
         ReservaDTO creada = reservaService.registrarReserva(idFuncionario, nombreFuncionario,
-                texto(datos, "nombreActividad"),
-                fecha(datos, "fecha"),
-                hora(datos, "horaInicio"),
-                hora(datos, "horaFin"),
-                lista(datos, "idsCategorias"));
+                textoOpcional(datos, "nombreActividad"),
+                fechaOpcional(datos, "fecha"),
+                horaOpcional(datos, "horaInicio"),
+                horaOpcional(datos, "horaFin"),
+                listaOpcional(datos, "idsCategorias"));
 
         gestor.difundirReserva(creada, contexto);   // ya esta guardada: avisa a los demas clientes
         return creada;
@@ -74,7 +75,7 @@ public class ManejadorReservas {
 
     // para calendario, actividades y estadisticas: cualquier sesion iniciada (lo exige el despachador)
     private Object buscarPorPeriodo(JsonNode datos, ContextoSesion contexto) {
-        return reservaService.buscarPorPeriodo(fecha(datos, "fechaDesde"), fecha(datos, "fechaHasta"));
+        return reservaService.buscarPorPeriodo(fechaOpcional(datos, "fechaDesde"), fechaOpcional(datos, "fechaHasta"));
     }
 
     // un funcionario solo toca sus propias reservas; el administrador, cualquiera
@@ -84,7 +85,10 @@ public class ManejadorReservas {
             throw new IllegalArgumentException("Solo puede acceder a sus propias reservas.");
     }
 
-    // --- lectura de "datos": si falta algo o no se puede leer, la solicitud no es valida ---
+    // --- lectura de "datos" ---
+    // Obligatorios (los IDs): si faltan, la solicitud no es valida.
+    // Opcionales: si faltan o vienen en null devuelven null y la Logica dice que dato falta;
+    // si vienen con un tipo o formato que no se puede leer, la solicitud no es valida.
 
     private String texto(JsonNode datos, String campo) {
         JsonNode valor = (datos == null) ? null : datos.get(campo);
@@ -93,25 +97,42 @@ public class ManejadorReservas {
         return valor.asText();
     }
 
-    private LocalDate fecha(JsonNode datos, String campo) {
-        try {
-            return LocalDate.parse(texto(datos, campo));
-        } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException(DATOS_INVALIDOS);
-        }
-    }
-
-    private LocalTime hora(JsonNode datos, String campo) {
-        try {
-            return LocalTime.parse(texto(datos, campo));   // acepta "08:00" y "08:00:00"
-        } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException(DATOS_INVALIDOS);
-        }
-    }
-
-    private List<String> lista(JsonNode datos, String campo) {
+    private String textoOpcional(JsonNode datos, String campo) {
         JsonNode valor = (datos == null) ? null : datos.get(campo);
-        if (valor == null || !valor.isArray())
+        if (valor == null || valor.isNull())
+            return null;
+        if (!valor.isTextual())
+            throw new IllegalArgumentException(DATOS_INVALIDOS);
+        return valor.asText();
+    }
+
+    private LocalDate fechaOpcional(JsonNode datos, String campo) {
+        String texto = textoOpcional(datos, campo);
+        if (texto == null)
+            return null;
+        try {
+            return LocalDate.parse(texto);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException(DATOS_INVALIDOS);
+        }
+    }
+
+    private LocalTime horaOpcional(JsonNode datos, String campo) {
+        String texto = textoOpcional(datos, campo);
+        if (texto == null)
+            return null;
+        try {
+            return LocalTime.parse(texto);   // acepta "08:00" y "08:00:00"
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException(DATOS_INVALIDOS);
+        }
+    }
+
+    private List<String> listaOpcional(JsonNode datos, String campo) {
+        JsonNode valor = (datos == null) ? null : datos.get(campo);
+        if (valor == null || valor.isNull())
+            return null;
+        if (!valor.isArray())
             throw new IllegalArgumentException(DATOS_INVALIDOS);
         List<String> elementos = new ArrayList<>();
         for (JsonNode elemento : valor) {

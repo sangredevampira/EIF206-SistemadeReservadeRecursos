@@ -155,6 +155,21 @@ class ManejadorReservasTest {
     }
 
     @Test
+    void siFaltaUnDatoLaLogicaDiceCualFalta() throws Exception {
+        Map<String, Object> datos = datosDeReserva();
+        datos.remove("fecha");   // el usuario no eligio fecha
+        servicio.falloAlRegistrar = new IllegalArgumentException("Debe indicar la fecha de la reserva.");
+
+        MensajeRed respuesta = enviar(Operaciones.RES_CREAR, datos);
+
+        assertTrue(servicio.seLlamoRegistrar);
+        assertNull(servicio.fechaRecibida);   // llego null a la Logica, que es quien valida
+        assertFalse(exito(respuesta));
+        assertEquals("Debe indicar la fecha de la reserva.", respuesta.getMensaje());
+        assertEquals(0, gestor.veces);
+    }
+
+    @Test
     void siElServicioFallaNoSeDifundeNada() throws Exception {
         servicio.falloAlRegistrar = new IllegalArgumentException("No hay recursos disponibles en las categorías: Salas");
 

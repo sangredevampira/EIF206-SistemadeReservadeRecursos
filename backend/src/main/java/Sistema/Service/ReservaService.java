@@ -8,7 +8,7 @@ import java.util.List;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-public class ReservaService {
+public class ReservaService implements IReservaService {
 
     private ReservaLogica reservaLogica = new ReservaLogica();
 
