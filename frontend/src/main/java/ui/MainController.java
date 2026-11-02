@@ -17,6 +17,10 @@ import java.io.IOException;
 import javafx.scene.control.Alert;
 import Sistema.Red.ClienteRed;
 import Sistema.Red.ProcesadorAlertaReserva;
+import Sistema.Red.TareaRed;
+import Sistema.Service.Red.ProxyAuthService;
+
+import java.util.Objects;
 
 public class MainController {
 
@@ -41,6 +45,16 @@ public class MainController {
     @FXML private Button btnCerrarSesion;
 
     private final ProcesadorAlertaReserva procesadorAlertas = new ProcesadorAlertaReserva();
+    private final ProxyAuthService authService;
+    private boolean cierreSesionEnCurso;
+
+    public MainController() {
+        this(new ProxyAuthService());
+    }
+
+    MainController(ProxyAuthService authService) {
+        this.authService = Objects.requireNonNull(authService);
+    }
 
     @FXML
     private void initialize() {
@@ -128,8 +142,46 @@ public class MainController {
     }
 
     private void manejarCerrarSesion(javafx.event.ActionEvent evento) {
+
+        iniciarCierreSesion(() -> volverAlLogin(evento));
+    }
+
+    void iniciarCierreSesion(Runnable alFinalizar) {
+
+        if (cierreSesionEnCurso) {
+            return;
+        }
+
+        cierreSesionEnCurso = true;
+
+        if (btnCerrarSesion != null) {
+            btnCerrarSesion.setDisable(true);
+        }
+
+        TareaRed.ejecutar(
+                authService::logout,
+                () -> completarCierreSesion(alFinalizar),
+                error -> completarCierreSesion(alFinalizar)
+        );
+    }
+
+    private void completarCierreSesion(Runnable alFinalizar) {
+
         SessionManager.getInstancia().cerrarSesion();
         ClienteRed.getInstancia().setReceptorAlertas(null);
+
+        try {
+            alFinalizar.run();
+        } finally {
+            cierreSesionEnCurso = false;
+
+            if (btnCerrarSesion != null) {
+                btnCerrarSesion.setDisable(false);
+            }
+        }
+    }
+
+    private void volverAlLogin(javafx.event.ActionEvent evento) {
 
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sistema/view/LoginView.fxml"));
@@ -140,10 +192,9 @@ public class MainController {
             escenario.setTitle("SISTEMA DE RESERVAS");
             escenario.setScene(new Scene(raiz, 400, 320));
 
-            // --- Agrega estas dos líneas ---
             escenario.setResizable(false);
             escenario.show();
-            escenario.centerOnScreen(); // Recalcula el centro para el Login
+            escenario.centerOnScreen();
 
         } catch (IOException e) {
             System.out.println("No se pudo volver a la pantalla de login: " + e.getMessage());

@@ -113,7 +113,8 @@ pide a Kristel registrar el manejador.
 | Reservas | `RES_BUSCAR_PERIODO` | `fechaDesde`, `fechaHasta` | lista de `ReservaDTO` | Kristel |
 | Consulta | `CAL_CONSULTAR` | `idCategoria`, `fecha` | matriz de disponibilidad (`DisponibilidadRecursoDTO`) | Kristel (al implementar I2-C) |
 | Consulta | `ACT_CONSULTAR` | rango de fechas | actividades programadas (`ActividadProgramadaDTO`) | Kristel (al implementar I2-D) |
-| Consulta | `EST_RECURSOS`, `EST_ACTIVIDADES` | por definir | por definir | Sofía |
+| Estadísticas (cualquier sesión autenticada) | `EST_RECURSOS` | `desde`, `hasta` (textos con fechas ISO `AAAA-MM-DD`) | lista de `EstadisticaCategoriaDTO`: objetos `{categoria, cantidad}` | Sofía |
+| Estadísticas (cualquier sesión autenticada) | `EST_ACTIVIDADES` | `desde`, `hasta` (textos con fechas ISO `AAAA-MM-DD`) | objeto con fechas ISO de inicio de semana como claves y cantidades enteras como valores (`{"2026-11-02": 5}`) | Sofía |
 | Evento | `RESERVA_CREADA` | — (solo sale del Backend) | `ReservaDTO` completo | Kristel |
 
 Notas de `FUNC`, `CAT` y `REC` (Derek):
