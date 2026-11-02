@@ -2,10 +2,11 @@ package Sistema;
 
 import Sistema.Red.DespachadorPeticiones;
 import Sistema.Red.GestorClientes;
-import Sistema.Red.ServidorReservas;
-
 import Sistema.Red.ManejadorAuth;
+import Sistema.Red.ManejadorReservas;
+import Sistema.Red.ServidorReservas;
 import Sistema.Service.AuthService;
+import Sistema.Service.ReservaService;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -28,8 +29,10 @@ public class ServidorMain {
         GestorClientes gestor = new GestorClientes();
         ServidorReservas servidor = new ServidorReservas(despachador, gestor);
 
+        // Manejadores: cada uno registra sus propias operaciones
         new ManejadorAuth(new AuthService()).registrarEn(despachador);
-        // Aquí se registrarán los demás manejadores (RES, CAL, ACT...)
+        new ManejadorReservas(new ReservaService(), gestor).registrarEn(despachador);
+        // Aquí se registrarán los demás (FUNC, CAT, REC, CAL, ACT, EST...)
 
         servidor.iniciar(puerto);
         System.out.println("Servidor escuchando en el puerto " + servidor.getPuerto());
@@ -38,8 +41,9 @@ public class ServidorMain {
     private static int leerPuerto() {
         // Si se indicó un archivo y no existe, se avisa (no se busca en otro lado)
         String indicada = System.getProperty(PROPIEDAD_CONFIG);
-        if (indicada != null && !indicada.isBlank() && !Files.isRegularFile(Path.of(indicada)))
+        if (indicada != null && !indicada.isBlank() && !Files.isRegularFile(Path.of(indicada))) {
             throw new IllegalStateException("No existe el archivo indicado en " + PROPIEDAD_CONFIG + ".");
+        }
 
         Properties propiedades = new Properties();
         for (Path ruta : rutasPosibles()) {
@@ -54,13 +58,14 @@ public class ServidorMain {
         }
 
         String valor = propiedades.getProperty("puerto");
-        if (valor == null || valor.isBlank())  return PUERTO_POR_DEFECTO;
-
+        if (valor == null || valor.isBlank()) {
+            return PUERTO_POR_DEFECTO;
+        }
         try {
             int puerto = Integer.parseInt(valor.trim());
-            if (puerto < 0 || puerto > 65535)
+            if (puerto < 0 || puerto > 65535) {
                 throw new IllegalStateException("El puerto debe estar entre 0 y 65535.");
-
+            }
             return puerto;
         } catch (NumberFormatException e) {
             throw new IllegalStateException("El puerto del archivo de configuración no es un número: " + valor);
@@ -70,9 +75,9 @@ public class ServidorMain {
     // Si se indicó servidor.config se usa SOLO esa ruta; si no, ./, ./backend/ y ../backend/
     private static List<Path> rutasPosibles() {
         String indicada = System.getProperty(PROPIEDAD_CONFIG);
-        if (indicada != null && !indicada.isBlank())
+        if (indicada != null && !indicada.isBlank()) {
             return List.of(Path.of(indicada));
-
+        }
         return List.of(Path.of("servidor.properties"),
                 Path.of("backend", "servidor.properties"),
                 Path.of("..", "backend", "servidor.properties"));

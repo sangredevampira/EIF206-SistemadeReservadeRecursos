@@ -106,10 +106,10 @@ pide a Kristel registrar el manejador.
 | Recursos | `REC_BUSCAR` (administrador) | `idRecurso` | `RecursoDTO` (si no existe, `exito=false`) | Derek |
 | Recursos | `REC_LISTAR` (cualquier sesión) | `idCategoria`, `descripcion` (opcionales; sin ninguno = todos) | lista de `RecursoDTO` activos con su categoría | Derek |
 | Recursos | `REC_NUEVO_ID` (administrador) | — | texto con el ID nuevo (6 dígitos) | Derek |
-| Reservas | `RES_CREAR` | `idFuncionario`, `nombreFuncionario`, `nombreActividad`, `fecha`, `horaInicio`, `horaFin`, `idsCategorias` (lista) | `ReservaDTO` creado | Kristel |
+| Reservas | `RES_CREAR` | `nombreActividad`, `fecha`, `horaInicio`, `horaFin`, `idsCategorias` (lista de IDs). El funcionario sale de la sesión | `ReservaDTO` creado | Kristel |
 | Reservas | `RES_CANCELAR` | `idReserva` | `true` si se canceló | Kristel |
-| Reservas | `RES_BUSCAR_ID` | `idReserva` | `ReservaDTO` o `null` | Kristel |
-| Reservas | `RES_BUSCAR_FUNCIONARIO` | `idFuncionario` | lista de `ReservaDTO` | Kristel |
+| Reservas | `RES_BUSCAR_ID` | `idReserva` | `ReservaDTO` (error si no existe) | Kristel |
+| Reservas | `RES_BUSCAR_FUNCIONARIO` | `idFuncionario` | lista de `ReservaDTO` (error si no tiene ninguna) | Kristel |
 | Reservas | `RES_BUSCAR_PERIODO` | `fechaDesde`, `fechaHasta` | lista de `ReservaDTO` | Kristel |
 | Consulta | `CAL_CONSULTAR` | `idCategoria`, `fecha` | matriz de disponibilidad (`DisponibilidadRecursoDTO`) | Kristel (al implementar I2-C) |
 | Consulta | `ACT_CONSULTAR` | rango de fechas | actividades programadas (`ActividadProgramadaDTO`) | Kristel (al implementar I2-D) |
@@ -149,6 +149,13 @@ Notas sobre reservas:
 - Cuando `RES_CREAR` falla por falta de disponibilidad, el `mensaje` indica **qué categorías no estaban disponibles**
   (el texto lo arma la Lógica del Backend).
 - Solo se difunde `RESERVA_CREADA` cuando la reserva se guardó correctamente.
+- En `RES_CREAR` el funcionario **no viaja en `datos`**: el servidor usa el de la sesión (`idUsuario` y, si tiene,
+  el nombre de su `Funcionario`). Un cliente no puede reservar a nombre de otro.
+- Un funcionario solo puede consultar (`RES_BUSCAR_ID`, `RES_BUSCAR_FUNCIONARIO`) y cancelar (`RES_CANCELAR`) sus propias
+  reservas; el administrador puede con cualquiera. Si no, `mensaje`: "Solo puede acceder a sus propias reservas.".
+- `RES_BUSCAR_PERIODO` está disponible para cualquier sesión iniciada (lo usan calendario, actividades y estadísticas).
+- Fechas en `datos` como `AAAA-MM-DD` y horas como `HH:mm` o `HH:mm:ss`; si no se pueden leer, `mensaje`:
+  "Los datos de la solicitud no son válidos.".
 
 ## 4. Sesión
 
