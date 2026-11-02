@@ -5,7 +5,8 @@ import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.Logica.UsuarioLogica;
 
 // Capa Service: solo pasa las solicitudes a la Logica, sin validaciones.
-// implements IAuthService queda para el paso 6 (logout lo resuelve el servidor).
+// No implementa IAuthService (esa la implementa el proxy del Frontend): el
+// logout no pasa por aqui, lo hace ManejadorAuth con ContextoSesion.
 
 public class AuthService {
 

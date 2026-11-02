@@ -3,28 +3,41 @@ package Sistema.Service;
 import java.util.List;
 
 import Sistema.DTO.RecursoDTO;
+import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.Logica.RecursoLogica;
 
-public class RecursoService {
+// Capa Service: solo pasa las solicitudes a RecursoLogica, sin validaciones.
+// En el servidor hay una sola instancia para todos los hilos: no guarda estado.
+public class RecursoService implements IRecursoService {
 
-    private RecursoLogica recursoLogica = new RecursoLogica();
+    private final RecursoLogica recursoLogica;
 
-    public RecursoService(){}
+    public RecursoService() { this(new RecursoLogica()); }
+
+    // para pruebas: permite pasar una RecursoLogica falsa
     public RecursoService(RecursoLogica recursoLogica) { this.recursoLogica = recursoLogica; }
 
-    public int registrarRecurso(RecursoDTO nuevoRecurso) { return recursoLogica.registrarRecurso(nuevoRecurso); }
+    @Override
+    public ResultadoOperacionDTO registrarRecurso(RecursoDTO nuevoRecurso) { return recursoLogica.registrarRecurso(nuevoRecurso); }
 
+    @Override
     public String generarNuevoId() { return recursoLogica.generarNuevoId(); }
 
+    @Override
     public RecursoDTO buscarRecursoID(String id) { return recursoLogica.buscarRecursoID(id); }
 
+    @Override
     public List<RecursoDTO> filtrarRecursos(String idCategoria) { return recursoLogica.filtrarRecursos(idCategoria); }
 
+    @Override
     public List<RecursoDTO> filtrarRecursos(String idCategoria, String descripcion) { return recursoLogica.filtrarRecursos(idCategoria, descripcion); }
 
+    @Override
     public List<RecursoDTO> listarRecursos() { return recursoLogica.listarRecursos(); }
 
-    public boolean modificarRecurso(RecursoDTO recurso){ return recursoLogica.modificarRecurso(recurso); }
+    @Override
+    public ResultadoOperacionDTO modificarRecurso(RecursoDTO recurso) { return recursoLogica.modificarRecurso(recurso); }
 
-    public boolean eliminarRecurso(String id){ return recursoLogica.eliminarRecurso(id); }
+    @Override
+    public ResultadoOperacionDTO eliminarRecurso(String id) { return recursoLogica.eliminarRecurso(id); }
 }

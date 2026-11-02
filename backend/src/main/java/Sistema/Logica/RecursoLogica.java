@@ -1,6 +1,7 @@
 package Sistema.Logica;
 
 import Sistema.DTO.RecursoDTO;
+import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.Datos.ConexionBD;
 import Sistema.Datos.FuenteConexion;
 import Sistema.Datos.RecursoDatos;
@@ -33,24 +34,38 @@ public class RecursoLogica {
         this.fuenteConexion = fuenteConexion;
     }
 
-    private ReservaLogica getReservaLogica() {
+    /**
+     * Creacion perezosa de la ReservaLogica real (no se crea en el constructor
+     * porque ReservaLogica tambien crea una RecursoLogica cuando la necesita).
+     *
+     * synchronized: en el servidor hay UNA RecursoLogica para todos los hilos
+     * de clientes. Sin el candado, dos hilos podrian ver null a la vez y crear
+     * dos ReservaLogica, o uno podria ver el campo asignado antes de que el
+     * objeto estuviera completo. El candado es el propio objeto (this), solo
+     * envuelve un if y un "new" que no toma ningun otro candado ni abre
+     * conexiones, y nunca se pide desde dentro de otra seccion critica que lo
+     * espere: no puede formar un ciclo con CANDADO_RESERVAS (ver eliminarRecurso).
+     */
+    private synchronized ReservaLogica getReservaLogica() {
         if (reservaLogica == null) reservaLogica = new ReservaLogica();
         return reservaLogica;
     }
 
-    public int registrarRecurso(RecursoDTO nuevoRecurso) {
-        if(nuevoRecurso == null)
-            throw new IllegalArgumentException("El recurso que se intenta registrar no existe");
+    // La existencia de la categoria la revisa la FK (error 1452), sin SELECT previo.
+    // Errores de regla y de base: fallo con un mensaje legible (como CategoriaLogica).
+    public ResultadoOperacionDTO registrarRecurso(RecursoDTO nuevoRecurso) {
+        if (nuevoRecurso == null)
+            return ResultadoOperacionDTO.fallo("El recurso que se intenta registrar no existe");
 
-        validarDatosGenerales(nuevoRecurso);
-        validarId(nuevoRecurso.getId());
+        String error = validarDatosGenerales(nuevoRecurso);
+        if (error == null) error = validarId(nuevoRecurso.getId());
+        if (error != null) return ResultadoOperacionDTO.fallo(error);
 
-        // la existencia de la categoria la revisa la FK (error 1452), sin SELECT previo
         try (Connection conexion = fuenteConexion.abrir()) {
             recursoDatos.insertar(conexion, conDescripcionRecortada(nuevoRecurso));
-            return 1;
+            return ResultadoOperacionDTO.exito();
         } catch (SQLException e) {
-            throw traducirErrorDeEscritura(e, nuevoRecurso.getId());
+            return traducirErrorDeEscritura(e, nuevoRecurso.getId());
         }
     }
 
@@ -104,24 +119,22 @@ public class RecursoLogica {
     // El ID nunca cambia: el UPDATE lo usa solo en el WHERE. Por eso ya no hace
     // falta la revision de "otro recurso con ese ID" del Proyecto 1, que
     // comparaba el ID consigo mismo y nunca se cumplia.
-    public boolean modificarRecurso(RecursoDTO recurso){
+    public ResultadoOperacionDTO modificarRecurso(RecursoDTO recurso){
         if (recurso == null)
-            throw new IllegalArgumentException("El recurso que se intenta modificar no existe");
+            return ResultadoOperacionDTO.fallo("El recurso que se intenta modificar no existe");
 
-        validarDatosGenerales(recurso);
-        validarId(recurso.getId());
+        String error = validarDatosGenerales(recurso);
+        if (error == null) error = validarId(recurso.getId());
+        if (error != null) return ResultadoOperacionDTO.fallo(error);
 
-        boolean modificado;
         try (Connection conexion = fuenteConexion.abrir()) {
-            modificado = recursoDatos.actualizar(conexion, conDescripcionRecortada(recurso));
+            // 0 filas: no existe o esta dado de baja
+            if (!recursoDatos.actualizar(conexion, conDescripcionRecortada(recurso)))
+                return ResultadoOperacionDTO.fallo("El recurso que se intenta modificar no existe o fue dado de baja");
+            return ResultadoOperacionDTO.exito();
         } catch (SQLException e) {
-            throw traducirErrorDeEscritura(e, recurso.getId());
+            return traducirErrorDeEscritura(e, recurso.getId());
         }
-
-        // 0 filas: no existe o esta dado de baja
-        if (!modificado)
-            throw new IllegalArgumentException("El recurso que se intenta modificar no existe o fue dado de baja");
-        return true;
     }
 
     /**
@@ -138,35 +151,51 @@ public class RecursoLogica {
      *     candado mientras espera esas filas: un bloqueo mutuo que MySQL no
      *     detecta porque no ve el candado de Java.
      *  3. Los hilos que esperan el candado no tienen conexiones abiertas sin usar.
+     *
+     * getReservaLogica() es synchronized sobre this y se llama aqui DENTRO de
+     * CANDADO_RESERVAS (orden: CANDADO_RESERVAS -> this). No hay bloqueo mutuo
+     * porque ningun hilo toma esos dos candados en el orden contrario: dentro
+     * de getReservaLogica solo se hace "new ReservaLogica()", que no toma
+     * CANDADO_RESERVAS ni ningun otro candado.
      */
-    public boolean eliminarRecurso(String id){
+    public ResultadoOperacionDTO eliminarRecurso(String id){
         if (id == null || id.isBlank())
-            throw new IllegalArgumentException("El recurso que se intenta eliminar no existe");
+            return ResultadoOperacionDTO.fallo("El recurso que se intenta eliminar no existe");
 
         synchronized (ReservaLogica.CANDADO_RESERVAS) {
             try (Connection conexion = fuenteConexion.abrir()) {
                 conexion.setAutoCommit(false);
                 try {
-                    // 1. validacion propia de Recurso
-                    if (recursoDatos.buscarActivoPorId(conexion, id) == null)
-                        throw new IllegalArgumentException("El recurso que se intenta eliminar no existe");
-
-                    // 2. coordinacion con reserva, con la misma conexion
-                    if (getReservaLogica().tieneReservasFuturasActivas(conexion, id))
-                        throw new IllegalArgumentException("No se puede eliminar el recurso porque tiene reservas futuras activas");
-
-                    // 3. si no hay ningun problema se desactiva
-                    recursoDatos.desactivar(conexion, id);
-                    conexion.commit();
-                    return true;
+                    ResultadoOperacionDTO resultado = darDeBaja(conexion, id);
+                    if (resultado.isExito()) {
+                        conexion.commit();
+                    } else {
+                        conexion.rollback();
+                    }
+                    return resultado;
                 } catch (SQLException | RuntimeException e) {
                     deshacer(conexion, e);
                     throw e;
                 }
             } catch (SQLException e) {
-                throw new IllegalStateException(UsuarioDatos.MENSAJE_ERROR_BD, e);
+                return ResultadoOperacionDTO.fallo(UsuarioDatos.MENSAJE_ERROR_BD);
             }
         }
+    }
+
+    // los pasos de la baja, con la conexion de la transaccion
+    private ResultadoOperacionDTO darDeBaja(Connection conexion, String id) throws SQLException {
+        // 1. validacion propia de Recurso
+        if (recursoDatos.buscarActivoPorId(conexion, id) == null)
+            return ResultadoOperacionDTO.fallo("El recurso que se intenta eliminar no existe");
+
+        // 2. coordinacion con reserva, con la misma conexion
+        if (getReservaLogica().tieneReservasFuturasActivas(conexion, id))
+            return ResultadoOperacionDTO.fallo("No se puede eliminar el recurso porque tiene reservas futuras activas");
+
+        // 3. si no hay ningun problema se desactiva
+        recursoDatos.desactivar(conexion, id);
+        return ResultadoOperacionDTO.exito();
     }
 
     // metodo que crea unicamente el ID; cuenta tambien los IDs de recursos inactivos.
@@ -181,24 +210,25 @@ public class RecursoLogica {
         return String.valueOf(id);
     }
 
-    // metodos de comprobacion y validacion
-    private void validarDatosGenerales(RecursoDTO recurso) {
+    // metodos de comprobacion y validacion: null si es valido; si no, el mensaje
+    private static String validarDatosGenerales(RecursoDTO recurso) {
         if (recurso.getCategoria() == null || recurso.getCategoria().getId() == null
                 || recurso.getCategoria().getId().isBlank())
-            throw new IllegalArgumentException("Debe seleccionar una categoría");
+            return "Debe seleccionar una categoría";
         if (recurso.getDescripcion() == null || recurso.getDescripcion().isBlank())
-            throw new IllegalArgumentException("La descripción no puede estar vacía");
+            return "La descripción no puede estar vacía";
         if (recurso.getDescripcion().trim().length() > LARGO_MAXIMO_DESCRIPCION)
-            throw new IllegalArgumentException("La descripción no puede tener más de "
-                    + LARGO_MAXIMO_DESCRIPCION + " caracteres");
+            return "La descripción no puede tener más de " + LARGO_MAXIMO_DESCRIPCION + " caracteres";
+        return null;
     }
 
     // formato del Proyecto 1: numero de 6 digitos (el que produce generarNuevoId)
-    private void validarId(String id) {
+    private static String validarId(String id) {
         if (id == null || id.isBlank())
-            throw new IllegalArgumentException("El recurso no tiene un ID asignado");
+            return "El recurso no tiene un ID asignado";
         if (!id.matches("[0-9]{6}"))
-            throw new IllegalArgumentException("El ID del recurso debe tener exactamente 6 dígitos");
+            return "El ID del recurso debe tener exactamente 6 dígitos";
+        return null;
     }
 
     // copia para no modificar el DTO que llega del controller
@@ -206,13 +236,14 @@ public class RecursoLogica {
         return new RecursoDTO(recurso.getId(), recurso.getDescripcion().trim(), recurso.getCategoria());
     }
 
-    private static RuntimeException traducirErrorDeEscritura(SQLException e, String idRecurso) {
+    // otro error (incluido no poder abrir la conexion): el mensaje generico, sin detalles de SQL
+    private static ResultadoOperacionDTO traducirErrorDeEscritura(SQLException e, String idRecurso) {
         if (e.getErrorCode() == ERROR_ID_REPETIDO)
-            return new IllegalArgumentException("Ya existe un recurso con el ID " + idRecurso
+            return ResultadoOperacionDTO.fallo("Ya existe un recurso con el ID " + idRecurso
                     + " (puede estar dado de baja)");
         if (e.getErrorCode() == ERROR_CATEGORIA_INEXISTENTE)
-            return new IllegalArgumentException("La categoría seleccionada no existe");
-        return new IllegalStateException(UsuarioDatos.MENSAJE_ERROR_BD, e);
+            return ResultadoOperacionDTO.fallo("La categoría seleccionada no existe");
+        return ResultadoOperacionDTO.fallo(UsuarioDatos.MENSAJE_ERROR_BD);
     }
 
     // si el rollback tambien falla, ese error se adjunta al original y no lo tapa

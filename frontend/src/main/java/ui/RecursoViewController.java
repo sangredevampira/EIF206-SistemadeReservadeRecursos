@@ -2,6 +2,7 @@ package ui;
 
 import Sistema.DTO.RecursoDTO;
 import Sistema.DTO.CategoriaDTO;
+import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.Service.RecursoService;
 import Sistema.Service.CategoriaService;
 
@@ -156,15 +157,19 @@ public class RecursoViewController {
                 existente = null;
             }
 
-            if (existente != null) {
-                boolean modificado = recursoService.modificarRecurso(recurso);
-                if (modificado)
-                    mostrarAlerta(AlertType.INFORMATION, "Éxito", "El recurso fue modificado correctamente");
-            } else {
-                int resultado = recursoService.registrarRecurso(recurso);
-                if (resultado == 1)
-                    mostrarAlerta(AlertType.INFORMATION, "Éxito", "El recurso fue registrado con el ID: " + id);
+            boolean esModificacion = (existente != null);
+            ResultadoOperacionDTO resultado = esModificacion
+                    ? recursoService.modificarRecurso(recurso)
+                    : recursoService.registrarRecurso(recurso);
+
+            // un fallo se muestra igual que antes la IllegalArgumentException
+            if (!resultado.isExito()) {
+                mostrarAlerta(AlertType.WARNING, "Atención", resultado.getMensaje());
+                return;
             }
+            mostrarAlerta(AlertType.INFORMATION, "Éxito", esModificacion
+                    ? "El recurso fue modificado correctamente"
+                    : "El recurso fue registrado con el ID: " + id);
 
             limpiarFormulario();
             cargarDatosDesdeSistema();
@@ -190,11 +195,14 @@ public class RecursoViewController {
 
         if (respuesta.isPresent() && respuesta.get() == ButtonType.YES) {
             try {
-                boolean eliminado = recursoService.eliminarRecurso(id);
-                if (eliminado) {
+                ResultadoOperacionDTO resultado = recursoService.eliminarRecurso(id);
+                if (resultado.isExito()) {
                     mostrarAlerta(AlertType.INFORMATION, "Éxito", "Recurso eliminado correctamente");
                     limpiarFormulario();
                     cargarDatosDesdeSistema();
+                } else {
+                    // igual que antes la IllegalArgumentException
+                    mostrarAlerta(AlertType.WARNING, "No se puede eliminar", resultado.getMensaje());
                 }
             } catch (IllegalArgumentException ex) {
                 mostrarAlerta(AlertType.WARNING, "No se puede eliminar", ex.getMessage());

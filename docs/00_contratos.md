@@ -90,9 +90,22 @@ pide a Kristel registrar el manejador.
 | Sesión (manejador: Kristel) | `AUTH_LOGIN` | idUsuario, clave | `LoginResultadoDTO` (`idUsuario`, `rol`, `funcionario`; `funcionario` es `null` para el administrador) | Derek |
 | Sesión | `AUTH_CAMBIAR_CLAVE` | `idUsuario`, `claveActual`, `claveNueva`, `confirmacion` | — | Derek |
 | Sesión | `AUTH_LOGOUT` | — | — | Derek / Kristel |
-| Funcionarios | `FUNC_CREAR`, `FUNC_EDITAR`, `FUNC_BAJA`, `FUNC_BUSCAR`, `FUNC_LISTAR` | por definir | por definir | Derek |
-| Categorías | `CAT_CREAR`, `CAT_EDITAR`, `CAT_ELIMINAR`, `CAT_BUSCAR`, `CAT_LISTAR` | por definir | por definir | Derek |
-| Recursos | `REC_CREAR`, `REC_EDITAR`, `REC_ELIMINAR`, `REC_BUSCAR`, `REC_LISTAR`, `REC_NUEVO_ID` | por definir | por definir | Derek |
+| Funcionarios (solo administrador) | `FUNC_CREAR` | `Funcionario`: `id`, `nombre`, `telefono` | — (`exito=false` y `mensaje` si no se registra) | Derek |
+| Funcionarios | `FUNC_EDITAR` | `Funcionario`: `id`, `nombre`, `telefono` (el `id` no cambia) | — | Derek |
+| Funcionarios | `FUNC_BAJA` | `idFuncionario` | — (baja lógica de funcionario y usuario; se rechaza si tiene reservas futuras activas) | Derek |
+| Funcionarios | `FUNC_BUSCAR` | `idParcial`, `nombreParcial` (opcionales; los dos se combinan con AND) | lista de `Funcionario` activos | Derek |
+| Funcionarios | `FUNC_LISTAR` | — | lista de `Funcionario` activos | Derek |
+| Categorías | `CAT_CREAR` (administrador) | `CategoriaDTO`: `descripcion` (el `id` lo genera el Backend) | — | Derek |
+| Categorías | `CAT_EDITAR` (administrador) | `CategoriaDTO`: `id`, `descripcion` | — | Derek |
+| Categorías | `CAT_ELIMINAR` (administrador) | `idCategoria` | — (se rechaza si tiene recursos, aunque estén inactivos) | Derek |
+| Categorías | `CAT_BUSCAR` (administrador) | `descripcion` (opcional, "contiene") | lista de `CategoriaDTO` | Derek |
+| Categorías | `CAT_LISTAR` (cualquier sesión) | — | lista de `CategoriaDTO` | Derek |
+| Recursos | `REC_CREAR` (administrador) | `RecursoDTO`: `id`, `descripcion`, `categoria` (`{id, descripcion}`) | — | Derek |
+| Recursos | `REC_EDITAR` (administrador) | `RecursoDTO`: `id`, `descripcion`, `categoria` | — | Derek |
+| Recursos | `REC_ELIMINAR` (administrador) | `idRecurso` | — (baja lógica; se rechaza si tiene reservas futuras activas) | Derek |
+| Recursos | `REC_BUSCAR` (administrador) | `idRecurso` | `RecursoDTO` (si no existe, `exito=false`) | Derek |
+| Recursos | `REC_LISTAR` (cualquier sesión) | `idCategoria`, `descripcion` (opcionales; sin ninguno = todos) | lista de `RecursoDTO` activos con su categoría | Derek |
+| Recursos | `REC_NUEVO_ID` (administrador) | — | texto con el ID nuevo (6 dígitos) | Derek |
 | Reservas | `RES_CREAR` | `idFuncionario`, `nombreFuncionario`, `nombreActividad`, `fecha`, `horaInicio`, `horaFin`, `idsCategorias` (lista) | `ReservaDTO` creado | Kristel |
 | Reservas | `RES_CANCELAR` | `idReserva` | `true` si se canceló | Kristel |
 | Reservas | `RES_BUSCAR_ID` | `idReserva` | `ReservaDTO` o `null` | Kristel |
@@ -102,6 +115,14 @@ pide a Kristel registrar el manejador.
 | Consulta | `ACT_CONSULTAR` | rango de fechas | actividades programadas (`ActividadProgramadaDTO`) | Kristel (al implementar I2-D) |
 | Consulta | `EST_RECURSOS`, `EST_ACTIVIDADES` | por definir | por definir | Sofía |
 | Evento | `RESERVA_CREADA` | — (solo sale del Backend) | `ReservaDTO` completo | Kristel |
+
+Notas de `FUNC`, `CAT` y `REC` (Derek):
+
+- Las operaciones con salida "—" devuelven un `ResultadoOperacionDTO`: si salen bien, la respuesta lleva `datos` en `null`
+  (así lo hace el despachador); si no, `exito=false` con el `mensaje`.
+- `CAT_LISTAR` y `REC_LISTAR` solo exigen sesión: también las usan las pantallas de funcionario (Reservas y Calendarización).
+  Las demás exigen administrador (`No tiene permiso para esta operación.`).
+- `REC_BUSCAR` busca **por ID**; para filtrar recursos se usa `REC_LISTAR` con sus filtros opcionales.
 
 Manejadores: Kristel escribe el despachador, `ContextoSesion` y los manejadores de `AUTH_*`, `RES_*`, `CAL_*` y `ACT_*`.
 Cada dueño escribe el manejador de su módulo (`FUNC_*`, `CAT_*`, `REC_*`, `EST_*`) con la interfaz `Manejador`

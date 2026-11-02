@@ -3,8 +3,10 @@ package Sistema.Service;
 import Sistema.DTO.LoginResultadoDTO;
 import Sistema.DTO.ResultadoOperacionDTO;
 
-// contrato de autenticacion. Lo implementan el AuthService del Backend y,
-// en el Frontend, el proxy que envia AUTH_LOGIN, AUTH_CAMBIAR_CLAVE y AUTH_LOGOUT.
+// contrato de autenticacion. Lo implementa, en el Frontend, el proxy que envia
+// AUTH_LOGIN, AUTH_CAMBIAR_CLAVE y AUTH_LOGOUT. El AuthService del Backend NO la
+// implementa: no tiene logout(), porque en el servidor el logout lo hace
+// ManejadorAuth anulando la sesion de la conexion (ContextoSesion).
 
 public interface IAuthService {
 

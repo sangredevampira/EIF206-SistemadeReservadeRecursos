@@ -10,7 +10,7 @@ import java.util.List;
 // controlador, en comunicacion con la capa inferior (Logica). Sin
 // validaciones propias, igual que AuthService y CategoriaService.
 
-public class FuncionarioService {
+public class FuncionarioService implements IFuncionarioService {
 
     private final FuncionarioLogica funcionarioLogica;
 
@@ -23,22 +23,27 @@ public class FuncionarioService {
         this.funcionarioLogica = funcionarioLogica;
     }
 
+    @Override
     public ResultadoOperacionDTO registrar(Funcionario funcionario) {
         return funcionarioLogica.registrar(funcionario);
     }
 
+    @Override
     public ResultadoOperacionDTO modificar(Funcionario funcionario) {
         return funcionarioLogica.modificar(funcionario);
     }
 
+    @Override
     public ResultadoOperacionDTO eliminar(String id) {
         return funcionarioLogica.eliminar(id);
     }
 
+    @Override
     public List<Funcionario> buscar(String idParcial, String nombreParcial) {
         return funcionarioLogica.buscar(idParcial, nombreParcial);
     }
 
+    @Override
     public List<Funcionario> listarTodos() {
         return funcionarioLogica.listarTodos();
     }

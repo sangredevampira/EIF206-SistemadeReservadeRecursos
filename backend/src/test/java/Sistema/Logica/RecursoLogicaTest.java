@@ -2,6 +2,7 @@ package Sistema.Logica;
 
 import Sistema.DTO.CategoriaDTO;
 import Sistema.DTO.RecursoDTO;
+import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.Datos.RecursoDatos;
 import Sistema.Datos.UsuarioDatos;
 import org.junit.jupiter.api.BeforeEach;
@@ -178,11 +179,22 @@ class RecursoLogicaTest {
         return new SQLException("error simulado", "23000", codigo);
     }
 
+    // registrar, modificar y eliminar responden con un ResultadoOperacionDTO (paso 6a)
+    private static void assertFallo(String mensaje, ResultadoOperacionDTO resultado) {
+        assertFalse(resultado.isExito());
+        assertEquals(mensaje, resultado.getMensaje());
+    }
+
+    private static void assertExito(ResultadoOperacionDTO resultado) {
+        assertTrue(resultado.isExito(), () -> "fallo inesperado: " + resultado.getMensaje());
+        assertNull(resultado.getMensaje());
+    }
+
     // --- registrar ---
 
     @Test
-    void registrarValidoInsertaDevuelveUnoYCierraLaConexion() {
-        assertEquals(1, logica.registrarRecurso(recurso("123456", "Proyector")));
+    void registrarValidoInsertaDevuelveExitoYCierraLaConexion() {
+        assertExito(logica.registrarRecurso(recurso("123456", "Proyector")));
 
         assertEquals("Proyector", datos.recursos.get("123456").getDescripcion());
         assertSame(conexionFalsa.conexion, datos.conexionRecibida);
@@ -201,62 +213,54 @@ class RecursoLogicaTest {
     }
 
     @Test
-    void registrarNuloLanzaExcepcion() {
-        assertThrows(IllegalArgumentException.class, () -> logica.registrarRecurso(null));
-    }
-
-    @Test
-    void registrarSinCategoriaLanzaExcepcionSinAbrirConexion() {
-        IllegalArgumentException sinCategoria = assertThrows(IllegalArgumentException.class,
-                () -> logica.registrarRecurso(new RecursoDTO("123456", "Proyector", null)));
-        assertEquals("Debe seleccionar una categoría", sinCategoria.getMessage());
-
-        assertThrows(IllegalArgumentException.class,
-                () -> logica.registrarRecurso(new RecursoDTO("123456", "Proyector", new CategoriaDTO(" ", "x"))));
+    void registrarNuloDaFallo() {
+        assertFallo("El recurso que se intenta registrar no existe", logica.registrarRecurso(null));
         assertEquals(0, conexionesAbiertas);
     }
 
     @Test
-    void registrarConDescripcionVaciaLanzaExcepcion() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> logica.registrarRecurso(recurso("123456", "   ")));
-        assertEquals("La descripción no puede estar vacía", ex.getMessage());
+    void registrarSinCategoriaDaFalloSinAbrirConexion() {
+        assertFallo("Debe seleccionar una categoría",
+                logica.registrarRecurso(new RecursoDTO("123456", "Proyector", null)));
+        assertFallo("Debe seleccionar una categoría",
+                logica.registrarRecurso(new RecursoDTO("123456", "Proyector", new CategoriaDTO(" ", "x"))));
+        assertEquals(0, conexionesAbiertas);
     }
 
     @Test
-    void registrarConDescripcionDeMasDe100CaracteresLanzaExcepcion() {
-        assertEquals(1, logica.registrarRecurso(recurso("123456", "a".repeat(100))));
+    void registrarConDescripcionVaciaDaFallo() {
+        assertFallo("La descripción no puede estar vacía", logica.registrarRecurso(recurso("123456", "   ")));
+    }
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> logica.registrarRecurso(recurso("654321", "a".repeat(101))));
-        assertEquals("La descripción no puede tener más de 100 caracteres", ex.getMessage());
+    @Test
+    void registrarConDescripcionDeMasDe100CaracteresDaFallo() {
+        assertExito(logica.registrarRecurso(recurso("123456", "a".repeat(100))));
+
+        assertFallo("La descripción no puede tener más de 100 caracteres",
+                logica.registrarRecurso(recurso("654321", "a".repeat(101))));
     }
 
     @ParameterizedTest
     @ValueSource(strings = { "12345", "1234567", "12a456", "REC-01", " 12345", "١٢٣٤٥٦" })
-    void registrarConIdQueNoEsDeSeisDigitosLanzaExcepcion(String id) {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> logica.registrarRecurso(recurso(id, "Proyector")));
-        assertEquals("El ID del recurso debe tener exactamente 6 dígitos", ex.getMessage());
+    void registrarConIdQueNoEsDeSeisDigitosDaFallo(String id) {
+        assertFallo("El ID del recurso debe tener exactamente 6 dígitos",
+                logica.registrarRecurso(recurso(id, "Proyector")));
         assertEquals(0, conexionesAbiertas);
     }
 
     @ParameterizedTest
     @NullSource
     @ValueSource(strings = { "", "   " })
-    void registrarSinIdLanzaExcepcion(String id) {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> logica.registrarRecurso(recurso(id, "Proyector")));
-        assertEquals("El recurso no tiene un ID asignado", ex.getMessage());
+    void registrarSinIdDaFallo(String id) {
+        assertFallo("El recurso no tiene un ID asignado", logica.registrarRecurso(recurso(id, "Proyector")));
     }
 
     @Test
     void registrarConIdRepetidoTraduceElError1062() {
         datos.errorAlEscribir = errorMySQL(1062);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> logica.registrarRecurso(recurso("123456", "Proyector")));
-        assertEquals("Ya existe un recurso con el ID 123456 (puede estar dado de baja)", ex.getMessage());
+        assertFallo("Ya existe un recurso con el ID 123456 (puede estar dado de baja)",
+                logica.registrarRecurso(recurso("123456", "Proyector")));
         assertTrue(conexionFalsa.llamadas.contains("close"));
     }
 
@@ -264,20 +268,15 @@ class RecursoLogicaTest {
     void registrarConCategoriaInexistenteTraduceElError1452() {
         datos.errorAlEscribir = errorMySQL(1452);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> logica.registrarRecurso(recurso("123456", "Proyector")));
-        assertEquals("La categoría seleccionada no existe", ex.getMessage());
+        assertFallo("La categoría seleccionada no existe", logica.registrarRecurso(recurso("123456", "Proyector")));
     }
 
     @Test
-    void registrarConOtroErrorDeBaseDaElMensajeGenericoYGuardaLaCausa() {
-        SQLException original = errorMySQL(1205);
-        datos.errorAlEscribir = original;
+    void registrarConOtroErrorDeBaseDaElMensajeGenerico() {
+        datos.errorAlEscribir = errorMySQL(1205);
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> logica.registrarRecurso(recurso("123456", "Proyector")));
-        assertEquals(UsuarioDatos.MENSAJE_ERROR_BD, ex.getMessage());
-        assertSame(original, ex.getCause());
+        assertFallo(UsuarioDatos.MENSAJE_ERROR_BD, logica.registrarRecurso(recurso("123456", "Proyector")));
+        assertTrue(conexionFalsa.llamadas.contains("close"));
     }
 
     @Test
@@ -286,9 +285,7 @@ class RecursoLogicaTest {
             throw new SQLException("Communications link failure");
         });
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> sinBase.registrarRecurso(recurso("123456", "Proyector")));
-        assertEquals(UsuarioDatos.MENSAJE_ERROR_BD, ex.getMessage());
+        assertFallo(UsuarioDatos.MENSAJE_ERROR_BD, sinBase.registrarRecurso(recurso("123456", "Proyector")));
     }
 
     // --- buscar, filtrar y listar ---
@@ -360,24 +357,23 @@ class RecursoLogicaTest {
     // --- modificar ---
 
     @Test
-    void modificarUnRecursoActivoLoCambiaYDevuelveTrue() {
+    void modificarUnRecursoActivoLoCambiaYDevuelveExito() {
         datos.agregar("123456", "Antes", true);
 
-        assertTrue(logica.modificarRecurso(recurso("123456", " Despues ")));
+        assertExito(logica.modificarRecurso(recurso("123456", " Despues ")));
 
         assertEquals("Despues", datos.recursos.get("123456").getDescripcion());
         assertTrue(conexionFalsa.llamadas.contains("close"));
     }
 
     @Test
-    void modificarUnRecursoInactivoOInexistenteLanzaExcepcion() {
+    void modificarUnRecursoInactivoOInexistenteDaFallo() {
         datos.agregar("123456", "Antes", false);
 
-        IllegalArgumentException inactivo = assertThrows(IllegalArgumentException.class,
-                () -> logica.modificarRecurso(recurso("123456", "Despues")));
-        assertEquals("El recurso que se intenta modificar no existe o fue dado de baja", inactivo.getMessage());
-
-        assertThrows(IllegalArgumentException.class, () -> logica.modificarRecurso(recurso("999999", "Despues")));
+        assertFallo("El recurso que se intenta modificar no existe o fue dado de baja",
+                logica.modificarRecurso(recurso("123456", "Despues")));
+        assertFallo("El recurso que se intenta modificar no existe o fue dado de baja",
+                logica.modificarRecurso(recurso("999999", "Despues")));
     }
 
     @Test
@@ -385,15 +381,22 @@ class RecursoLogicaTest {
         datos.agregar("123456", "Antes", true);
         datos.errorAlEscribir = errorMySQL(1452);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> logica.modificarRecurso(recurso("123456", "Despues")));
-        assertEquals("La categoría seleccionada no existe", ex.getMessage());
+        assertFallo("La categoría seleccionada no existe", logica.modificarRecurso(recurso("123456", "Despues")));
     }
 
     @Test
-    void modificarNuloOConIdInvalidoLanzaExcepcion() {
-        assertThrows(IllegalArgumentException.class, () -> logica.modificarRecurso(null));
-        assertThrows(IllegalArgumentException.class, () -> logica.modificarRecurso(recurso("abc", "Despues")));
+    void modificarConOtroErrorDeBaseDaElMensajeGenerico() {
+        datos.agregar("123456", "Antes", true);
+        datos.errorAlEscribir = errorMySQL(1205);
+
+        assertFallo(UsuarioDatos.MENSAJE_ERROR_BD, logica.modificarRecurso(recurso("123456", "Despues")));
+    }
+
+    @Test
+    void modificarNuloOConIdInvalidoDaFalloSinAbrirConexion() {
+        assertFallo("El recurso que se intenta modificar no existe", logica.modificarRecurso(null));
+        assertFallo("El ID del recurso debe tener exactamente 6 dígitos",
+                logica.modificarRecurso(recurso("abc", "Despues")));
         assertEquals(0, conexionesAbiertas);
     }
 
@@ -403,7 +406,7 @@ class RecursoLogicaTest {
     void eliminarSinReservasFuturasDesactivaYHaceCommitDentroDelCandado() {
         datos.agregar("123456", "Proyector", true);
 
-        assertTrue(logica.eliminarRecurso("123456"));
+        assertExito(logica.eliminarRecurso("123456"));
 
         assertTrue(datos.inactivos.contains("123456"));
         assertEquals(List.of("setAutoCommit(false)", "commit", "close"), conexionFalsa.llamadas);
@@ -419,10 +422,9 @@ class RecursoLogicaTest {
         datos.agregar("123456", "Proyector", true);
         reservas.tieneReservas = true;
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> logica.eliminarRecurso("123456"));
+        assertFallo("No se puede eliminar el recurso porque tiene reservas futuras activas",
+                logica.eliminarRecurso("123456"));
 
-        assertEquals("No se puede eliminar el recurso porque tiene reservas futuras activas", ex.getMessage());
         assertFalse(datos.seLlamoDesactivar);
         assertEquals(List.of("setAutoCommit(false)", "rollback", "close"), conexionFalsa.llamadas);
     }
@@ -431,10 +433,8 @@ class RecursoLogicaTest {
     void eliminarUnRecursoInexistenteOInactivoHaceRollbackSinConsultarReservas() {
         datos.agregar("123456", "Proyector", false);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> logica.eliminarRecurso("123456"));
+        assertFallo("El recurso que se intenta eliminar no existe", logica.eliminarRecurso("123456"));
 
-        assertEquals("El recurso que se intenta eliminar no existe", ex.getMessage());
         assertFalse(reservas.seConsulto);
         assertEquals(List.of("setAutoCommit(false)", "rollback", "close"), conexionFalsa.llamadas);
     }
@@ -444,18 +444,48 @@ class RecursoLogicaTest {
         datos.agregar("123456", "Proyector", true);
         datos.errorAlEscribir = errorMySQL(1205);
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> logica.eliminarRecurso("123456"));
+        assertFallo(UsuarioDatos.MENSAJE_ERROR_BD, logica.eliminarRecurso("123456"));
 
-        assertEquals(UsuarioDatos.MENSAJE_ERROR_BD, ex.getMessage());
         assertEquals(List.of("setAutoCommit(false)", "rollback", "close"), conexionFalsa.llamadas);
     }
 
     @ParameterizedTest
     @NullSource
     @ValueSource(strings = { "", "  " })
-    void eliminarSinIdLanzaExcepcionSinAbrirConexion(String id) {
-        assertThrows(IllegalArgumentException.class, () -> logica.eliminarRecurso(id));
+    void eliminarSinIdDaFalloSinAbrirConexion(String id) {
+        assertFallo("El recurso que se intenta eliminar no existe", logica.eliminarRecurso(id));
         assertEquals(0, conexionesAbiertas);
+    }
+
+    // --- concurrencia: en el servidor hay UNA RecursoLogica para todos los hilos ---
+
+    @Test
+    void laReservaLogicaPerezosaSeCreaUnaSolaVezAunqueVariosHilosLaPidan() throws Exception {
+        // sin ReservaLogica inyectada: getReservaLogica() la crea al primer uso
+        RecursoLogica compartida = new RecursoLogica(datos, null, () -> conexionFalsa.conexion);
+        java.lang.reflect.Method getter = RecursoLogica.class.getDeclaredMethod("getReservaLogica");
+        getter.setAccessible(true);
+
+        int hilos = 8;
+        java.util.concurrent.CountDownLatch salida = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(hilos);
+        try {
+            List<java.util.concurrent.Future<Object>> pedidos = new ArrayList<>();
+            for (int i = 0; i < hilos; i++) {
+                pedidos.add(pool.submit(() -> {
+                    salida.await();
+                    return getter.invoke(compartida);
+                }));
+            }
+            salida.countDown();   // todos piden a la vez
+
+            Object primera = pedidos.get(0).get();
+            assertNotNull(primera);
+            for (java.util.concurrent.Future<Object> pedido : pedidos) {
+                assertSame(primera, pedido.get());
+            }
+        } finally {
+            pool.shutdownNow();
+        }
     }
 }
