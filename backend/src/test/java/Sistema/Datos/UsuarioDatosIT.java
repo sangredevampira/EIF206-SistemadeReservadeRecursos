@@ -1,6 +1,5 @@
 package Sistema.Datos;
 
-import Sistema.DTO.Funcionario;
 import Sistema.DTO.Rol;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -84,20 +83,52 @@ public class UsuarioDatosIT {
         });
     }
 
+    // buscarFuncionarioAsociado se movio a FuncionarioDatos (paso 5c): se prueba en FuncionarioDatosIT
+
     @Test
-    void buscarFuncionarioAsociadoDevuelveSusDatosYNullParaElAdministrador() throws SQLException {
+    void insertarGuardaElUsuarioActivoConSuRol() throws SQLException {
+        enTransaccionDePrueba(conexion -> {
+            datos.insertar(conexion, ID_FUNCIONARIO, "hash-de-prueba", Rol.FUNCIONARIO);
+
+            UsuarioRegistro usuario = datos.buscarPorId(conexion, ID_FUNCIONARIO);
+            assertNotNull(usuario);
+            assertEquals("hash-de-prueba", usuario.claveHash());
+            assertEquals(Rol.FUNCIONARIO, usuario.rol());
+            assertTrue(usuario.activo());
+        });
+    }
+
+    @Test
+    void insertarUnIdRepetidoConOtrasMayusculasDaElError1062() throws SQLException {
+        enTransaccionDePrueba(conexion -> {
+            datos.insertar(conexion, ID_FUNCIONARIO, "hash-de-prueba", Rol.FUNCIONARIO);
+
+            SQLException error = assertThrows(SQLException.class,
+                    () -> datos.insertar(conexion, ID_FUNCIONARIO.toUpperCase(), "otro-hash", Rol.FUNCIONARIO));
+            assertEquals(1062, error.getErrorCode());
+        });
+    }
+
+    @Test
+    void desactivarFuncionarioDejaElUsuarioInactivo() throws SQLException {
+        enTransaccionDePrueba(conexion -> {
+            insertarUsuario(conexion, ID_FUNCIONARIO, "hash-de-prueba", Rol.FUNCIONARIO, true);
+
+            assertTrue(datos.desactivarFuncionario(conexion, ID_FUNCIONARIO));
+            assertFalse(datos.buscarPorId(conexion, ID_FUNCIONARIO).activo());
+            // repetirlo no falla: Connector/J cuenta las filas encontradas
+            assertTrue(datos.desactivarFuncionario(conexion, ID_FUNCIONARIO));
+        });
+    }
+
+    @Test
+    void desactivarFuncionarioNuncaDesactivaAlAdministrador() throws SQLException {
         enTransaccionDePrueba(conexion -> {
             insertarUsuario(conexion, ID_ADMIN, "hash-de-prueba", Rol.ADMINISTRADOR, true);
-            insertarUsuario(conexion, ID_FUNCIONARIO, "hash-de-prueba", Rol.FUNCIONARIO, true);
-            insertarFuncionario(conexion, ID_FUNCIONARIO, "Funcionario de prueba", "8888-8888");
 
-            Funcionario funcionario = datos.buscarFuncionarioAsociado(conexion, ID_FUNCIONARIO);
-
-            assertNotNull(funcionario);
-            assertEquals(ID_FUNCIONARIO, funcionario.getId());
-            assertEquals("Funcionario de prueba", funcionario.getNombre());
-            assertEquals("8888-8888", funcionario.getTelefono());
-            assertNull(datos.buscarFuncionarioAsociado(conexion, ID_ADMIN));
+            assertFalse(datos.desactivarFuncionario(conexion, ID_ADMIN));
+            assertTrue(datos.buscarPorId(conexion, ID_ADMIN).activo());
+            assertFalse(datos.desactivarFuncionario(conexion, "no-existe-it"));
         });
     }
 
@@ -155,17 +186,6 @@ public class UsuarioDatosIT {
             sentencia.setString(2, claveHash);
             sentencia.setString(3, rol.name());
             sentencia.setBoolean(4, activo);
-            sentencia.executeUpdate();
-        }
-    }
-
-    private static void insertarFuncionario(Connection conexion, String id, String nombre, String telefono)
-            throws SQLException {
-        try (PreparedStatement sentencia = conexion.prepareStatement(
-                "INSERT INTO funcionario (id_funcionario, nombre, telefono) VALUES (?, ?, ?)")) {
-            sentencia.setString(1, id);
-            sentencia.setString(2, nombre);
-            sentencia.setString(3, telefono);
             sentencia.executeUpdate();
         }
     }

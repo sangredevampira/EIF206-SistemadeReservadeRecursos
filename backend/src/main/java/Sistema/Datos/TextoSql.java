@@ -2,7 +2,7 @@ package Sistema.Datos;
 
 /**
  * Apoyo para armar valores de SQL. De paquete: solo la usan las clases de
- * Datos (RecursoDatos y CategoriaDatos; FuncionarioDatos en el paso 5c).
+ * Datos (RecursoDatos, CategoriaDatos y FuncionarioDatos).
  */
 final class TextoSql {
 

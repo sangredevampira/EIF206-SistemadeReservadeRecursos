@@ -1,6 +1,5 @@
 package Sistema.Datos;
 
-import Sistema.DTO.Funcionario;
 import Sistema.DTO.Rol;
 
 import java.sql.Connection;
@@ -13,14 +12,14 @@ import java.sql.SQLException;
  *
  * Cada operacion tiene dos versiones (acuerdo con Kristel):
  *   - la que RECIBE la conexion no la cierra y lanza SQLException: para
- *     transacciones (paso 5) y para las pruebas con rollback;
+ *     transacciones y para las pruebas con rollback;
  *   - la que no la recibe abre y cierra la suya con ConexionBD y convierte
  *     la SQLException en un mensaje legible. El detalle tecnico queda en
  *     la causa, nunca en el mensaje que ve el usuario.
  */
 public class UsuarioDatos {
 
-    // public: RecursoLogica y CategoriaLogica (paquete Logica) tambien lo usan
+    // public: las clases de Logica y las demas de Datos tambien lo usan
     public static final String MENSAJE_ERROR_BD ="No se pudo acceder a la base de datos. Intente de nuevo más tarde.";
 
     // --- buscar por ID ---
@@ -51,31 +50,33 @@ public class UsuarioDatos {
         }
     }
 
-    // --- funcionario asociado ---
-    // TEMPORAL: se pasa a FuncionarioDatos (JDBC) en el paso 5. Esta aqui porque
-    // FuncionarioDatos todavia es JSON y el login ya lee MySQL.
+    // --- insertar (siempre activo; solo dentro de la transaccion del registro) ---
+    // Solo existe con conexion: el usuario de un funcionario se guarda junto
+    // con su fila de funcionario (FuncionarioLogica.registrar). Error que
+    // interpreta FuncionarioLogica: 1062 (ID repetido, sin distinguir mayusculas).
 
-    public Funcionario buscarFuncionarioAsociado(String id) {
-        try (Connection conexion = ConexionBD.obtenerConexion()) {
-            return buscarFuncionarioAsociado(conexion, id);
-        } catch (SQLException e) {
-            throw new IllegalStateException(MENSAJE_ERROR_BD, e);
+    public void insertar(Connection conexion, String id, String claveHash, Rol rol) throws SQLException {
+        try (PreparedStatement sentencia = conexion.prepareStatement(
+                "INSERT INTO usuario (id_usuario, clave_hash, rol, activo) VALUES (?, ?, ?, 1)")) {
+            sentencia.setString(1, id);
+            sentencia.setString(2, claveHash);
+            sentencia.setString(3, rol.name());
+            sentencia.executeUpdate();
         }
     }
 
-    public Funcionario buscarFuncionarioAsociado(Connection conexion, String id) throws SQLException {
+    // --- desactivar el usuario de un funcionario (baja logica) ---
+    // Solo existe con conexion: va en la misma transaccion que la baja del
+    // funcionario. "AND rol = 'FUNCIONARIO'": por aqui nunca se desactiva al
+    // administrador. Sin "AND activo = 1": Connector/J cuenta las filas
+    // encontradas, asi que da true aunque ya estuviera inactivo.
+
+    // true si encontro el usuario (y es un funcionario)
+    public boolean desactivarFuncionario(Connection conexion, String id) throws SQLException {
         try (PreparedStatement sentencia = conexion.prepareStatement(
-                "SELECT id_funcionario, nombre, telefono FROM funcionario WHERE id_funcionario = ?")) {
+                "UPDATE usuario SET activo = 0 WHERE id_usuario = ? AND rol = 'FUNCIONARIO'")) {
             sentencia.setString(1, id);
-            try (ResultSet resultado = sentencia.executeQuery()) {
-                if (!resultado.next()) {
-                    return null;
-                }
-                return new Funcionario(
-                        resultado.getString("id_funcionario"),
-                        resultado.getString("nombre"),
-                        resultado.getString("telefono"));
-            }
+            return sentencia.executeUpdate() == 1;
         }
     }
 

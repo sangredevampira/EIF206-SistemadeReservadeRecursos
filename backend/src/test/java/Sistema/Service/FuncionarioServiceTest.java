@@ -1,199 +1,101 @@
 package Sistema.Service;
 
 import Sistema.DTO.Funcionario;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
+import Sistema.DTO.ResultadoOperacionDTO;
+import Sistema.Logica.FuncionarioLogica;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Pruebas unitarias de FuncionarioService. FuncionarioLogica toca dos
- * archivos JSON (funcionarios.json y usuarios.json), que se respaldan y
- * restauran en cada prueba.
+ * Pruebas de FuncionarioService: solo comprueban que delega en la Logica
+ * (la capa Service no valida nada). Las reglas se prueban en
+ * FuncionarioLogicaTest y el SQL en FuncionarioDatosIT.
  *
- * La regla "no eliminar con reservas futuras" ya no lee reservas.json sino
- * MySQL (ReservaLogica.tieneReservasFuturas), asi que las pruebas de
- * eliminar estan deshabilitadas hasta que FuncionarioLogica use JDBC (paso 5).
- * El criterio de futura y activa lo cubre ReservaDatosIT.
+ * Las 4 pruebas de eliminar que estaban @Disabled (dependian de
+ * reservas.json) se rehicieron en FuncionarioLogicaTest, con dobles y sin MySQL.
  */
 class FuncionarioServiceTest {
 
-    private static final Path RUTA_FUNCIONARIOS = Paths.get("src/data/funcionarios.json");
-    private static final Path RUTA_USUARIOS = Paths.get("src/data/usuarios.json");
-    private static final Path RUTA_RESERVAS = Paths.get("src/data/reservas.json"); // solo las pruebas deshabilitadas
+    /** Fake de FuncionarioLogica: devuelve lo configurado y guarda lo recibido. */
+    static class FuncionarioLogicaFake extends FuncionarioLogica {
+        ResultadoOperacionDTO resultado = ResultadoOperacionDTO.fallo("respuesta de la logica");
+        List<Funcionario> lista = List.of(new Funcionario("44444", "Ana Perez", "8888-9999"));
+        Object recibido;
+        String nombreRecibido;
 
-    private String backupFuncionarios;
-    private String backupUsuarios;
+        FuncionarioLogicaFake() {
+            super(null, null, null, null);   // no usa Datos: todos sus metodos estan sobrescritos
+        }
 
-    private FuncionarioService funcionarioService;
+        @Override
+        public ResultadoOperacionDTO registrar(Funcionario funcionario) {
+            recibido = funcionario;
+            return resultado;
+        }
 
-    @BeforeEach
-    void prepararDatosDePrueba() throws IOException {
-        backupFuncionarios = leerSiExiste(RUTA_FUNCIONARIOS);
-        backupUsuarios = leerSiExiste(RUTA_USUARIOS);
+        @Override
+        public ResultadoOperacionDTO modificar(Funcionario funcionario) {
+            recibido = funcionario;
+            return resultado;
+        }
 
-        Files.writeString(RUTA_FUNCIONARIOS, """
-                [
-                  {"id":"func1","nombre":"Ana Perez","telefono":"88889999"},
-                  {"id":"func2","nombre":"Beto Soto","telefono":"87776666"}
-                ]
-                """);
+        @Override
+        public ResultadoOperacionDTO eliminar(String id) {
+            recibido = id;
+            return resultado;
+        }
 
-        Files.writeString(RUTA_USUARIOS, """
-                [
-                  {"id":"admin","clave":"admin","rol":"ADMINISTRADOR"},
-                  {"id":"func1","clave":"func1","rol":"FUNCIONARIO"},
-                  {"id":"func2","clave":"func2","rol":"FUNCIONARIO"}
-                ]
-                """);
+        @Override
+        public List<Funcionario> buscar(String idParcial, String nombreParcial) {
+            recibido = idParcial;
+            nombreRecibido = nombreParcial;
+            return lista;
+        }
 
-        funcionarioService = new FuncionarioService();
-    }
-
-    @AfterEach
-    void restaurarDatosOriginales() throws IOException {
-        restaurar(RUTA_FUNCIONARIOS, backupFuncionarios);
-        restaurar(RUTA_USUARIOS, backupUsuarios);
-    }
-
-    private String leerSiExiste(Path ruta) throws IOException {
-        return Files.exists(ruta) ? Files.readString(ruta) : null;
-    }
-
-    private void restaurar(Path ruta, String contenidoOriginal) throws IOException {
-        if (contenidoOriginal == null) {
-            Files.deleteIfExists(ruta);
-        } else {
-            Files.writeString(ruta, contenidoOriginal);
+        @Override
+        public List<Funcionario> listarTodos() {
+            return lista;
         }
     }
 
-    @Test
-    void registrarCreaFuncionarioYUsuarioAsociado() {
-        var resultado = funcionarioService.registrar(new Funcionario("func3", "Carla Ruiz", "85551111"));
-        assertTrue(resultado.isExitoso());
+    private final FuncionarioLogicaFake logica = new FuncionarioLogicaFake();
+    private final FuncionarioService service = new FuncionarioService(logica);
 
-        boolean existeFuncionario = funcionarioService.listarTodos().stream()
-                .anyMatch(f -> f.getId().equals("func3"));
-        assertTrue(existeFuncionario);
+    @Test
+    void registrarDelegaYDevuelveElMismoResultado() {
+        Funcionario funcionario = new Funcionario("66666", "Carla Ruiz", "8555-1111");
+
+        assertSame(logica.resultado, service.registrar(funcionario));
+        assertSame(funcionario, logica.recibido);
     }
 
     @Test
-    void registrarFallaSiElIdYaExisteComoFuncionario() {
-        var resultado = funcionarioService.registrar(new Funcionario("func1", "Otro Nombre", "80001111"));
+    void modificarDelegaYDevuelveElMismoResultado() {
+        logica.resultado = ResultadoOperacionDTO.exito();
+        Funcionario funcionario = new Funcionario("44444", "Ana Maria", "8000-0000");
 
-        assertFalse(resultado.isExitoso());
-        assertEquals("Ya existe un funcionario con ese ID.", resultado.getMensajeError());
+        assertSame(logica.resultado, service.modificar(funcionario));
+        assertSame(funcionario, logica.recibido);
     }
 
     @Test
-    void registrarFallaSiElIdYaExisteComoUsuario() {
-        var resultado = funcionarioService.registrar(new Funcionario("admin", "Otro Nombre", "80001111"));
-
-        assertFalse(resultado.isExitoso());
-        assertEquals("Ya existe un usuario con ese ID (por ejemplo, el administrador).", resultado.getMensajeError());
+    void eliminarDelegaYDevuelveElMismoResultado() {
+        assertSame(logica.resultado, service.eliminar("44444"));
+        assertEquals("44444", logica.recibido);
     }
 
     @Test
-    void registrarFallaConTelefonoVacio() {
-        var resultado = funcionarioService.registrar(new Funcionario("func3", "Carla Ruiz", "   "));
-
-        assertFalse(resultado.isExitoso());
-        assertEquals("El telefono no puede estar vacio.", resultado.getMensajeError());
+    void buscarDelegaLosDosFiltrosSinCambiarlos() {
+        assertSame(logica.lista, service.buscar(" 44 ", "ana"));
+        assertEquals(" 44 ", logica.recibido);
+        assertEquals("ana", logica.nombreRecibido);
     }
 
     @Test
-    void registrarFallaConIdVacio() {
-        var resultado = funcionarioService.registrar(new Funcionario("   ", "Carla Ruiz", "85551111"));
-
-        assertFalse(resultado.isExitoso());
-        assertEquals("El ID no puede estar vacio.", resultado.getMensajeError());
-    }
-
-    @Test
-    void registrarFallaConNombreVacio() {
-        var resultado = funcionarioService.registrar(new Funcionario("func3", "   ", "85551111"));
-
-        assertFalse(resultado.isExitoso());
-        assertEquals("El nombre no puede estar vacio.", resultado.getMensajeError());
-    }
-
-    @Disabled("Depende de ReservaLogica.tieneReservasFuturas, que ahora consulta MySQL; se rehace en el paso 5")
-    @Test
-    void eliminarFallaSiTieneReservasFuturasActivas() {
-        var resultado = funcionarioService.eliminar("func2");
-
-        assertFalse(resultado.isExitoso());
-        assertEquals("No se puede eliminar el funcionario porque tiene reservas futuras registradas.",
-                resultado.getMensajeError());
-    }
-
-    @Disabled("Depende de ReservaLogica.tieneReservasFuturas, que ahora consulta MySQL; se rehace en el paso 5")
-    @Test
-    void eliminarFuncionaSiLaUnicaReservaFuturaEstaCancelada() throws IOException {
-        // Reserva futura pero CANCELADA: no debe bloquear la eliminacion
-        // (solo bloquean las reservas futuras y ACTIVAS a la vez).
-        Files.writeString(RUTA_RESERVAS, """
-                [
-                  {"idReserva":"RES-000002","idFuncionario":"func2","nombreFuncionario":"Beto Soto",
-                   "nombreActividad":"Reunion cancelada","fecha":"2099-01-01",
-                   "horaInicio":"08:00:00","horaFin":"10:00:00","recursosReservados":[],
-                   "estado":"CANCELADA"}
-                ]
-                """);
-
-        var resultado = funcionarioService.eliminar("func2");
-        assertTrue(resultado.isExitoso());
-    }
-
-    @Disabled("Depende de ReservaLogica.tieneReservasFuturas, que ahora consulta MySQL; se rehace en el paso 5")
-    @Test
-    void eliminarFuncionaSiLaUnicaReservaActivaYaPaso() throws IOException {
-        // Reserva ACTIVA pero con fecha pasada: tampoco debe bloquear.
-        Files.writeString(RUTA_RESERVAS, """
-                [
-                  {"idReserva":"RES-000003","idFuncionario":"func2","nombreFuncionario":"Beto Soto",
-                   "nombreActividad":"Reunion pasada","fecha":"2020-01-01",
-                   "horaInicio":"08:00:00","horaFin":"10:00:00","recursosReservados":[],
-                   "estado":"ACTIVA"}
-                ]
-                """);
-
-        var resultado = funcionarioService.eliminar("func2");
-        assertTrue(resultado.isExitoso());
-    }
-
-    @Disabled("Depende de ReservaLogica.tieneReservasFuturas, que ahora consulta MySQL; se rehace en el paso 5")
-    @Test
-    void eliminarFuncionaSinReservasFuturasYBorraElUsuarioAsociado() {
-        var resultado = funcionarioService.eliminar("func1");
-        assertTrue(resultado.isExitoso());
-
-        boolean sigueExistiendo = funcionarioService.listarTodos().stream()
-                .anyMatch(f -> f.getId().equals("func1"));
-        assertFalse(sigueExistiendo);
-    }
-
-    @Test
-    void buscarPorNombreParcialEsInsensibleAMayusculas() {
-        List<Funcionario> resultado = funcionarioService.buscar(null, "beto");
-
-        assertEquals(1, resultado.size());
-        assertEquals("func2", resultado.get(0).getId());
-    }
-
-    @Test
-    void lanzaExcepcionSiElArchivoDeFuncionariosEstaDanado() throws IOException {
-        Files.writeString(RUTA_FUNCIONARIOS, "{ esto no es una lista valida de funcionarios");
-
-        assertThrows(RuntimeException.class, () -> funcionarioService.listarTodos());
+    void listarTodosDelega() {
+        assertSame(logica.lista, service.listarTodos());
     }
 }

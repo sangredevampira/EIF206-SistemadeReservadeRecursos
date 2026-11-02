@@ -4,6 +4,7 @@ import Sistema.DTO.Funcionario;
 import Sistema.DTO.LoginResultadoDTO;
 import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.DTO.Rol;
+import Sistema.Datos.FuncionarioDatos;
 import Sistema.Datos.UsuarioDatos;
 import Sistema.Datos.UsuarioRegistro;
 
@@ -26,14 +27,16 @@ public class UsuarioLogica {
     private static final String HASH_FICTICIO = HashClave.generar("clave-ficticia-para-igualar-el-tiempo");
 
     private final UsuarioDatos usuarioDatos;
+    private final FuncionarioDatos funcionarioDatos;
 
     public UsuarioLogica() {
-        this(new UsuarioDatos());
+        this(new UsuarioDatos(), new FuncionarioDatos());
     }
 
-    // para las pruebas: permite usar un UsuarioDatos falso sin MySQL
-    public UsuarioLogica(UsuarioDatos usuarioDatos) {
+    // para las pruebas: permite usar datos falsos sin MySQL
+    public UsuarioLogica(UsuarioDatos usuarioDatos, FuncionarioDatos funcionarioDatos) {
         this.usuarioDatos = usuarioDatos;
+        this.funcionarioDatos = funcionarioDatos;
     }
 
     /**
@@ -59,7 +62,7 @@ public class UsuarioLogica {
 
         Funcionario funcionario = null;   // el administrador no tiene funcionario
         if (usuario.rol() == Rol.FUNCIONARIO) {
-            funcionario = usuarioDatos.buscarFuncionarioAsociado(usuario.id());
+            funcionario = funcionarioDatos.buscarFuncionarioAsociado(usuario.id());
             if (funcionario == null) {
                 throw new IllegalArgumentException(
                         "El usuario no tiene datos de funcionario. Contacte al administrador.");

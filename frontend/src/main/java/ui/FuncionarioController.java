@@ -1,7 +1,7 @@
 package ui;
 
 import Sistema.DTO.Funcionario;
-import Sistema.Logica.FuncionarioLogica;
+import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.Service.FuncionarioService;
 import Sistema.DTO.ReportConfigDTO;
 import Sistema.Logica.Exception.ReportExceptionLogica;
@@ -106,17 +106,17 @@ public class FuncionarioController {
         boolean esNuevo = (funcionarioSeleccionado == null);
 
         try {
-            FuncionarioLogica.ResultadoOperacion resultado = esNuevo
+            ResultadoOperacionDTO resultado = esNuevo
                     ? funcionarioService.registrar(funcionario)
                     : funcionarioService.modificar(funcionario);
 
-            if (resultado.isExitoso()) {
+            if (resultado.isExito()) {
                 mostrarMensajeExito(esNuevo ? "Funcionario registrado correctamente."
                         : "Funcionario modificado correctamente.");
                 limpiar();
                 cargarListadoCompleto();
             } else {
-                mostrarErrorValidacion(resultado.getMensajeError());
+                mostrarErrorValidacion(resultado.getMensaje());
             }
         } catch (RuntimeException e) {
             mostrarErrorSistema("No se pudo guardar el funcionario.\n" + e.getMessage());
@@ -142,15 +142,15 @@ public class FuncionarioController {
                 return;
             }
             try {
-                FuncionarioLogica.ResultadoOperacion resultado =
+                ResultadoOperacionDTO resultado =
                         funcionarioService.eliminar(funcionarioSeleccionado.getId());
 
-                if (resultado.isExitoso()) {
+                if (resultado.isExito()) {
                     mostrarMensajeExito("Funcionario eliminado correctamente.");
                     limpiar();
                     cargarListadoCompleto();
                 } else {
-                    mostrarErrorValidacion(resultado.getMensajeError());
+                    mostrarErrorValidacion(resultado.getMensaje());
                 }
             } catch (RuntimeException e) {
                 mostrarErrorSistema("No se pudo borrar el funcionario.\n" + e.getMessage());

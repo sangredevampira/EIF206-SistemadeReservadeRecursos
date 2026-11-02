@@ -4,6 +4,7 @@ import Sistema.DTO.Funcionario;
 import Sistema.DTO.LoginResultadoDTO;
 import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.DTO.Rol;
+import Sistema.Datos.FuncionarioDatos;
 import Sistema.Datos.UsuarioDatos;
 import Sistema.Datos.UsuarioRegistro;
 import org.junit.jupiter.api.Test;
@@ -49,11 +50,6 @@ public class UsuarioLogicaTest {
         }
 
         @Override
-        public Funcionario buscarFuncionarioAsociado(String id) {
-            return funcionarios.stream().filter(f -> f.getId().equals(id)).findFirst().orElse(null);
-        }
-
-        @Override
         public boolean actualizarClaveHash(String id, String claveHash) {
             idActualizado = id;
             hashGuardado = claveHash;
@@ -63,6 +59,29 @@ public class UsuarioLogicaTest {
         void agregarUsuario(String id, String clave, Rol rol, boolean activo) {
             usuarios.add(new UsuarioRegistro(id, HashClave.generar(clave, POCAS_ITERACIONES), rol, activo));
         }
+    }
+
+    /**
+     * Fake de FuncionarioDatos (desde el paso 5c, buscarFuncionarioAsociado
+     * esta aqui y no en UsuarioDatos). Lee la lista de funcionarios que
+     * prepara cada prueba en UsuarioDatosFake.
+     */
+    static class FuncionarioDatosFake extends FuncionarioDatos {
+
+        private final List<Funcionario> funcionarios;
+
+        FuncionarioDatosFake(List<Funcionario> funcionarios) {
+            this.funcionarios = funcionarios;
+        }
+
+        @Override
+        public Funcionario buscarFuncionarioAsociado(String id) {
+            return funcionarios.stream().filter(f -> f.getId().equals(id)).findFirst().orElse(null);
+        }
+    }
+
+    private static UsuarioLogica logicaCon(UsuarioDatosFake datos) {
+        return new UsuarioLogica(datos, new FuncionarioDatosFake(datos.funcionarios));
     }
 
     private UsuarioDatosFake datosConUsuariosDePrueba() {
@@ -79,7 +98,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void loginCorrectoDelAdministradorSinFuncionario() {
-        UsuarioLogica logica = new UsuarioLogica(datosConUsuariosDePrueba());
+        UsuarioLogica logica = logicaCon(datosConUsuariosDePrueba());
 
         LoginResultadoDTO resultado = logica.iniciarSesion("admin", "admin");
 
@@ -90,7 +109,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void loginCorrectoDeUnFuncionarioTraeSuFuncionario() {
-        UsuarioLogica logica = new UsuarioLogica(datosConUsuariosDePrueba());
+        UsuarioLogica logica = logicaCon(datosConUsuariosDePrueba());
 
         LoginResultadoDTO resultado = logica.iniciarSesion("123", "1234");
 
@@ -102,7 +121,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void devuelveElIdTalComoEstaGuardadoNoComoSeEscribio() {
-        UsuarioLogica logica = new UsuarioLogica(datosConUsuariosDePrueba());
+        UsuarioLogica logica = logicaCon(datosConUsuariosDePrueba());
 
         LoginResultadoDTO resultado = logica.iniciarSesion("ADMIN", "admin");
 
@@ -112,7 +131,7 @@ public class UsuarioLogicaTest {
     @Test
     void recortaLosEspaciosDelIdPeroNoDeLaClave() {
         UsuarioDatosFake datos = datosConUsuariosDePrueba();
-        UsuarioLogica logica = new UsuarioLogica(datos);
+        UsuarioLogica logica = logicaCon(datos);
 
         assertEquals("admin", logica.iniciarSesion("  admin  ", "admin").getIdUsuario());
         assertEquals("admin", datos.idBuscado);
@@ -121,7 +140,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void claveIncorrectaDaElMensajeGenerico() {
-        UsuarioLogica logica = new UsuarioLogica(datosConUsuariosDePrueba());
+        UsuarioLogica logica = logicaCon(datosConUsuariosDePrueba());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> logica.iniciarSesion("admin", "otra"));
@@ -130,7 +149,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void usuarioInexistenteDaElMismoMensajeQueClaveIncorrecta() {
-        UsuarioLogica logica = new UsuarioLogica(datosConUsuariosDePrueba());
+        UsuarioLogica logica = logicaCon(datosConUsuariosDePrueba());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> logica.iniciarSesion("noExiste", "algo"));
@@ -139,7 +158,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void inactivoConLaClaveCorrectaDaElMensajeDeInactivo() {
-        UsuarioLogica logica = new UsuarioLogica(datosConUsuariosDePrueba());
+        UsuarioLogica logica = logicaCon(datosConUsuariosDePrueba());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> logica.iniciarSesion("555", "555"));
@@ -148,7 +167,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void inactivoConLaClaveIncorrectaNoRevelaQueEstaInactivo() {
-        UsuarioLogica logica = new UsuarioLogica(datosConUsuariosDePrueba());
+        UsuarioLogica logica = logicaCon(datosConUsuariosDePrueba());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> logica.iniciarSesion("555", "otra"));
@@ -159,7 +178,7 @@ public class UsuarioLogicaTest {
     @NullAndEmptySource
     @ValueSource(strings = {"   "})
     void idVacioLanzaExcepcion(String id) {
-        UsuarioLogica logica = new UsuarioLogica(datosConUsuariosDePrueba());
+        UsuarioLogica logica = logicaCon(datosConUsuariosDePrueba());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> logica.iniciarSesion(id, "admin"));
@@ -170,7 +189,7 @@ public class UsuarioLogicaTest {
     @NullAndEmptySource
     @ValueSource(strings = {"   "})
     void claveVaciaLanzaExcepcion(String clave) {
-        UsuarioLogica logica = new UsuarioLogica(datosConUsuariosDePrueba());
+        UsuarioLogica logica = logicaCon(datosConUsuariosDePrueba());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> logica.iniciarSesion("admin", clave));
@@ -179,7 +198,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void funcionarioSinDatosDeFuncionarioNoEntra() {
-        UsuarioLogica logica = new UsuarioLogica(datosConUsuariosDePrueba());
+        UsuarioLogica logica = logicaCon(datosConUsuariosDePrueba());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> logica.iniciarSesion("999", "999"));
@@ -190,7 +209,7 @@ public class UsuarioLogicaTest {
     void unErrorDeLaBaseDeDatosSePropaga() {
         UsuarioDatosFake datos = datosConUsuariosDePrueba();
         datos.excepcionARetornar = new IllegalStateException("No se pudo acceder a la base de datos.");
-        UsuarioLogica logica = new UsuarioLogica(datos);
+        UsuarioLogica logica = logicaCon(datos);
 
         assertThrows(IllegalStateException.class, () -> logica.iniciarSesion("admin", "admin"));
     }
@@ -200,7 +219,7 @@ public class UsuarioLogicaTest {
     @Test
     void cambioDeClaveCorrectoGuardaUnHashDeLaClaveNueva() {
         UsuarioDatosFake datos = datosConUsuariosDePrueba();
-        UsuarioLogica logica = new UsuarioLogica(datos);
+        UsuarioLogica logica = logicaCon(datos);
 
         ResultadoOperacionDTO resultado = logica.cambiarClave(" ADMIN ", "admin", "nueva123", "nueva123");
 
@@ -215,7 +234,7 @@ public class UsuarioLogicaTest {
     @Test
     void cambioConClaveActualIncorrectaNoGuardaNada() {
         UsuarioDatosFake datos = datosConUsuariosDePrueba();
-        UsuarioLogica logica = new UsuarioLogica(datos);
+        UsuarioLogica logica = logicaCon(datos);
 
         ResultadoOperacionDTO resultado = logica.cambiarClave("admin", "otra", "nueva123", "nueva123");
 
@@ -227,7 +246,7 @@ public class UsuarioLogicaTest {
     @Test
     void cambioConUsuarioInexistenteDaElMismoMensaje() {
         UsuarioDatosFake datos = datosConUsuariosDePrueba();
-        UsuarioLogica logica = new UsuarioLogica(datos);
+        UsuarioLogica logica = logicaCon(datos);
 
         ResultadoOperacionDTO resultado = logica.cambiarClave("noExiste", "algo", "nueva123", "nueva123");
 
@@ -239,7 +258,7 @@ public class UsuarioLogicaTest {
     @Test
     void cambioDeUnUsuarioInactivoSeRechaza() {
         UsuarioDatosFake datos = datosConUsuariosDePrueba();
-        UsuarioLogica logica = new UsuarioLogica(datos);
+        UsuarioLogica logica = logicaCon(datos);
 
         ResultadoOperacionDTO resultado = logica.cambiarClave("555", "555", "nueva123", "nueva123");
 
@@ -250,7 +269,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void cambioConIdVacio() {
-        ResultadoOperacionDTO resultado = new UsuarioLogica(datosConUsuariosDePrueba())
+        ResultadoOperacionDTO resultado = logicaCon(datosConUsuariosDePrueba())
                 .cambiarClave("  ", "admin", "nueva123", "nueva123");
 
         assertFalse(resultado.isExito());
@@ -259,7 +278,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void cambioConClaveActualVacia() {
-        ResultadoOperacionDTO resultado = new UsuarioLogica(datosConUsuariosDePrueba())
+        ResultadoOperacionDTO resultado = logicaCon(datosConUsuariosDePrueba())
                 .cambiarClave("admin", "", "nueva123", "nueva123");
 
         assertFalse(resultado.isExito());
@@ -268,7 +287,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void cambioConClaveNuevaVacia() {
-        ResultadoOperacionDTO resultado = new UsuarioLogica(datosConUsuariosDePrueba())
+        ResultadoOperacionDTO resultado = logicaCon(datosConUsuariosDePrueba())
                 .cambiarClave("admin", "admin", "", "");
 
         assertFalse(resultado.isExito());
@@ -277,7 +296,7 @@ public class UsuarioLogicaTest {
 
     @Test
     void cambioConConfirmacionDistinta() {
-        ResultadoOperacionDTO resultado = new UsuarioLogica(datosConUsuariosDePrueba())
+        ResultadoOperacionDTO resultado = logicaCon(datosConUsuariosDePrueba())
                 .cambiarClave("admin", "admin", "nueva123", "otra");
 
         assertFalse(resultado.isExito());
@@ -288,7 +307,7 @@ public class UsuarioLogicaTest {
     void cambioCuandoLaBaseNoActualizaNingunaFila() {
         UsuarioDatosFake datos = datosConUsuariosDePrueba();
         datos.actualizarDevuelve = false;
-        UsuarioLogica logica = new UsuarioLogica(datos);
+        UsuarioLogica logica = logicaCon(datos);
 
         ResultadoOperacionDTO resultado = logica.cambiarClave("admin", "admin", "nueva123", "nueva123");
 

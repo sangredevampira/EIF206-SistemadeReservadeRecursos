@@ -1,27 +1,37 @@
 package Sistema.Service;
 
 import Sistema.DTO.Funcionario;
+import Sistema.DTO.ResultadoOperacionDTO;
 import Sistema.Logica.FuncionarioLogica;
 
 import java.util.List;
 
 // Capa Service: solo enviar y recibir solicitud desde y hacia el
 // controlador, en comunicacion con la capa inferior (Logica). Sin
-// validaciones propias, igual que AuthService.
+// validaciones propias, igual que AuthService y CategoriaService.
 
 public class FuncionarioService {
 
-    private final FuncionarioLogica funcionarioLogica = new FuncionarioLogica();
+    private final FuncionarioLogica funcionarioLogica;
 
-    public FuncionarioLogica.ResultadoOperacion registrar(Funcionario funcionario) {
+    public FuncionarioService() {
+        this(new FuncionarioLogica());
+    }
+
+    // para pruebas: FuncionarioServiceTest pasa una Logica falsa
+    public FuncionarioService(FuncionarioLogica funcionarioLogica) {
+        this.funcionarioLogica = funcionarioLogica;
+    }
+
+    public ResultadoOperacionDTO registrar(Funcionario funcionario) {
         return funcionarioLogica.registrar(funcionario);
     }
 
-    public FuncionarioLogica.ResultadoOperacion modificar(Funcionario funcionario) {
+    public ResultadoOperacionDTO modificar(Funcionario funcionario) {
         return funcionarioLogica.modificar(funcionario);
     }
 
-    public FuncionarioLogica.ResultadoOperacion eliminar(String id) {
+    public ResultadoOperacionDTO eliminar(String id) {
         return funcionarioLogica.eliminar(id);
     }
 

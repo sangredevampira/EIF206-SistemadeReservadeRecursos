@@ -33,7 +33,7 @@ class AuthServiceTest {
         String[] parametrosCambioRecibidos;
 
         UsuarioLogicaFake() {
-            super(null);   // no usa UsuarioDatos: todos sus metodos estan sobrescritos
+            super(null, null);   // no usa Datos: todos sus metodos estan sobrescritos
         }
 
         @Override

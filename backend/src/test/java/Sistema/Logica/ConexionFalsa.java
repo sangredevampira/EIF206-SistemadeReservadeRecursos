@@ -9,8 +9,8 @@ import java.util.List;
 
 /**
  * Connection falsa hecha con java.lang.reflect.Proxy, para las pruebas de
- * unidad de la Logica sin MySQL. La usan RecursoLogicaTest y
- * CategoriaLogicaTest (y FuncionarioLogicaTest en el paso 5c). Es de
+ * unidad de la Logica sin MySQL. La usan RecursoLogicaTest,
+ * CategoriaLogicaTest y FuncionarioLogicaTest. Es de
  * paquete: solo existe para las pruebas de Sistema.Logica.
  *
  * Que es: java.sql.Connection es una interfaz con mas de 50 metodos.
