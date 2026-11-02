@@ -1,8 +1,6 @@
-package Sistema.Service.Red;
+package Sistema.Red;
 
 import Sistema.DTO.ReservaDTO;
-import Sistema.Red.Operaciones;
-import Sistema.Red.ProxyBase;
 import Sistema.Service.IReservaService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
