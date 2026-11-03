@@ -156,7 +156,8 @@ Notas sobre reservas:
   reservas; el administrador puede con cualquiera. Si no, `mensaje`: "Solo puede acceder a sus propias reservas.".
 - `RES_BUSCAR_PERIODO` está disponible para cualquier sesión iniciada (lo usan calendario, actividades y estadísticas).
 - Fechas en `datos` como `AAAA-MM-DD` y horas como `HH:mm` o `HH:mm:ss`; si no se pueden leer, `mensaje`:
-  "Los datos de la solicitud no son válidos.".
+  "Los datos de la solicitud no son válidos.". Si en `RES_CREAR` falta un dato (fecha, horas, actividad o categorías),
+  la Lógica responde con su mensaje ("Debe indicar la fecha de la reserva.", etc.), igual que en el Proyecto 1.
 
 ## 4. Sesión
 

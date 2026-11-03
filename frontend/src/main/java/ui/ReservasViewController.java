@@ -5,8 +5,11 @@ import Sistema.DTO.ReservaDTO;
 import Sistema.DTO.Funcionario;
 import Sistema.DTO.CategoriaDTO;
 import Sistema.util.SessionManager;
-import Sistema.Service.ReservaService;
-import Sistema.Service.CategoriaService;
+import Sistema.Service.IReservaService;
+import Sistema.Service.ICategoriaService;
+import Sistema.Service.Red.ProxyReservaService;
+import Sistema.Service.Red.ProxyCategoriaService;
+import Sistema.Red.TareaRed;
 import Sistema.util.HorarioSistema;
 
 import java.net.URL;
@@ -46,8 +49,10 @@ import javafx.concurrent.Task;
 
 public class ReservasViewController implements Initializable {
 
-    private ReservaService reservaService;
-    private CategoriaService categoriaService;
+    private static final String MENSAJE_ERROR_RED = "No se pudo comunicar con el servidor. Intente de nuevo.";
+
+    private IReservaService reservaService;
+    private ICategoriaService categoriaService;
     private final PdfController pdfController = new PdfController();
 
     @FXML private TextField txtFrase;
@@ -79,8 +84,8 @@ public class ReservasViewController implements Initializable {
     @FXML
     public void initialize(URL location, ResourceBundle resources){
 
-        this.reservaService = new ReservaService();
-        this.categoriaService = new CategoriaService();
+        this.reservaService = new ProxyReservaService();
+        this.categoriaService = new ProxyCategoriaService();
 
         // 1. deshabilitamos inicialmente la acción de cancelar si no hay nada seleccionado
         btnCancelarReserva.setDisable(true);
@@ -163,12 +168,12 @@ public class ReservasViewController implements Initializable {
     }
 
     private void cargarCategorias() {
-        try {
-            List<CategoriaDTO> categorias = categoriaService.listarTodos();
-            lvCategorias.setItems(FXCollections.observableArrayList(categorias));
-        } catch (Exception e) {
-            // Manejo silencioso en caso de no estar listo el módulo de categorías
-        }
+        // Si falla, la lista queda vacía (manejo silencioso, como antes)
+        TareaRed.ejecutar(
+                () -> categoriaService.listarTodos(),
+                categorias -> lvCategorias.setItems(FXCollections.observableArrayList(categorias)),
+                error -> { }
+        );
     }
 
     // rellenamos la tabla desde el servicio
@@ -187,10 +192,12 @@ public class ReservasViewController implements Initializable {
             return;
         }
 
-        try {
-            List<ReservaDTO> reservas = reservaService.buscarPorFuncionario(idUsuario);
-            cargarTabla(reservas);
-        } catch (Exception error) { listaReservas.clear(); }
+        // Si falla (o no hay reservas) la tabla queda vacía, sin alerta
+        TareaRed.ejecutar(
+                () -> reservaService.buscarPorFuncionario(idUsuario),
+                this::cargarTabla,
+                error -> listaReservas.clear()
+        );
     }
 
     @FXML
@@ -243,6 +250,8 @@ public class ReservasViewController implements Initializable {
 
         } catch (IllegalArgumentException ex) {
             mostrarAlerta(AlertType.WARNING, "Atención", ex.getMessage());
+        } catch (IllegalStateException ex) {
+            mostrarAlerta(AlertType.ERROR, "Error", MENSAJE_ERROR_RED);
         } catch (Exception ex) {
             mostrarAlerta(AlertType.ERROR, "Error", "Ocurrió un error no esperado: " + ex.getMessage());
         }
@@ -266,6 +275,8 @@ public class ReservasViewController implements Initializable {
             }
         } catch (IllegalArgumentException ex) {
             mostrarAlerta(AlertType.WARNING, "No se puede cancelar", ex.getMessage());
+        } catch (IllegalStateException ex) {
+            mostrarAlerta(AlertType.ERROR, "Error al cancelar", MENSAJE_ERROR_RED);
         } catch (Exception ex) {
             mostrarAlerta(AlertType.ERROR, "Error al cancelar", ex.getMessage());
         }

@@ -4,12 +4,15 @@ import Sistema.Red.DespachadorPeticiones;
 import Sistema.Red.GestorClientes;
 import Sistema.Red.ManejadorAuth;
 import Sistema.Red.ManejadorCategorias;
+import Sistema.Red.ManejadorEstadisticas;
 import Sistema.Red.ManejadorFuncionarios;
 import Sistema.Red.ManejadorRecursos;
 import Sistema.Red.ManejadorReservas;
 import Sistema.Red.ServidorReservas;
 import Sistema.Service.AuthService;
 import Sistema.Service.CategoriaService;
+import Sistema.Service.EstadisticasActividadesService;
+import Sistema.Service.EstadisticasRecursosService;
 import Sistema.Service.FuncionarioService;
 import Sistema.Service.RecursoService;
 import Sistema.Service.ReservaService;
@@ -41,6 +44,11 @@ public class ServidorMain {
         new ManejadorCategorias(new CategoriaService()).registrarEn(despachador);
         new ManejadorRecursos(new RecursoService()).registrarEn(despachador);
         new ManejadorReservas(new ReservaService(), gestor).registrarEn(despachador);
+        new ManejadorEstadisticas(
+                new EstadisticasRecursosService(),
+                new EstadisticasActividadesService(),
+                new ReservaService()
+        ).registrarEn(despachador);
         // Aquí se registrarán los demás (CAL, ACT, EST...)
 
         servidor.iniciar(puerto);
