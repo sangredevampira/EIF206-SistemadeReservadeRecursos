@@ -1,5 +1,7 @@
-package Sistema.Red;
+package Sistema.Service.Red;
 
+import Sistema.Red.Operaciones;
+import Sistema.Red.ProxyBase;
 import Sistema.DTO.ReservaDTO;
 import Sistema.Service.IReservaService;
 import com.fasterxml.jackson.core.type.TypeReference;

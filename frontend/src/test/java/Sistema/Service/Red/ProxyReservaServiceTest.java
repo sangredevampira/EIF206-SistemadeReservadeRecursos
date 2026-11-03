@@ -1,5 +1,6 @@
-package Sistema.Red;
+package Sistema.Service.Red;
 
+import Sistema.Red.ClienteRed;
 import Sistema.DTO.EstadoReserva;
 import Sistema.DTO.ReservaDTO;
 import com.fasterxml.jackson.databind.JsonNode;
