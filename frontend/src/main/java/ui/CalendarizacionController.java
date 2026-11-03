@@ -1,21 +1,21 @@
 package ui;
 
 import Sistema.DTO.CategoriaDTO;
-import Sistema.DTO.RecursoDTO;
+import Sistema.DTO.CalendarizacionDTO;
+import Sistema.DTO.DisponibilidadRecursoDTO;
 import Sistema.DTO.ReportConfigDTO;
-import Sistema.DTO.ReservaDTO;
 import Sistema.Logica.Exception.ReportExceptionLogica;
-import Sistema.Service.CalendarizacionService;
-import Sistema.Service.CategoriaService;
-import Sistema.Service.RecursoService;
-import Sistema.Service.ReservaService;
+import Sistema.Red.TareaRed;
+import Sistema.Service.ICalendarizacionService;
+import Sistema.Service.ICategoriaService;
+import Sistema.Service.Red.ProxyCalendarizacionService;
+import Sistema.Service.Red.ProxyCategoriaService;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Objects;
 
 public class CalendarizacionController {
@@ -29,13 +29,10 @@ public class CalendarizacionController {
     @FXML private Label lblEstado;
     private LocalDate fechaCargada;
     private CategoriaDTO categoriaCargada;
-    private List<RecursoDTO> recursosCargados = List.of();
-    private List<ReservaDTO> reservasCargadas = List.of();
-    private final CategoriaService categoriaService = new CategoriaService();
-    private final RecursoService recursoService = new RecursoService();
-    private final ReservaService reservaService = new ReservaService();
+    private CalendarizacionDTO calendarizacionCargada;
+    private final ICategoriaService categoriaService = new ProxyCategoriaService();
+    private final ICalendarizacionService calendarizacionService = new ProxyCalendarizacionService();
     private final PdfController pdfController = new PdfController();
-    private final CalendarizacionService calendarizacionRecursosService = new CalendarizacionService();
 
     @FXML
     private void initialize() {
@@ -47,18 +44,18 @@ public class CalendarizacionController {
         cargarCategorias();
     }
     private void cargarCategorias() {
-        try {
-            cbCategoria.getItems().setAll(categoriaService.listarTodos());
-        } catch (RuntimeException excepcion) {
-            lblEstado.setText("No se pudieron cargar las categorías: " + excepcion.getMessage());
-        }
+        TareaRed.ejecutar(
+                () -> categoriaService.listarTodos(),
+                categorias -> cbCategoria.getItems().setAll(categorias),
+                error -> lblEstado.setText("No se pudieron cargar las categorías: " + mensajeDeError(error))
+        );
+    }
+    private static String mensajeDeError(Throwable error) {
+        if (error instanceof IllegalArgumentException) return error.getMessage();
+        return "No se pudo comunicar con el servidor. Intente de nuevo.";
     }
     private void cargarHorasDelDia() {
-        tvCalendarizacion.getItems().setAll(calendarizacionRecursosService.generarHorasDelDia());
-    }
-    private String obtenerEstadoRecurso(RecursoDTO recurso, String hora) {
-        return calendarizacionRecursosService.obtenerEstadoRecurso(
-                recurso, fechaCargada, hora, reservasCargadas);
+        tvCalendarizacion.getItems().setAll(calendarizacionCargada.getHoras());
     }
     private void aplicarEstiloColumna(TableColumn<String, String> columnaRecurso) {
         columnaRecurso.setCellFactory(columna -> new TableCell<>() {
@@ -82,11 +79,14 @@ public class CalendarizacionController {
     }
     private void crearColumnasRecursos() {
         tvCalendarizacion.getColumns().setAll(colHora);
-        for (RecursoDTO recurso : recursosCargados) {
-            TableColumn<String, String> columnaRecurso = new TableColumn<>(recurso.getDescripcion());
+        for (DisponibilidadRecursoDTO disponibilidad : calendarizacionCargada.getRecursos()) {
+            TableColumn<String, String> columnaRecurso =
+                    new TableColumn<>(disponibilidad.getRecurso().getDescripcion());
             columnaRecurso.setPrefWidth(280);
-            columnaRecurso.setCellValueFactory(fila ->
-                    new ReadOnlyStringWrapper(obtenerEstadoRecurso(recurso, fila.getValue())));
+            columnaRecurso.setCellValueFactory(fila -> {
+                int indice = calendarizacionCargada.getHoras().indexOf(fila.getValue());
+                return new ReadOnlyStringWrapper(indice < 0 ? "" : disponibilidad.getEstados().get(indice));
+            });
             aplicarEstiloColumna(columnaRecurso);
             tvCalendarizacion.getColumns().add(columnaRecurso);
         }
@@ -101,44 +101,43 @@ public class CalendarizacionController {
             return;
         }
 
-        fechaCargada = dpFecha.getValue();
-        categoriaCargada = cbCategoria.getValue();
-        try {
-            recursosCargados = recursoService.filtrarRecursos(categoriaCargada.getId());
-            if (recursosCargados.isEmpty()) {
-                tvCalendarizacion.getItems().clear();
-                tvCalendarizacion.getColumns().setAll(colHora);
-                reservasCargadas = List.of();
-                fechaCargada = null;
-                categoriaCargada = null;
-                lblEstado.setText("No existen recursos registrados para la categoría seleccionada.");
-                return;
-            }
-
-            reservasCargadas = reservaService.buscarPorPeriodo(fechaCargada, fechaCargada);
-            crearColumnasRecursos();
-            cargarHorasDelDia();
-            tvCalendarizacion.refresh();
-            lblEstado.setText("Calendarización cargada correctamente.");
-        } catch (RuntimeException excepcion) {
-            recursosCargados = List.of();
-            reservasCargadas = List.of();
-            fechaCargada = null;
-            categoriaCargada = null;
-            tvCalendarizacion.getItems().clear();
-            tvCalendarizacion.getColumns().setAll(colHora);
-            lblEstado.setText("No se pudo cargar la calendarización: " + excepcion.getMessage());
-        }
+        LocalDate fecha = dpFecha.getValue();
+        CategoriaDTO categoria = cbCategoria.getValue();
+        TareaRed.ejecutar(
+                () -> calendarizacionService.consultar(categoria.getId(), fecha),
+                dto -> {
+                    if (dto.getRecursos() == null || dto.getRecursos().isEmpty()) {
+                        reiniciarTabla();
+                        lblEstado.setText("No existen recursos registrados para la categoría seleccionada.");
+                        return;
+                    }
+                    calendarizacionCargada = dto;
+                    fechaCargada = fecha;
+                    categoriaCargada = categoria;
+                    crearColumnasRecursos();
+                    cargarHorasDelDia();
+                    tvCalendarizacion.refresh();
+                    lblEstado.setText("Calendarización cargada correctamente.");
+                },
+                error -> {
+                    reiniciarTabla();
+                    lblEstado.setText(error instanceof IllegalArgumentException
+                            ? "No se pudo cargar la calendarización: " + error.getMessage()
+                            : mensajeDeError(error));
+                }
+        );
+    }
+    private void reiniciarTabla() {
+        calendarizacionCargada = null;
+        fechaCargada = null;
+        categoriaCargada = null;
+        tvCalendarizacion.getItems().clear();
+        tvCalendarizacion.getColumns().setAll(colHora);
     }
     private void limpiarCalendarizacion() {
         dpFecha.setValue(null);
         cbCategoria.getSelectionModel().clearSelection();
-        fechaCargada = null;
-        recursosCargados = List.of();
-        reservasCargadas = List.of();
-        categoriaCargada = null;
-        tvCalendarizacion.getItems().clear();
-        tvCalendarizacion.getColumns().setAll(colHora);
+        reiniciarTabla();
         lblEstado.setText("Seleccione una fecha y una categoría para cargar la calendarización.");
     }
     private boolean validarDatosParaPdf() {

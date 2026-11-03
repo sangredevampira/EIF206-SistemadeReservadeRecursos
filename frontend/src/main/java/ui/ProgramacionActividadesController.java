@@ -1,10 +1,11 @@
 package ui;
 
 import Sistema.DTO.ReportConfigDTO;
-import Sistema.DTO.ReservaDTO;
+import Sistema.DTO.ProgramacionActividadesDTO;
 import Sistema.Logica.Exception.ReportExceptionLogica;
-import Sistema.Service.ProgramacionActividadesService;
-import Sistema.Service.ReservaService;
+import Sistema.Red.TareaRed;
+import Sistema.Service.IProgramacionActividadesService;
+import Sistema.Service.Red.ProxyProgramacionActividadesService;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -14,7 +15,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -36,10 +36,10 @@ public class ProgramacionActividadesController {
     @FXML private TableColumn<String, String> colDomingo;
     private LocalDate fechaInicioSemana;
     private LocalDate fechaFinSemana;
-    private final Map<LocalDate, Map<String, String>> actividadesPorFecha = new HashMap<>();
+    private final Map<String, Map<String, String>> actividadesPorFecha = new HashMap<>();
     private final PdfController pdfController = new PdfController();
-    private final ReservaService reservaService = new ReservaService();
-    private final ProgramacionActividadesService programacionActividadesService = new ProgramacionActividadesService();
+    private final IProgramacionActividadesService programacionActividadesService =
+            new ProxyProgramacionActividadesService();
 
     @FXML
     private void initialize() {
@@ -53,20 +53,6 @@ public class ProgramacionActividadesController {
         lblRangoSemana.setText("Semana no seleccionada");
         lblEstado.setText("Seleccione una fecha para cargar la programación semanal.");
     }
-    private void mostrarActividadesEnTabla(
-            List<ReservaDTO> reservaciones
-    ) {
-        actividadesPorFecha.putAll(
-                programacionActividadesService.construirProgramacion(
-                        reservaciones
-                )
-        );
-    }
-    private void cargarActividadesDesdeJson() {
-        List<ReservaDTO> reservaciones = reservaService.buscarPorPeriodo(fechaInicioSemana, fechaFinSemana);
-        mostrarActividadesEnTabla(reservaciones);
-    }
-
     private void aplicarEstiloActividad(TableColumn<String, String> columna) {
         columna.setCellFactory(columnaActual -> new TableCell<>() {
             @Override
@@ -105,16 +91,32 @@ public class ProgramacionActividadesController {
         }
         calcularRangoSemana(dpFechaReferencia.getValue());
         actividadesPorFecha.clear();
-        try {
-            cargarActividadesDesdeJson();
-            cargarHorasDelDia();
-            tvActividades.refresh();
-            lblEstado.setText("Programación semanal cargada correctamente.");
-        } catch (RuntimeException excepcion) {
-            actividadesPorFecha.clear();
-            tvActividades.getItems().clear();
-            lblEstado.setText("No se pudo cargar la programación: " + excepcion.getMessage());
+        LocalDate desde = fechaInicioSemana;
+        LocalDate hasta = fechaFinSemana;
+        TareaRed.ejecutar(
+                () -> programacionActividadesService.consultar(desde, hasta),
+                dto -> {
+                    // si cambió la semana cargada mientras tanto, se descarta esta respuesta
+                    if (!Objects.equals(desde, fechaInicioSemana)) return;
+                    aplicarProgramacion(dto);
+                    tvActividades.refresh();
+                    lblEstado.setText("Programación semanal cargada correctamente.");
+                },
+                error -> {
+                    actividadesPorFecha.clear();
+                    tvActividades.getItems().clear();
+                    lblEstado.setText(error instanceof IllegalArgumentException
+                            ? "No se pudo cargar la programación: " + error.getMessage()
+                            : "No se pudo comunicar con el servidor. Intente de nuevo.");
+                }
+        );
+    }
+    private void aplicarProgramacion(ProgramacionActividadesDTO dto) {
+        actividadesPorFecha.clear();
+        if (dto.getActividadesPorFecha() != null) {
+            actividadesPorFecha.putAll(dto.getActividadesPorFecha());
         }
+        tvActividades.getItems().setAll(dto.getHoras());
     }
     private void limpiarProgramacion() {
         dpFechaReferencia.setValue(null);
@@ -136,7 +138,7 @@ public class ProgramacionActividadesController {
         colDomingo.setText("Domingo");
     }
     private String obtenerTextoActividad(LocalDate fecha, String hora) {
-        Map<String, String> actividadesDelDia = actividadesPorFecha.get(fecha);
+        Map<String, String> actividadesDelDia = actividadesPorFecha.get(fecha.toString());
         if (actividadesDelDia == null) return "";
         return actividadesDelDia.getOrDefault(hora, "");
     }
@@ -157,11 +159,6 @@ public class ProgramacionActividadesController {
         configurarColumnaDia(colViernes, 4);
         configurarColumnaDia(colSabado, 5);
         configurarColumnaDia(colDomingo, 6);
-    }
-    private void cargarHorasDelDia() {
-        tvActividades.getItems().setAll(
-                programacionActividadesService.generarHorasDelDia()
-        );
     }
     private boolean validarDatosParaPdf() {
         if (tvActividades.getItems().isEmpty() || fechaInicioSemana == null || fechaFinSemana == null) {
