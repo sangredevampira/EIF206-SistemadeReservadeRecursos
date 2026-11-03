@@ -120,7 +120,7 @@ public final class ConexionInicialRed {
                 salir
         );
 
-        if (ventana != null) {
+        if (ventana != null && ventana.getScene() != null) {
             alerta.initOwner(ventana);
         }
 
@@ -130,7 +130,16 @@ public final class ConexionInicialRed {
 
         if (respuesta == reintentar) {
 
-            iniciar(ventana, alConectar);
+            // El aviso era la única ventana abierta: al cerrarse, JavaFX
+            // terminaría la aplicación (implicit exit) antes de reintentar.
+            // Se desactiva mientras se reconecta y se reactiva al conectar.
+            Platform.setImplicitExit(false);
+
+            iniciar(ventana, () -> {
+                Platform.setImplicitExit(true);
+                alConectar.run();
+            });
+
 
         } else {
 
