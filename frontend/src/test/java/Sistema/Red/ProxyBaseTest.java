@@ -14,8 +14,10 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,6 +38,9 @@ class ProxyBaseTest {
         ) {
             return ejecutar(operacion, datos, tipo);
         }
+    }
+
+    private record DatosFecha(LocalDate fecha) {
     }
 
     @AfterEach
@@ -143,6 +148,31 @@ class ProxyBaseTest {
                     error.getMessage().contains("estado válido")
             );
         });
+    }
+
+    @Test
+    void serializaLocalDateComoTextoIso() throws Exception {
+        AtomicReference<JsonNode> solicitudRecibida = new AtomicReference<>();
+
+        probarConServidor(solicitud -> {
+            solicitudRecibida.set(solicitud);
+
+            ObjectNode respuesta = respuestaBase(solicitud);
+            respuesta.put("exito", true);
+            respuesta.putNull("datos");
+            return respuesta;
+        }, () -> new ProxyPrueba().consultar(
+                "TEST_FECHA",
+                new DatosFecha(LocalDate.of(2026, 11, 3)),
+                Void.class
+        ));
+
+        JsonNode fecha = solicitudRecibida.get()
+                .path("datos")
+                .path("fecha");
+
+        assertTrue(fecha.isTextual());
+        assertEquals("2026-11-03", fecha.asText());
     }
 
     // --------------------------------------------------
