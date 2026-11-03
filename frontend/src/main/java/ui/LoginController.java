@@ -1,7 +1,8 @@
 package ui;
 
 import Sistema.DTO.LoginResultadoDTO;
-import Sistema.Service.AuthService;
+import Sistema.Service.IAuthService;
+import Sistema.Service.Red.ProxyAuthService;
 import Sistema.util.SessionManager;
 
 import javafx.application.Platform;
@@ -18,10 +19,17 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.util.Objects;
 
-//conecta los botones de la futura pantalla con AuthService.
+// Conecta la pantalla de login con el servidor por medio de ProxyAuthService (AUTH_LOGIN).
+// La llamada es directa, sin TareaRed (decision 13 del equipo).
 
 public class LoginController {
+
+    static final String MENSAJE_SIN_CONEXION =
+            "No hay comunicación con el servidor; su clave no fue revisada. "
+                    + "Intente de nuevo y, si sigue, reinicie la aplicación.";
+    static final String MENSAJE_ERROR_INESPERADO = "No se pudo verificar el usuario. Intente de nuevo.";
 
     @FXML private TextField campoId;
     @FXML private PasswordField campoClave;
@@ -30,7 +38,17 @@ public class LoginController {
     @FXML private Button btnCancelar;
     @FXML private Button btnCambiar;
 
-    private final AuthService authService = new AuthService();
+    private final IAuthService authService;
+
+    // Lo usan Main y MainController (loader.setController(new LoginController()))
+    public LoginController() {
+        this(new ProxyAuthService());
+    }
+
+    // Para las pruebas: permite usar un IAuthService falso sin red
+    LoginController(IAuthService authService) {
+        this.authService = Objects.requireNonNull(authService);
+    }
 
     @FXML
     private void initialize() {
@@ -68,25 +86,40 @@ public class LoginController {
     }
 
     private void manejarIngresar(javafx.event.ActionEvent evento) {
-        String id = campoId.getText();
-        String clave = campoClave.getText();
+        String mensaje = iniciarSesion(campoId.getText(), campoClave.getText());
+        if (mensaje == null) {
+            lblMensaje.setText("");
+            abrirVentanaPrincipal(evento);
+        } else {
+            lblMensaje.setText(mensaje);
+        }
+    }
 
+    /**
+     * Pide el login al servidor y, si sale bien, inicia la sesion local (SessionManager).
+     * No usa controles de JavaFX, para poder probarlo sin abrir ventanas.
+     *
+     * @return null si el login salio bien; si no, el mensaje que se muestra en lblMensaje
+     */
+    String iniciarSesion(String id, String clave) {
         try {
-            // un login fallido llega como IllegalArgumentException con el mensaje
-            // (igual antes y despues del proxy del paso 6)
             LoginResultadoDTO resultado = authService.login(id, clave);
 
+            // se guarda el ID que devuelve el servidor (como esta en la base), no el escrito
             SessionManager.getInstancia().iniciarSesion(
                     resultado.getIdUsuario(),
                     resultado.getRol().name(),
                     resultado.getFuncionario()
             );
-            lblMensaje.setText("");
-            abrirVentanaPrincipal(evento);
+            return null;
         } catch (IllegalArgumentException e) {
-            lblMensaje.setText(e.getMessage());
+            // el servidor respondio exito=false: regla de negocio ("ID o clave incorrectos.", etc.)
+            return e.getMessage();
+        } catch (IllegalStateException e) {
+            // problema de red o respuesta invalida: la clave no llego a revisarse
+            return MENSAJE_SIN_CONEXION;
         } catch (RuntimeException e) {
-            lblMensaje.setText("No se pudo verificar el usuario. Intente de nuevo.");
+            return MENSAJE_ERROR_INESPERADO;
         }
     }
 
