@@ -3,6 +3,8 @@ package Sistema;
 import Sistema.Red.DespachadorPeticiones;
 import Sistema.Red.GestorClientes;
 import Sistema.Red.ManejadorAuth;
+import Sistema.Red.ManejadorActividades;
+import Sistema.Red.ManejadorCalendarizacion;
 import Sistema.Red.ManejadorCategorias;
 import Sistema.Red.ManejadorEstadisticas;
 import Sistema.Red.ManejadorFuncionarios;
@@ -10,10 +12,12 @@ import Sistema.Red.ManejadorRecursos;
 import Sistema.Red.ManejadorReservas;
 import Sistema.Red.ServidorReservas;
 import Sistema.Service.AuthService;
+import Sistema.Service.CalendarizacionService;
 import Sistema.Service.CategoriaService;
 import Sistema.Service.EstadisticasActividadesService;
 import Sistema.Service.EstadisticasRecursosService;
 import Sistema.Service.FuncionarioService;
+import Sistema.Service.ProgramacionActividadesService;
 import Sistema.Service.RecursoService;
 import Sistema.Service.ReservaService;
 
@@ -49,7 +53,8 @@ public class ServidorMain {
                 new EstadisticasActividadesService(),
                 new ReservaService()
         ).registrarEn(despachador);
-        // Aquí se registrarán los demás (CAL, ACT, EST...)
+        new ManejadorCalendarizacion(new CalendarizacionService()).registrarEn(despachador);
+        new ManejadorActividades(new ProgramacionActividadesService()).registrarEn(despachador);
 
         servidor.iniciar(puerto);
         System.out.println("Servidor escuchando en el puerto " + servidor.getPuerto());

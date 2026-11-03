@@ -111,8 +111,8 @@ pide a Kristel registrar el manejador.
 | Reservas | `RES_BUSCAR_ID` | `idReserva` | `ReservaDTO` (error si no existe) | Kristel |
 | Reservas | `RES_BUSCAR_FUNCIONARIO` | `idFuncionario` | lista de `ReservaDTO` (error si no tiene ninguna) | Kristel |
 | Reservas | `RES_BUSCAR_PERIODO` | `fechaDesde`, `fechaHasta` | lista de `ReservaDTO` | Kristel |
-| Consulta | `CAL_CONSULTAR` | `idCategoria`, `fecha` | matriz de disponibilidad (`DisponibilidadRecursoDTO`) | Kristel (al implementar I2-C) |
-| Consulta | `ACT_CONSULTAR` | rango de fechas | actividades programadas (`ActividadProgramadaDTO`) | Kristel (al implementar I2-D) |
+| Consulta (cualquier sesión) | `CAL_CONSULTAR` | `idCategoria`, `fecha` (`AAAA-MM-DD`) | `CalendarizacionDTO` `{horas, recursos}`: `horas` son 48 textos `HH:mm`; `recursos` es una lista de `DisponibilidadRecursoDTO` `{recurso: RecursoDTO, estados: [texto]}` con un estado por hora (`Disponible`, `Fuera de horario` o `Reservado - actividad - funcionario`). Categoría sin recursos: `recursos` vacío | Kristel |
+| Consulta (cualquier sesión) | `ACT_CONSULTAR` | `fechaDesde`, `fechaHasta` (`AAAA-MM-DD`) | `ProgramacionActividadesDTO` `{horas, actividadesPorFecha}`: `actividadesPorFecha` tiene como clave externa la fecha `AAAA-MM-DD`, como clave interna la hora `HH:mm` y como valor el texto de la celda (`actividad` + salto de línea + `funcionario`; varias reservas del mismo bloque se separan con una línea en blanco) | Kristel |
 | Estadísticas (cualquier sesión autenticada) | `EST_RECURSOS` | `desde`, `hasta` (textos con fechas ISO `AAAA-MM-DD`) | lista de `EstadisticaCategoriaDTO`: objetos `{categoria, cantidad}` | Sofía |
 | Estadísticas (cualquier sesión autenticada) | `EST_ACTIVIDADES` | `desde`, `hasta` (textos con fechas ISO `AAAA-MM-DD`) | objeto con fechas ISO de inicio de semana como claves y cantidades enteras como valores (`{"2026-11-02": 5}`) | Sofía |
 | Evento | `RESERVA_CREADA` | — (solo sale del Backend) | `ReservaDTO` completo | Kristel |
