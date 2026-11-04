@@ -1,10 +1,9 @@
 package ui;
 
 import Sistema.DTO.ReportConfigDTO;
-import Sistema.DTO.ReservaDTO;
 import Sistema.Logica.Exception.ReportExceptionLogica;
-import Sistema.Service.EstadisticasActividadesService;
-import Sistema.Service.ReservaService;
+import Sistema.Red.EstadisticasActividadesProxy;
+import Sistema.Red.TareaRed;
 import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
@@ -17,7 +16,6 @@ import javafx.scene.paint.Color;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -35,9 +33,10 @@ public class EstadisticasActividadesController {
     @FXML private Label lblEstadoActividades;
     private LocalDate fechaDesdeCargada;
     private LocalDate fechaHastaCargada;
-    private final ReservaService reservaService = new ReservaService();
     private final PdfController pdfController = new PdfController();
-    private final EstadisticasActividadesService estadisticasActividadesService = new EstadisticasActividadesService();
+    private final EstadisticasActividadesProxy estadisticasActividadesProxy = new EstadisticasActividadesProxy();
+    private boolean consultaEnCurso;
+    private long numeroConsulta;
 
     @FXML
     private void initialize() {
@@ -93,44 +92,106 @@ public class EstadisticasActividadesController {
                 false
         );
     }
-    private void cargarEstadisticasDesdeJson() {
-        List<ReservaDTO> reservas =
-                reservaService.buscarPorPeriodo(fechaDesdeCargada, fechaHastaCargada);
-
-        Map<LocalDate, Integer> conteoSemanal =
-                estadisticasActividadesService.contarActividadesPorSemana(
-                                fechaDesdeCargada,
-                                fechaHastaCargada,
-                                reservas
-                        );
-        mostrarEstadisticas(conteoSemanal);
-    }
     private void cargarEstadisticas() {
-        if (dpDesdeActividades.getValue() == null || dpHastaActividades.getValue() == null) {
+        if (consultaEnCurso) {
+            return;
+        }
+
+        LocalDate desde = dpDesdeActividades.getValue();
+        LocalDate hasta = dpHastaActividades.getValue();
+
+        if (desde == null || hasta == null) {
+            invalidarDatosCargados();
+            limpiarTablaYGrafico();
             mostrarEstado("Debe indicar ambas fechas del período.", true);
             return;
         }
 
-        if (dpDesdeActividades.getValue().isAfter(dpHastaActividades.getValue())) {
+        if (desde.isAfter(hasta)) {
+            invalidarDatosCargados();
+            limpiarTablaYGrafico();
             mostrarEstado("La fecha 'desde' no puede ser posterior a la fecha 'hasta'.", true);
             return;
         }
 
-        fechaDesdeCargada = dpDesdeActividades.getValue();
-        fechaHastaCargada = dpHastaActividades.getValue();
-        try {
-            cargarEstadisticasDesdeJson();
-        } catch (RuntimeException excepcion) {
-            fechaDesdeCargada = null;
-            fechaHastaCargada = null;
-            tvEstadisticasActividades.getItems().clear();
-            barChartActividades.getData().clear();
+        long consultaActual = ++numeroConsulta;
+        consultaEnCurso = true;
+        btnCargarActividades.setDisable(true);
+        invalidarDatosCargados();
+        limpiarTablaYGrafico();
+        mostrarEstado("Cargando estadísticas de actividades...", false);
+
+        TareaRed.ejecutar(
+                () -> estadisticasActividadesProxy.consultar(desde, hasta),
+                conteo -> completarConsulta(
+                        consultaActual,
+                        desde,
+                        hasta,
+                        conteo
+                ),
+                error -> mostrarErrorConsulta(consultaActual, error)
+        );
+    }
+
+    private void completarConsulta(
+            long consulta,
+            LocalDate desde,
+            LocalDate hasta,
+            Map<LocalDate, Integer> conteoSemanal
+    ) {
+        if (consulta != numeroConsulta) {
+            return;
+        }
+
+        if (!Objects.equals(desde, dpDesdeActividades.getValue())
+                || !Objects.equals(hasta, dpHastaActividades.getValue())) {
+            finalizarCarga();
+            invalidarDatosCargados();
+            limpiarTablaYGrafico();
             mostrarEstado(
-                    "No se pudieron cargar las estadísticas: "
-                            + excepcion.getMessage(),
+                    "Las fechas cambiaron. Presione \"Cargar\" nuevamente.",
                     true
             );
+            return;
         }
+
+        finalizarCarga();
+        fechaDesdeCargada = desde;
+        fechaHastaCargada = hasta;
+        mostrarEstadisticas(conteoSemanal);
+    }
+
+    private void mostrarErrorConsulta(long consulta, Throwable error) {
+        if (consulta != numeroConsulta) {
+            return;
+        }
+
+        finalizarCarga();
+        invalidarDatosCargados();
+        limpiarTablaYGrafico();
+
+        String detalle = error == null ? null : error.getMessage();
+        mostrarEstado(
+                detalle == null || detalle.isBlank()
+                        ? "No se pudieron cargar las estadísticas. Verifique la conexión con el servidor."
+                        : "No se pudieron cargar las estadísticas. Verifique la conexión con el servidor: " + detalle,
+                true
+        );
+    }
+
+    private void finalizarCarga() {
+        consultaEnCurso = false;
+        btnCargarActividades.setDisable(false);
+    }
+
+    private void invalidarDatosCargados() {
+        fechaDesdeCargada = null;
+        fechaHastaCargada = null;
+    }
+
+    private void limpiarTablaYGrafico() {
+        tvEstadisticasActividades.getItems().clear();
+        barChartActividades.getData().clear();
     }
     private boolean filtrosCoincidenConConsulta() {
         return Objects.equals(fechaDesdeCargada, dpDesdeActividades.getValue())

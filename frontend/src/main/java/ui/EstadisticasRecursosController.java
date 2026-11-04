@@ -3,8 +3,8 @@ package ui;
 import Sistema.DTO.EstadisticaCategoriaDTO;
 import Sistema.DTO.ReportConfigDTO;
 import Sistema.Logica.Exception.ReportExceptionLogica;
-import Sistema.Logica.EstadisticasRecursosLogica.ResultadoEstadisticas;
-import Sistema.Service.EstadisticasRecursosService;
+import Sistema.Red.EstadisticasRecursosProxy;
+import Sistema.Red.TareaRed;
 
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -23,6 +23,7 @@ import javafx.scene.chart.NumberAxis;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 public class EstadisticasRecursosController {
 
@@ -43,7 +44,7 @@ public class EstadisticasRecursosController {
 
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    private final EstadisticasRecursosService estadisticasRecursosService = new EstadisticasRecursosService();
+    private final EstadisticasRecursosProxy estadisticasRecursosProxy = new EstadisticasRecursosProxy();
     private final PdfController pdfController = new PdfController();
 
     // Distingue "todavia no se cargo nada" de "se cargo y no habia datos" --
@@ -59,6 +60,8 @@ public class EstadisticasRecursosController {
     // al periodo anterior, no al que se ve seleccionado en pantalla).
     private LocalDate desdeCargado;
     private LocalDate hastaCargado;
+    private boolean consultaEnCurso;
+    private long numeroConsulta;
 
     @FXML
     private void initialize() {
@@ -76,21 +79,72 @@ public class EstadisticasRecursosController {
     }
 
     private void cargarEstadisticas() {
-        LocalDate desde = dpDesdeRecursos.getValue();
-        LocalDate hasta = dpHastaRecursos.getValue();
-
-        ResultadoEstadisticas resultado = estadisticasRecursosService.calcular(desde, hasta);
-
-        if (!resultado.isExitoso()) {
-            datosCalculados = false;
-            desdeCargado = null;
-            hastaCargado = null;
-            mostrarEstado(resultado.getMensajeError(), true);
-            limpiarTablaYGrafico();
+        if (consultaEnCurso) {
             return;
         }
 
-        List<EstadisticaCategoriaDTO> datos = resultado.getDatos();
+        LocalDate desde = dpDesdeRecursos.getValue();
+        LocalDate hasta = dpHastaRecursos.getValue();
+
+        if (desde == null || hasta == null) {
+            invalidarDatosCargados();
+            limpiarTablaYGrafico();
+            mostrarEstado("Debe indicar ambas fechas del período.", true);
+            return;
+        }
+
+        if (desde.isAfter(hasta)) {
+            invalidarDatosCargados();
+            limpiarTablaYGrafico();
+            mostrarEstado(
+                    "La fecha 'desde' no puede ser posterior a la fecha 'hasta'.",
+                    true
+            );
+            return;
+        }
+
+        long consultaActual = ++numeroConsulta;
+        consultaEnCurso = true;
+        btnCargarRecursos.setDisable(true);
+        invalidarDatosCargados();
+        limpiarTablaYGrafico();
+        mostrarEstado("Cargando estadísticas de recursos...", false);
+
+        TareaRed.ejecutar(
+                () -> estadisticasRecursosProxy.consultar(desde, hasta),
+                datos -> completarConsulta(
+                        consultaActual,
+                        desde,
+                        hasta,
+                        datos
+                ),
+                error -> mostrarErrorConsulta(consultaActual, error)
+        );
+    }
+
+    private void completarConsulta(
+            long consulta,
+            LocalDate desde,
+            LocalDate hasta,
+            List<EstadisticaCategoriaDTO> datos
+    ) {
+        if (consulta != numeroConsulta) {
+            return;
+        }
+
+        if (!Objects.equals(desde, dpDesdeRecursos.getValue())
+                || !Objects.equals(hasta, dpHastaRecursos.getValue())) {
+            finalizarCarga();
+            invalidarDatosCargados();
+            limpiarTablaYGrafico();
+            mostrarEstado(
+                    "Las fechas cambiaron. Presione \"Cargar\" nuevamente.",
+                    true
+            );
+            return;
+        }
+
+        finalizarCarga();
         datosCalculados = true;
         desdeCargado = desde;
         hastaCargado = hasta;
@@ -102,6 +156,35 @@ public class EstadisticasRecursosController {
         } else {
             mostrarEstado("Estadísticas cargadas correctamente.", false);
         }
+    }
+
+    private void mostrarErrorConsulta(long consulta, Throwable error) {
+        if (consulta != numeroConsulta) {
+            return;
+        }
+
+        finalizarCarga();
+        invalidarDatosCargados();
+        limpiarTablaYGrafico();
+
+        String detalle = error == null ? null : error.getMessage();
+        mostrarEstado(
+                detalle == null || detalle.isBlank()
+                        ? "No se pudieron cargar las estadísticas. Verifique la conexión con el servidor."
+                        : "No se pudieron cargar las estadísticas. Verifique la conexión con el servidor: " + detalle,
+                true
+        );
+    }
+
+    private void finalizarCarga() {
+        consultaEnCurso = false;
+        btnCargarRecursos.setDisable(false);
+    }
+
+    private void invalidarDatosCargados() {
+        datosCalculados = false;
+        desdeCargado = null;
+        hastaCargado = null;
     }
 
     private void actualizarGrafico(List<EstadisticaCategoriaDTO> datos) {
@@ -141,7 +224,7 @@ public class EstadisticasRecursosController {
         LocalDate desde = dpDesdeRecursos.getValue();
         LocalDate hasta = dpHastaRecursos.getValue();
 
-        if (!java.util.Objects.equals(desde, desdeCargado) || !java.util.Objects.equals(hasta, hastaCargado)) {
+        if (!Objects.equals(desde, desdeCargado) || !Objects.equals(hasta, hastaCargado)) {
             mostrarEstado("Las fechas seleccionadas cambiaron. Presione \"Cargar\" antes de generar el PDF.", true);
             return;
         }

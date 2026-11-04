@@ -21,12 +21,8 @@ import javafx.stage.Stage;
 
 import javax.imageio.ImageIO;
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.nio.file.DirectoryNotEmptyException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -40,30 +36,14 @@ public class SimuladorEstadisticasVisual extends Application {
 
     @Override
     public void start(Stage escenario) throws Exception {
-        Path archivoReservaHeredado = Path.of(
-                "src",
-                "data",
-                "reservas.json"
-        );
-        boolean archivoReservaExistia = Files.exists(archivoReservaHeredado);
         FXMLLoader cargadorRecursos = crearCargador(
                 "EstadisticasRecursosView.fxml"
         );
         FXMLLoader cargadorActividades = crearCargador(
                 "EstadisticasActividadesView.fxml"
         );
-        Parent vistaRecursos;
-        Parent vistaActividades;
-
-        try {
-            vistaRecursos = cargadorRecursos.load();
-            vistaActividades = cargadorActividades.load();
-        } finally {
-            limpiarReservaVaciaCreadaPorControlador(
-                    archivoReservaHeredado,
-                    archivoReservaExistia
-            );
-        }
+        Parent vistaRecursos = cargadorRecursos.load();
+        Parent vistaActividades = cargadorActividades.load();
 
         cargarRecursosSimulados(cargadorRecursos);
         cargarActividadesSimuladas(cargadorActividades);
@@ -247,36 +227,6 @@ public class SimuladorEstadisticasVisual extends Application {
 
         Platform.runLater(() -> ((Button) cargador.getNamespace().get(id))
                 .requestFocus());
-    }
-
-    private void limpiarReservaVaciaCreadaPorControlador(
-            Path archivo,
-            boolean existiaAntes
-    ) {
-        if (existiaAntes || !Files.exists(archivo)) {
-            return;
-        }
-
-        try {
-            String contenido = Files.readString(archivo)
-                    .replaceAll("\\s", "");
-
-            if (!"[]".equals(contenido)) {
-                return;
-            }
-
-            Files.delete(archivo);
-            try {
-                Files.deleteIfExists(archivo.getParent());
-            } catch (DirectoryNotEmptyException e) {
-                // Se preservan otros datos que ya existieran en el directorio.
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException(
-                    "No fue posible limpiar los datos vacíos del simulador.",
-                    e
-            );
-        }
     }
 
     public static void main(String[] args) {
