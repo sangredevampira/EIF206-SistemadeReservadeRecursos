@@ -4,6 +4,7 @@ import Sistema.DTO.LoginResultadoDTO;
 import Sistema.Service.IAuthService;
 import Sistema.Service.Red.ProxyAuthService;
 import Sistema.util.SessionManager;
+import Sistema.util.VentanaUtil;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -75,11 +76,8 @@ public class LoginController {
             dialogo.initModality(Modality.APPLICATION_MODAL);
             dialogo.initOwner(((Node) evento.getSource()).getScene().getWindow());
             dialogo.setScene(new Scene(raiz));
-            dialogo.setResizable(false); // Tamano fijo para la modal
-
-            // Mostrar y centrar la ventana modal
+            dialogo.setResizable(false); // Tamano fijo; con dueño, JavaFX la centra sobre él
             dialogo.show();
-            dialogo.centerOnScreen();
         } catch (IOException e) {
             lblMensaje.setText("No se pudo abrir la ventana de cambio de clave.");
         }
@@ -135,14 +133,11 @@ public class LoginController {
 
             Stage escenario = (Stage) ((Node) evento.getSource()).getScene().getWindow();
             escenario.setTitle(titulo);
-            escenario.setScene(new Scene(raiz, 1400, 720));
+            escenario.setScene(VentanaUtil.escenaAjustada(raiz, 1400, 720));
 
-            // Bloquea el cambio de tamaño
-            escenario.setResizable(true);
-
-            // Muestra y centra exactamente en la pantalla
+            // Tamaño fijo y centrado exacto en la pantalla
+            VentanaUtil.fijarYCentrar(escenario);
             escenario.show();
-            escenario.centerOnScreen();
 
         } catch (IOException e) {
             e.printStackTrace();

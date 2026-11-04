@@ -1,6 +1,7 @@
 package Sistema;
 
 import Sistema.Red.ConexionInicialRed;
+import Sistema.util.VentanaUtil;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -32,9 +33,8 @@ public class Main extends Application {
             escenarioPrincipal.setTitle("SISTEMA DE RESERVAS");
             escenarioPrincipal.setScene(new Scene(raiz, 400, 320));
             escenarioPrincipal.getIcons().add(new Image(getClass().getResourceAsStream("/Sistema/images/folder.png")));
-            escenarioPrincipal.setResizable(false);
+            VentanaUtil.fijarYCentrar(escenarioPrincipal);
             escenarioPrincipal.show();
-            escenarioPrincipal.centerOnScreen();
 
         } catch (IOException e) {
             throw new IllegalStateException(

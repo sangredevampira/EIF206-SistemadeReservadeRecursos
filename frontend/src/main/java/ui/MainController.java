@@ -7,6 +7,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import Sistema.util.SessionManager;
+import Sistema.util.VentanaUtil;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -135,6 +136,7 @@ public class MainController {
             dialogo.initModality(Modality.APPLICATION_MODAL);
             dialogo.initOwner(((Node) evento.getSource()).getScene().getWindow());
             dialogo.setScene(new Scene(raiz));
+            dialogo.setResizable(false);
             dialogo.showAndWait();
         } catch (IOException e) {
             e.printStackTrace();
@@ -192,9 +194,8 @@ public class MainController {
             escenario.setTitle("SISTEMA DE RESERVAS");
             escenario.setScene(new Scene(raiz, 400, 320));
 
-            escenario.setResizable(false);
+            VentanaUtil.fijarYCentrar(escenario);
             escenario.show();
-            escenario.centerOnScreen();
 
         } catch (IOException e) {
             System.out.println("No se pudo volver a la pantalla de login: " + e.getMessage());
