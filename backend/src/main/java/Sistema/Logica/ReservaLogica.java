@@ -85,6 +85,9 @@ public class ReservaLogica {
     private ReservaDTO armarReserva(Connection conexion, String idFuncionario, String nombreFuncionario,
                                     String nombreActividad, LocalDate fecha, LocalTime horaInicio,
                                     LocalTime horaFin, List<String> idsCategorias) throws SQLException {
+        if (!reservaDatos.funcionarioActivo(conexion, idFuncionario))
+            throw new IllegalArgumentException("El funcionario de la reserva no existe o está dado de baja.");
+
         List<RecursoDTO> recursosAsignados = new ArrayList<>();
         List<String> categoriasSinRecursos = new ArrayList<>();
 

@@ -116,6 +116,27 @@ public class ReservaDatosIT {
         });
     }
 
+    @Test
+    void funcionarioActivoEsTrueParaUnFuncionarioRecienInsertado() throws SQLException {
+        enTransaccionDePrueba(conexion ->
+                assertTrue(reservaDatos.funcionarioActivo(conexion, ID_FUNCIONARIO)));
+    }
+
+    @Test
+    void funcionarioActivoEsFalseDespuesDeDarloDeBaja() throws SQLException {
+        enTransaccionDePrueba(conexion -> {
+            ejecutar(conexion, "UPDATE funcionario SET activo = 0 WHERE id_funcionario = ?", ID_FUNCIONARIO);
+
+            assertFalse(reservaDatos.funcionarioActivo(conexion, ID_FUNCIONARIO));
+        });
+    }
+
+    @Test
+    void funcionarioActivoEsFalseParaUnIdInexistente() throws SQLException {
+        enTransaccionDePrueba(conexion ->
+                assertFalse(reservaDatos.funcionarioActivo(conexion, "it-no-existe")));
+    }
+
     // --- recurso ---
 
     @Test

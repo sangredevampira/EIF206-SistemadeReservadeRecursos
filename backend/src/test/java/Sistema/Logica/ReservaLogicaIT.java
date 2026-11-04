@@ -144,11 +144,26 @@ public class ReservaLogicaIT {
                 logica.registrarReserva("it-conc-nadie", "Nadie", "Reunion",
                         LocalDate.now().plusDays(1), LocalTime.of(8, 0), LocalTime.of(10, 0), List.of(ID_CATEGORIA)));
 
-        assertEquals("El funcionario de la reserva no está registrado en la base de datos.", error.getMessage());
+        assertEquals("El funcionario de la reserva no existe o está dado de baja.", error.getMessage());
         assertEquals(0, contarReservasDelFuncionario("it-conc-nadie"));
         // el rollback no dejo el recurso ocupado: otra reserva valida si se puede hacer
         assertNotNull(logica.registrarReserva(ID_FUNCIONARIO, "Ana", "Reunion",
                 LocalDate.now().plusDays(1), LocalTime.of(8, 0), LocalTime.of(10, 0), List.of(ID_CATEGORIA)));
+    }
+
+    @Test
+    void siElFuncionarioFueDadoDeBajaNoPuedeRegistrarReservas() throws Exception {
+        try (Connection conexion = ConexionBD.obtenerConexion()) {   // autocommit: la baja queda confirmada
+            ejecutar(conexion, "UPDATE funcionario SET activo = 0 WHERE id_funcionario = ?", ID_FUNCIONARIO);
+        }
+        ReservaLogica logica = new ReservaLogica();
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () ->
+                logica.registrarReserva(ID_FUNCIONARIO, "Ana", "Reunion",
+                        LocalDate.now().plusDays(1), LocalTime.of(8, 0), LocalTime.of(10, 0), List.of(ID_CATEGORIA)));
+
+        assertEquals("El funcionario de la reserva no existe o está dado de baja.", error.getMessage());
+        assertEquals(0, contarReservasDelFuncionario(ID_FUNCIONARIO));
     }
 
     // --- apoyo ---

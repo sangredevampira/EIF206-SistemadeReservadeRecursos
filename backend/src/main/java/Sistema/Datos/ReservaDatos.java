@@ -161,6 +161,18 @@ public class ReservaDatos {
         return conNuevaConexion(conexion -> modificarReserva(conexion, reserva));
     }
 
+    // true si el funcionario existe y no esta dado de baja; usa la conexion recibida y no la cierra
+    public boolean funcionarioActivo(Connection conexion, String idFuncionario) throws SQLException {
+        try (PreparedStatement sentencia = conexion.prepareStatement(
+                "SELECT EXISTS (SELECT 1 FROM funcionario WHERE id_funcionario = ? AND activo = 1)")) {
+            sentencia.setString(1, idFuncionario);
+            try (ResultSet resultado = sentencia.executeQuery()) {
+                resultado.next();
+                return resultado.getBoolean(1);
+            }
+        }
+    }
+
     // siguiente "RES-000001"; debe llamarse dentro del candado y de una transaccion (lo exige GeneradorIdsBD)
     public String generarNuevoId(Connection conexion) throws SQLException {
         return GeneradorIdsBD.siguienteId(conexion, "reserva", "id_reserva", "RES");

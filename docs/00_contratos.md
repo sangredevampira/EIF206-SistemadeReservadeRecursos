@@ -152,6 +152,8 @@ Notas sobre reservas:
 - Solo se difunde `RESERVA_CREADA` cuando la reserva se guardó correctamente.
 - En `RES_CREAR` el funcionario **no viaja en `datos`**: el servidor usa el de la sesión (`idUsuario` y, si tiene,
   el nombre de su `Funcionario`). Un cliente no puede reservar a nombre de otro.
+- Si el funcionario de la sesión no existe o fue dado de baja, `RES_CREAR` responde `exito=false` con el mensaje
+  "El funcionario de la reserva no existe o está dado de baja.".
 - Un funcionario solo puede consultar (`RES_BUSCAR_ID`, `RES_BUSCAR_FUNCIONARIO`) y cancelar (`RES_CANCELAR`) sus propias
   reservas; el administrador puede con cualquiera. Si no, `mensaje`: "Solo puede acceder a sus propias reservas.".
 - `RES_BUSCAR_PERIODO` está disponible para cualquier sesión iniciada (lo usan calendario, actividades y estadísticas).

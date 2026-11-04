@@ -37,6 +37,10 @@ class DisponibilidadServiceTest {
         ReservaDTO ultimaReservaGuardada;
         Connection conexionDelGuardado;
         boolean seLlamoAgregar = false;
+        boolean funcionarioActivo = true;
+
+        @Override
+        public boolean funcionarioActivo(Connection conexion, String idFuncionario) { return funcionarioActivo; }
 
         void definirReservasDe(String idRecurso, List<ReservaDTO> reservas) { reservasPorRecurso.put(idRecurso, reservas); }
 
@@ -240,6 +244,29 @@ class DisponibilidadServiceTest {
         assertThrows(IllegalArgumentException.class, () -> registrar(LocalTime.of(9, 0), LocalTime.of(11, 0)));
 
         assertEquals(List.of("setAutoCommit(false)", "rollback", "close"), conexionFalsa.llamadas);
+    }
+
+    // --- funcionario dado de baja ---
+
+    @Test
+    void conFuncionarioDadoDeBajaNoSeRegistraYSeHaceRollback() {
+        reservaDatos.funcionarioActivo = false;
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> registrar(LocalTime.of(8, 0), LocalTime.of(10, 0)));
+
+        assertEquals("El funcionario de la reserva no existe o está dado de baja.", error.getMessage());
+        assertFalse(reservaDatos.seLlamoAgregar);
+        assertEquals(List.of("setAutoCommit(false)", "rollback", "close"), conexionFalsa.llamadas);
+    }
+
+    @Test
+    void conFuncionarioActivoSeRegistraConNormalidad() {
+        reservaDatos.funcionarioActivo = true;
+
+        assertNotNull(registrar(LocalTime.of(8, 0), LocalTime.of(10, 0)));
+        assertTrue(reservaDatos.seLlamoAgregar);
+        assertEquals(List.of("setAutoCommit(false)", "commit", "close"), conexionFalsa.llamadas);
     }
 
     @Test
