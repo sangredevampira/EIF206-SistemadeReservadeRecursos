@@ -111,10 +111,10 @@ public class FuncionarioController {
                     : funcionarioService.modificar(funcionario);
 
             if (resultado.isExito()) {
-                mostrarMensajeExito(esNuevo ? "Funcionario registrado correctamente."
-                        : "Funcionario modificado correctamente.");
                 limpiar();
                 cargarListadoCompleto();
+                mostrarMensajeExito(esNuevo ? "Funcionario registrado correctamente."
+                        : "Funcionario modificado correctamente.");
             } else {
                 mostrarErrorValidacion(resultado.getMensaje());
             }
@@ -146,9 +146,9 @@ public class FuncionarioController {
                         funcionarioService.eliminar(funcionarioSeleccionado.getId());
 
                 if (resultado.isExito()) {
-                    mostrarMensajeExito("Funcionario eliminado correctamente.");
                     limpiar();
                     cargarListadoCompleto();
+                    mostrarMensajeExito("Funcionario eliminado correctamente.");
                 } else {
                     mostrarErrorValidacion(resultado.getMensaje());
                 }

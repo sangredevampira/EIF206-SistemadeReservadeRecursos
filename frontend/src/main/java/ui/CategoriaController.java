@@ -110,10 +110,10 @@ public class CategoriaController {
                     : categoriaService.modificar(categoria);
 
             if (resultado.isExito()) {
-                mostrarMensajeExito(esNueva ? "Categoria registrada correctamente."
-                        : "Categoria modificada correctamente.");
                 limpiar();
                 cargarListadoCompleto();
+                mostrarMensajeExito(esNueva ? "Categoria registrada correctamente."
+                        : "Categoria modificada correctamente.");
             } else {
                 mostrarErrorValidacion(resultado.getMensaje());
             }
@@ -145,9 +145,9 @@ public class CategoriaController {
                         categoriaService.eliminar(categoriaSeleccionada.getId());
 
                 if (resultado.isExito()) {
-                    mostrarMensajeExito("Categoria eliminada correctamente.");
                     limpiar();
                     cargarListadoCompleto();
+                    mostrarMensajeExito("Categoria eliminada correctamente.");
                 } else {
                     // Aca cae, por ejemplo, "tiene recursos asociados" --
                     // error de regla de negocio, no de sistema.
