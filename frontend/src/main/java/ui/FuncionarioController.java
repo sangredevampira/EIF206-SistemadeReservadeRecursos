@@ -2,7 +2,9 @@ package ui;
 
 import Sistema.DTO.Funcionario;
 import Sistema.DTO.ResultadoOperacionDTO;
-import Sistema.Service.FuncionarioService;
+import Sistema.Service.IFuncionarioService;
+import Sistema.Service.Red.ProxyFuncionarioService;
+import Sistema.Red.TareaRed;
 import Sistema.DTO.ReportConfigDTO;
 import Sistema.Logica.Exception.ReportExceptionLogica;
 
@@ -16,10 +18,28 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 
 import java.util.List;
+import java.util.Objects;
+
+// Conecta la pantalla de funcionarios con el servidor por medio de ProxyFuncionarioService (FUNC_*).
+// La carga inicial va en TareaRed; buscar, guardar y borrar son directos (decision 13 del equipo).
 public class FuncionarioController {
+
+    static final String MENSAJE_SIN_CONEXION_CARGAR =
+            "No hay comunicación con el servidor; no se pudo cargar el listado de funcionarios. "
+                    + "Intente de nuevo y, si sigue, reinicie la aplicación.";
+    static final String MENSAJE_SIN_CONEXION_BUSCAR =
+            "No hay comunicación con el servidor; no se pudo realizar la búsqueda. "
+                    + "Intente de nuevo y, si sigue, reinicie la aplicación.";
+    static final String MENSAJE_SIN_CONEXION_GUARDAR =
+            "No hay comunicación con el servidor; no se pudo confirmar si se guardó el funcionario. "
+                    + "Intente de nuevo y, si sigue, reinicie la aplicación.";
+    static final String MENSAJE_SIN_CONEXION_BORRAR =
+            "No hay comunicación con el servidor; no se pudo confirmar si se borró el funcionario. "
+                    + "Intente de nuevo y, si sigue, reinicie la aplicación.";
 
     @FXML private TextField campoBusquedaId;
     @FXML private TextField campoBusquedaNombre;
@@ -40,12 +60,22 @@ public class FuncionarioController {
 
     @FXML private Label lblMensaje;
 
-    private final FuncionarioService funcionarioService = new FuncionarioService();
+    private final IFuncionarioService funcionarioService;
     private final PdfController pdfController = new PdfController();
 
     // Funcionario actualmente seleccionado en el listado.
     // null = el formulario esta en modo "nuevo funcionario".
     private Funcionario funcionarioSeleccionado;
+
+    // Lo usa MainController (loader.setController(new FuncionarioController()))
+    public FuncionarioController() {
+        this(new ProxyFuncionarioService());
+    }
+
+    // Para las pruebas: permite usar un IFuncionarioService falso sin red
+    FuncionarioController(IFuncionarioService funcionarioService) {
+        this.funcionarioService = Objects.requireNonNull(funcionarioService);
+    }
 
     @FXML
     private void initialize() {
@@ -62,15 +92,31 @@ public class FuncionarioController {
         btnLimpiar.setOnAction(evento -> limpiar());
         btnImprimir.setOnAction(evento -> imprimir());
 
-        cargarListadoCompleto();
+        // carga inicial en segundo plano; los callbacks vuelven al hilo de JavaFX
+        TareaRed.ejecutar(funcionarioService::listarTodos, this::mostrarListado, this::mostrarErrorCarga);
     }
 
+    // Recarga directa, despues de guardar o borrar
     private void cargarListadoCompleto() {
         try {
-            List<Funcionario> funcionarios = funcionarioService.listarTodos();
-            tablaListado.setItems(FXCollections.observableArrayList(funcionarios));
+            mostrarListado(funcionarioService.listarTodos());
         } catch (RuntimeException e) {
-            mostrarErrorSistema("No se pudo cargar el listado de funcionarios.\n" + e.getMessage());
+            mostrarErrorCarga(e);
+        }
+    }
+
+    private void mostrarListado(List<Funcionario> funcionarios) {
+        tablaListado.setItems(FXCollections.observableArrayList(funcionarios));
+    }
+
+    // Recibe un Throwable porque TareaRed entrega asi el error de la carga inicial
+    private void mostrarErrorCarga(Throwable error) {
+        if (error instanceof IllegalArgumentException) {
+            mostrarErrorValidacion(error.getMessage());
+        } else if (error instanceof IllegalStateException) {
+            mostrarErrorConexion(MENSAJE_SIN_CONEXION_CARGAR);
+        } else {
+            mostrarErrorSistema("No se pudo cargar el listado de funcionarios.\n" + error.getMessage());
         }
     }
 
@@ -81,6 +127,11 @@ public class FuncionarioController {
             List<Funcionario> resultado = funcionarioService.buscar(idParcial, nombreParcial);
             tablaListado.setItems(FXCollections.observableArrayList(resultado));
             limpiarMensaje();
+        } catch (IllegalArgumentException e) {
+            // el servidor respondio exito=false (por ejemplo, "No tiene permiso para esta operación.")
+            mostrarErrorValidacion(e.getMessage());
+        } catch (IllegalStateException e) {
+            mostrarErrorConexion(MENSAJE_SIN_CONEXION_BUSCAR);
         } catch (RuntimeException e) {
             mostrarErrorSistema("No se pudo realizar la busqueda.\n" + e.getMessage());
         }
@@ -118,6 +169,10 @@ public class FuncionarioController {
             } else {
                 mostrarErrorValidacion(resultado.getMensaje());
             }
+        } catch (IllegalArgumentException e) {
+            mostrarErrorValidacion(e.getMessage());
+        } catch (IllegalStateException e) {
+            mostrarErrorConexion(MENSAJE_SIN_CONEXION_GUARDAR);
         } catch (RuntimeException e) {
             mostrarErrorSistema("No se pudo guardar el funcionario.\n" + e.getMessage());
         }
@@ -152,6 +207,10 @@ public class FuncionarioController {
                 } else {
                     mostrarErrorValidacion(resultado.getMensaje());
                 }
+            } catch (IllegalArgumentException e) {
+                mostrarErrorValidacion(e.getMessage());
+            } catch (IllegalStateException e) {
+                mostrarErrorConexion(MENSAJE_SIN_CONEXION_BORRAR);
             } catch (RuntimeException e) {
                 mostrarErrorSistema("No se pudo borrar el funcionario.\n" + e.getMessage());
             }
@@ -208,9 +267,20 @@ public class FuncionarioController {
     // HANDOFF seccion 4): se muestran en un Alert, no solo en la etiqueta,
     // porque representan una falla real de lectura/escritura del archivo.
     private void mostrarErrorSistema(String mensaje) {
+        mostrarAlertaError("Error inesperado", mensaje);
+    }
+
+    // Para los MENSAJE_SIN_CONEXION_* (IllegalStateException de la red)
+    private void mostrarErrorConexion(String mensaje) {
+        mostrarAlertaError("Error de conexión", mensaje);
+    }
+
+    private void mostrarAlertaError(String titulo, String mensaje) {
         Alert alerta = new Alert(Alert.AlertType.ERROR, mensaje);
-        alerta.setTitle("Error inesperado");
+        alerta.setTitle(titulo);
         alerta.setHeaderText(null);
+        // sin esto el dialogo no crece con el texto y un mensaje largo se corta con "..."
+        alerta.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
         alerta.showAndWait();
     }
 }

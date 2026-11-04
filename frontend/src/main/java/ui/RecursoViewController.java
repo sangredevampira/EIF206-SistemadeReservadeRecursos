@@ -3,14 +3,18 @@ package ui;
 import Sistema.DTO.RecursoDTO;
 import Sistema.DTO.CategoriaDTO;
 import Sistema.DTO.ResultadoOperacionDTO;
-import Sistema.Service.RecursoService;
-import Sistema.Service.CategoriaService;
+import Sistema.Service.IRecursoService;
+import Sistema.Service.ICategoriaService;
+import Sistema.Service.Red.ProxyRecursoService;
+import Sistema.Service.Red.ProxyCategoriaService;
+import Sistema.Red.TareaRed;
 
 // imports necesarios para el reporte de PDF
 import Sistema.DTO.ReportConfigDTO;
 import Sistema.Logica.Exception.ReportExceptionLogica;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import javafx.fxml.FXML;
@@ -27,10 +31,31 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.Region;
 
+// Usa ProxyRecursoService (REC_*) y ProxyCategoriaService (CAT_LISTAR, para los combos).
+// La carga inicial y cargarCategorias() van en TareaRed; buscar, guardar, borrar y
+// generarNuevoId son directos (decision 13 del equipo).
 public class RecursoViewController {
 
-    private RecursoService recursoService;
+    static final String MENSAJE_SIN_CONEXION_CARGAR =
+            "No hay comunicación con el servidor; no se pudo cargar el listado de recursos. "
+                    + "Intente de nuevo y, si sigue, reinicie la aplicación.";
+    static final String MENSAJE_SIN_CONEXION_CATEGORIAS =
+            "No hay comunicación con el servidor; no se pudieron cargar las categorías. "
+                    + "Intente de nuevo y, si sigue, reinicie la aplicación.";
+    static final String MENSAJE_SIN_CONEXION_BUSCAR =
+            "No hay comunicación con el servidor; no se pudo realizar la búsqueda. "
+                    + "Intente de nuevo y, si sigue, reinicie la aplicación.";
+    static final String MENSAJE_SIN_CONEXION_GUARDAR =
+            "No hay comunicación con el servidor; no se pudo confirmar si se guardó el recurso. "
+                    + "Intente de nuevo y, si sigue, reinicie la aplicación.";
+    static final String MENSAJE_SIN_CONEXION_BORRAR =
+            "No hay comunicación con el servidor; no se pudo confirmar si se borró el recurso. "
+                    + "Intente de nuevo y, si sigue, reinicie la aplicación.";
+
+    private final IRecursoService recursoService;
+    private final ICategoriaService categoriaService;
     private final PdfController pdfController = new PdfController();
 
     @FXML private ComboBox<CategoriaDTO> cbFiltroCategoriaRecursos;
@@ -52,10 +77,19 @@ public class RecursoViewController {
 
     private ObservableList<RecursoDTO> listaRecursos = FXCollections.observableArrayList();
 
+    // Lo usa FXMLLoader por el fx:controller de RecursosView.fxml
+    public RecursoViewController() {
+        this(new ProxyRecursoService(), new ProxyCategoriaService());
+    }
+
+    // Para las pruebas: permite usar servicios falsos sin red
+    RecursoViewController(IRecursoService recursoService, ICategoriaService categoriaService) {
+        this.recursoService = Objects.requireNonNull(recursoService);
+        this.categoriaService = Objects.requireNonNull(categoriaService);
+    }
+
     @FXML
     public void initialize(){
-        this.recursoService = new RecursoService();
-
         txtIdRecurso.setDisable(true);
         btnBorrarRecursos.setDisable(true);
 
@@ -83,30 +117,36 @@ public class RecursoViewController {
 
         cargarCategorias();
         limpiarFormulario();
-        cargarDatosDesdeSistema();
+        // carga inicial de la tabla en segundo plano; los callbacks vuelven al hilo de JavaFX
+        TareaRed.ejecutar(recursoService::listarRecursos, this::cargarTabla, this::mostrarErrorRecursos);
     }
 
+    // La llaman initialize y MainController (cada vez que se entra a la pestana Recursos).
+    // En segundo plano, para no congelar la ventana al cambiar de pestana.
     public void cargarCategorias() {
-        try {
-            List<CategoriaDTO> categorias = new CategoriaService().listarTodos();
+        TareaRed.ejecutar(categoriaService::listarTodos, this::mostrarCategorias, this::mostrarErrorCategorias);
+    }
 
-            // Para el formulario de guardado
-            cbCategoriaRecurso.setItems(FXCollections.observableArrayList(categorias));
+    private void mostrarCategorias(List<CategoriaDTO> categorias) {
+        // Para el formulario de guardado
+        cbCategoriaRecurso.setItems(FXCollections.observableArrayList(categorias));
 
-            // Para el filtro: Agregamos la opción "Todas"
-            ObservableList<CategoriaDTO> opcionesFiltro = FXCollections.observableArrayList();
+        // Para el filtro: Agregamos la opción "Todas"
+        ObservableList<CategoriaDTO> opcionesFiltro = FXCollections.observableArrayList();
 
-            CategoriaDTO opcionTodas = new CategoriaDTO();
-            opcionTodas.setId(null);
-            opcionTodas.setDescripcion("-- Todas las categorías --");
+        CategoriaDTO opcionTodas = new CategoriaDTO();
+        opcionTodas.setId(null);
+        opcionTodas.setDescripcion("-- Todas las categorías --");
 
-            opcionesFiltro.add(opcionTodas);
-            opcionesFiltro.addAll(categorias);
+        opcionesFiltro.add(opcionTodas);
+        opcionesFiltro.addAll(categorias);
 
-            cbFiltroCategoriaRecursos.setItems(opcionesFiltro);
-        } catch (Exception e) {
-            // Manejo silencioso en caso de no estar listo el módulo de categorías
-        }
+        cbFiltroCategoriaRecursos.setItems(opcionesFiltro);
+    }
+
+    // Antes era silencioso; con red un combo vacio sin explicacion confunde
+    private void mostrarErrorCategorias(Throwable error) {
+        mostrarErrorCarga(error, MENSAJE_SIN_CONEXION_CATEGORIAS);
     }
 
     public void cargarTabla(List<RecursoDTO> recursos){
@@ -117,12 +157,29 @@ public class RecursoViewController {
         }
     }
 
+    // Recarga directa, despues de guardar o borrar
     private void cargarDatosDesdeSistema(){
         try{
             List<RecursoDTO> recursos = recursoService.listarRecursos();
             cargarTabla(recursos);
-        } catch (Exception error){
-            listaRecursos.clear();
+        } catch (RuntimeException error){
+            mostrarErrorRecursos(error);
+        }
+    }
+
+    private void mostrarErrorRecursos(Throwable error) {
+        listaRecursos.clear();
+        mostrarErrorCarga(error, MENSAJE_SIN_CONEXION_CARGAR);
+    }
+
+    // Recibe un Throwable porque TareaRed entrega asi el error de la carga inicial
+    private void mostrarErrorCarga(Throwable error, String mensajeSinConexion) {
+        if (error instanceof IllegalArgumentException) {
+            mostrarAlerta(AlertType.WARNING, "Atención", error.getMessage());
+        } else if (error instanceof IllegalStateException) {
+            mostrarAlerta(AlertType.ERROR, "Error de conexión", mensajeSinConexion);
+        } else {
+            mostrarAlerta(AlertType.ERROR, "Error", "Ocurrió un error no esperado: " + error.getMessage());
         }
     }
 
@@ -150,14 +207,7 @@ public class RecursoViewController {
 
         try {
             RecursoDTO recurso = new RecursoDTO(id, descripcion, categoria);
-            RecursoDTO existente = null;
-            try {
-                existente = recursoService.buscarRecursoID(id);
-            } catch (Exception e) {
-                existente = null;
-            }
-
-            boolean esModificacion = (existente != null);
+            boolean esModificacion = existeRecurso(id);
             ResultadoOperacionDTO resultado = esModificacion
                     ? recursoService.modificarRecurso(recurso)
                     : recursoService.registrarRecurso(recurso);
@@ -176,8 +226,24 @@ public class RecursoViewController {
 
         } catch (IllegalArgumentException ex) {
             mostrarAlerta(AlertType.WARNING, "Atención", ex.getMessage());
+        } catch (IllegalStateException ex) {
+            mostrarAlerta(AlertType.ERROR, "Error de conexión", MENSAJE_SIN_CONEXION_GUARDAR);
         } catch (Exception ex) {
             mostrarAlerta(AlertType.ERROR, "Error", "Ocurrió un error no esperado: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Decide si guardarRecurso modifica o registra. Solo la IllegalArgumentException
+     * del servidor ("El recurso solicitado no fue encontrado") cuenta como "no existe".
+     * Una IllegalStateException (red) se deja pasar: guardarRecurso avisa y no intenta registrar.
+     * De paquete para las pruebas; no usa controles de JavaFX.
+     */
+    boolean existeRecurso(String id) {
+        try {
+            return recursoService.buscarRecursoID(id) != null;
+        } catch (IllegalArgumentException e) {
+            return false;
         }
     }
 
@@ -206,6 +272,8 @@ public class RecursoViewController {
                 }
             } catch (IllegalArgumentException ex) {
                 mostrarAlerta(AlertType.WARNING, "No se puede eliminar", ex.getMessage());
+            } catch (IllegalStateException ex) {
+                mostrarAlerta(AlertType.ERROR, "Error de conexión", MENSAJE_SIN_CONEXION_BORRAR);
             } catch (Exception ex) {
                 mostrarAlerta(AlertType.ERROR, "Error al eliminar", ex.getMessage());
             }
@@ -227,6 +295,10 @@ public class RecursoViewController {
             if (resultados.isEmpty())
                 mostrarAlerta(AlertType.INFORMATION, "Búsqueda", "No se encontraron recursos con los criterios especificados.");
 
+        } catch (IllegalArgumentException ex) {
+            mostrarAlerta(AlertType.WARNING, "Atención", ex.getMessage());
+        } catch (IllegalStateException ex) {
+            mostrarAlerta(AlertType.ERROR, "Error de conexión", MENSAJE_SIN_CONEXION_BUSCAR);
         } catch (Exception ex) { mostrarAlerta(AlertType.ERROR, "Error en Búsqueda", ex.getMessage()); }
     }
 
@@ -235,6 +307,8 @@ public class RecursoViewController {
         alert.setTitle(titulo);
         alert.setHeaderText(null);
         alert.setContentText(mensaje);
+        // sin esto el dialogo no crece con el texto y un mensaje largo se corta con "..."
+        alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
         alert.showAndWait();
     }
 
