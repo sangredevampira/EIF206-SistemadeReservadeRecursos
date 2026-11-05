@@ -21,16 +21,6 @@
             <artifactId>comun</artifactId>
         </dependency>
 
-        <!-- ===== DEPENDENCIA TEMPORAL DE TRANSICION =====
-             Permite que los controllers sigan usando los Service locales
-             mientras cada integrante los cambia por su proxy.
-             Se ELIMINA antes de la entrega: si al quitarla algo no compila,
-             es que ese controller todavia usa el backend directamente. -->
-        <dependency>
-            <groupId>proyecto2</groupId>
-            <artifactId>backend</artifactId>
-        </dependency>
-
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
