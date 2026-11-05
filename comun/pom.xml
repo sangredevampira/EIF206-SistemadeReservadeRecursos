@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>proyecto2</groupId>
+        <artifactId>Sistema_de_Reserva_de_Recursos</artifactId>
+        <version>2.0-SNAPSHOT</version>
+    </parent>
+
+    <!-- DTO, interfaces de servicio y mensajes de red que usan Frontend y Backend.
+         Regla: aqui nunca entra JavaFX ni JDBC. -->
+    <artifactId>comun</artifactId>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <!-- Jackson: anotaciones de los DTO (@JsonIgnore en Funcionario)
+             y, mas adelante, el formato JSON de los mensajes de red. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+    </dependencies>
+</project>

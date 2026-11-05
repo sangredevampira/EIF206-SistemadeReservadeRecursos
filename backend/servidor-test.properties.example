@@ -1,0 +1,10 @@
+# Configuracion de las pruebas de integracion *IT (base reservas_test).
+# Copiar como servidor-test.properties (en esta misma carpeta, backend/) y
+# completar bd.usuario y bd.clave. servidor-test.properties NO se sube a Git.
+# Failsafe lo indica con -Dservidor.config (ver backend/pom.xml).
+# Si no existe, las *IT que usan MySQL se saltan.
+# Si la clave tiene una barra invertida (\), escribirla doble (\\).
+
+bd.url=jdbc:mysql://localhost:3306/reservas_test?characterEncoding=UTF-8&connectTimeout=5000
+bd.usuario=root
+bd.clave=ESCRIBA_AQUI_SU_CLAVE

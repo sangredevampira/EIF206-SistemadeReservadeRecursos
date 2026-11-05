@@ -1,0 +1,214 @@
+package ui;
+
+import Sistema.DTO.ReservaDTO;
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import Sistema.util.SessionManager;
+import Sistema.util.VentanaUtil;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.Node;
+import javafx.stage.Stage;
+import javafx.stage.Modality;
+import java.io.IOException;
+import javafx.scene.control.Alert;
+import Sistema.Red.ClienteRed;
+import Sistema.Red.ProcesadorAlertaReserva;
+import Sistema.Red.TareaRed;
+import Sistema.Service.Red.ProxyAuthService;
+
+import java.util.Objects;
+
+public class MainController {
+
+    @FXML private TabPane tabPanePrincipal;
+    @FXML private Label lblUsuarioActivo;
+
+    @FXML private Tab tabFuncionarios;
+    @FXML private Tab tabCategorias;
+    @FXML private Tab tabRecursos;
+    @FXML private Tab tabReservas;
+    @FXML private Tab tabCalendarizacion;
+    @FXML private Tab tabActividades;
+    @FXML private Tab tabEstadisticas;
+
+    // Inyectado automaticamente por JavaFX a partir de fx:id="recursosView"
+    // en el <fx:include> de MainView.fxml (convencion: <fx:id> + "Controller").
+    @FXML private RecursoViewController recursosViewController;
+
+    @FXML private AlertasPanelController alertasPanelController;
+
+    @FXML private Button btnCambiarClave;
+    @FXML private Button btnCerrarSesion;
+
+    private final ProcesadorAlertaReserva procesadorAlertas = new ProcesadorAlertaReserva();
+    private final ProxyAuthService authService;
+    private boolean cierreSesionEnCurso;
+
+    public MainController() {
+        this(new ProxyAuthService());
+    }
+
+    MainController(ProxyAuthService authService) {
+        this.authService = Objects.requireNonNull(authService);
+    }
+
+    @FXML
+    private void initialize() {
+        mostrarUsuarioActivo();
+        ajustarPestanasSegunRol();
+        cargarVistaFuncionarios();
+
+        // RecursosView.fxml se carga una sola vez al iniciar sesion (via
+        // fx:include), asi que su combo de categorias queda desactualizado
+        // si se crea una categoria nueva despues. Este listener lo refresca
+        // cada vez que el usuario entra a la pestana de Recursos.
+        tabPanePrincipal.getSelectionModel().selectedItemProperty().addListener((obs, tabAnterior, tabNueva) -> {
+            if (tabNueva == tabRecursos) {
+                recursosViewController.cargarCategorias();
+            }
+        });
+
+        btnCambiarClave.setOnAction(this::abrirCambiarClave);
+        btnCerrarSesion.setOnAction(this::manejarCerrarSesion);
+        configurarAlertasRed();
+    }
+
+    public void recibirAlertaReserva(ReservaDTO reserva) {
+        if (reserva != null && alertasPanelController != null) {
+            alertasPanelController.agregarAlerta(reserva);
+        }
+    }
+
+    private void configurarAlertasRed() {
+
+        ClienteRed.getInstancia().setReceptorAlertas(mensaje -> {
+
+            try {
+                procesadorAlertas.procesar(mensaje)
+                        .ifPresent(this::recibirAlertaReserva);
+
+            } catch (IOException e) {
+                System.err.println(
+                        "Error al procesar notificación: "
+                                + e.getMessage()
+                );
+            }
+        });
+    }
+
+    private void cargarVistaFuncionarios() {
+        if (!tabPanePrincipal.getTabs().contains(tabFuncionarios)) {
+            return;
+        }
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sistema/view/FuncionariosView.fxml"));
+            loader.setController(new FuncionarioController());
+            Parent vista = loader.load();
+            tabFuncionarios.setContent(vista);
+        } catch (IOException e) {
+            Alert alerta = new Alert(Alert.AlertType.ERROR,
+                    "No se pudo cargar la pantalla de Funcionarios:\n" + e.getMessage());
+            alerta.setTitle("Error inesperado");
+            alerta.setHeaderText(null);
+            alerta.showAndWait();
+        }
+    }
+
+    private void mostrarUsuarioActivo() {
+        String idUsuario = SessionManager.getInstancia().getIdUsuario();
+        String rol = SessionManager.getInstancia().getRol();
+        lblUsuarioActivo.setText(idUsuario + " (" + rol + ")");
+    }
+
+    private void abrirCambiarClave(javafx.event.ActionEvent evento) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sistema/view/CambiarClaveView.fxml"));
+            loader.setController(new CambiarClaveController());
+            Parent raiz = loader.load();
+
+            Stage dialogo = new Stage();
+            dialogo.setTitle("Cambiar Clave");
+            dialogo.initModality(Modality.APPLICATION_MODAL);
+            dialogo.initOwner(((Node) evento.getSource()).getScene().getWindow());
+            dialogo.setScene(new Scene(raiz));
+            dialogo.setResizable(false);
+            dialogo.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void manejarCerrarSesion(javafx.event.ActionEvent evento) {
+
+        iniciarCierreSesion(() -> volverAlLogin(evento));
+    }
+
+    void iniciarCierreSesion(Runnable alFinalizar) {
+
+        if (cierreSesionEnCurso) {
+            return;
+        }
+
+        cierreSesionEnCurso = true;
+
+        if (btnCerrarSesion != null) {
+            btnCerrarSesion.setDisable(true);
+        }
+
+        TareaRed.ejecutar(
+                authService::logout,
+                () -> completarCierreSesion(alFinalizar),
+                error -> completarCierreSesion(alFinalizar)
+        );
+    }
+
+    private void completarCierreSesion(Runnable alFinalizar) {
+
+        SessionManager.getInstancia().cerrarSesion();
+        ClienteRed.getInstancia().setReceptorAlertas(null);
+
+        try {
+            alFinalizar.run();
+        } finally {
+            cierreSesionEnCurso = false;
+
+            if (btnCerrarSesion != null) {
+                btnCerrarSesion.setDisable(false);
+            }
+        }
+    }
+
+    private void volverAlLogin(javafx.event.ActionEvent evento) {
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sistema/view/LoginView.fxml"));
+            loader.setController(new LoginController());
+            Parent raiz = loader.load();
+
+            Stage escenario = (Stage) ((Node) evento.getSource()).getScene().getWindow();
+            escenario.setTitle("SISTEMA DE RESERVAS");
+            escenario.setScene(new Scene(raiz, 400, 320));
+
+            VentanaUtil.fijarYCentrar(escenario);
+            escenario.show();
+
+        } catch (IOException e) {
+            System.out.println("No se pudo volver a la pantalla de login: " + e.getMessage());
+        }
+    }
+
+    private void ajustarPestanasSegunRol() {
+        boolean esAdmin = SessionManager.getInstancia().esAdministrador();
+
+        tabPanePrincipal.getTabs().removeIf(tab ->
+                !esAdmin && (tab == tabFuncionarios || tab == tabCategorias || tab == tabRecursos));
+
+        tabPanePrincipal.getTabs().removeIf(tab ->
+                esAdmin && tab == tabReservas);
+    }
+}
