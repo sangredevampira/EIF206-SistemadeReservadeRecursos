@@ -172,11 +172,19 @@ Notas sobre reservas:
 
 ## 5. Hilos en el Frontend
 
-| En segundo plano (`TareaRed`) | Directo (hilo de JavaFX) |
+Toda operación que habla con el servidor corre en segundo plano; su resultado vuelve al hilo de JavaFX para actualizar la vista.
+
+| En segundo plano (`TareaRed`) | En el hilo de JavaFX |
 |---|---|
-| Autocompletado con IA | Guardar y borrar |
-| Calendarización, actividades y estadísticas | Buscar y filtrar |
-| Carga inicial de cada pestaña al iniciar sesión | Login y cambio de clave |
+| Login y cambio de clave | Validaciones locales del formulario |
+| Carga inicial de cada pestaña, buscar y filtrar | Mostrar resultados, mensajes y alertas |
+| Guardar, borrar, cancelar y generar IDs | Generar PDF con los datos ya cargados |
+| Calendarización, actividades y estadísticas | |
+| Autocompletado con IA (con su propio `Task`) | |
+
+- Mientras una operación está en curso, la vista deshabilita los controles que podrían repetirla (por ejemplo, Guardar).
+- Cada consulta lleva un número. Si llega la respuesta de una consulta anterior (por ejemplo, porque cambió un filtro o la
+  fecha), se descarta.
 
 Las alertas llegan con `Platform.runLater`.
 

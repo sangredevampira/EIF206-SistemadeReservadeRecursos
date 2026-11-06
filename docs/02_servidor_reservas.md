@@ -77,10 +77,11 @@ interfaz `Manejador` y se registran en `ServidorMain`.
 
 ### 5.1 Reglas (en `ReservaLogica`)
 
-Actividad obligatoria; fecha no pasada; horas dentro de 06:00 a 22:00, en bloques de 30 minutos y con inicio anterior al fin;
-al menos una categoría. Se asigna el **primer recurso libre** de cada categoría: un recurso está libre si no tiene una reserva
-**activa** que se traslape en esa fecha (las canceladas no ocupan). Si una categoría no tiene recurso libre, el mensaje nombra
-las categorías: "No hay recursos disponibles en las categorías: Salas, Proyectores".
+Actividad obligatoria y de 200 caracteres como máximo (la columna es `VARCHAR(200)`); fecha no pasada; horas dentro de 06:00 a
+22:00, en bloques de 30 minutos y con inicio anterior al fin; al menos una categoría. Se asigna el **primer recurso libre** de
+cada categoría: un recurso está libre si no tiene una reserva **activa** que se traslape en esa fecha (las canceladas no
+ocupan). Si una categoría no tiene recurso libre, el mensaje nombra las categorías: "No hay recursos disponibles en las
+categorías: Salas, Proyectores".
 
 ### 5.2 `registrarReserva`: candado y transacción
 
@@ -110,7 +111,10 @@ synchronized (CANDADO_RESERVAS) {            // 1. primero el candado
 
 ### 5.3 Otras operaciones
 
-`cancelarReserva` valida que exista, que no esté ya cancelada y que no sea de una fecha pasada, y cambia el estado a `CANCELADA`.
+`cancelarReserva` valida que exista, que no esté ya cancelada y que no sea de una fecha pasada. El cambio de estado es un solo
+`UPDATE reserva SET estado = 'CANCELADA' WHERE id_reserva = ? AND estado = 'ACTIVA'` (`ReservaDatos.cancelarReservaActiva`).
+MySQL bloquea la fila durante el `UPDATE`: si dos clientes cancelan la misma reserva a la vez, solo uno cambia la fila y el
+otro recibe "Esta reserva ya se encuentra cancelada".
 Las consultas por ID, funcionario y período salen de una sola consulta con `JOIN` (reserva, funcionario, recursos y categoría);
 los recursos de una reserva se leen **sin** filtrar por `activo`, para que una reserva antigua conserve su recurso aunque esté
 dado de baja.
@@ -154,6 +158,7 @@ sequenceDiagram
 | Sesión de una conexión | Campo `volatile` (lo escribe su hilo y lo lee el difusor) |
 | Escritura al socket | `AtendedorCliente.enviar` es `synchronized` |
 | Reservas y bajas | `CANDADO_RESERVAS` + transacción de MySQL |
+| Cancelación de reservas | `UPDATE ... WHERE estado = 'ACTIVA'`: el cambio de estado es atómico en MySQL |
 | Generación de IDs | `SELECT ... FOR UPDATE` dentro de la transacción |
 
 ## 9. Cómo ejecutarlo
@@ -174,9 +179,10 @@ sequenceDiagram
 | `ContextoSesionTest` (5), `ManejadorAuthTest` (6) | Sesión por conexión, permisos de administrador, login, cambio de clave y logout |
 | `ManejadorReservasTest` (10) | Identidad desde la sesión, propiedad de las reservas, datos faltantes e inválidos, difusión solo si se guardó |
 | `ManejadorCalendarizacionTest`, `ManejadorActividadesTest` (5 + 5) | Datos que llegan a los servicios, errores y sesión |
-| `DisponibilidadServiceTest` (18) | Traslapes, primer recurso libre, mensajes, `commit` y `rollback`, funcionario dado de baja |
+| `DisponibilidadServiceTest` (23) | Traslapes, primer recurso libre, mensajes, `commit` y `rollback`, funcionario dado de baja, actividad vacía y límite de 200 caracteres |
+| `ReservaCancelacionLogicaTest` (5), `ReservaDatosCancelacionTest` (2) | Cancelación: reserva activa futura, ya cancelada, inexistente o pasada; `UPDATE` condicionado a `ACTIVA` y cero filas afectadas |
 | `ReservaDatosIT` (26) | SQL real en `reservas_test` con rollback: consultas, escritura con recursos, cancelación e IDs |
-| `ReservaLogicaIT` (4) | **Concurrencia real:** 5 hilos piden el mismo recurso a la misma hora y solo uno lo consigue; funcionario inexistente o dado de baja |
+| `ReservaLogicaIT` (5) | **Concurrencia real:** 5 hilos piden el mismo recurso a la misma hora y solo uno lo consigue; dos cancelaciones simultáneas y solo una se confirma; funcionario inexistente o dado de baja |
 | `CalendarizacionLogicaTest` (8), `ProgramacionActividadesLogicaTest` (4) | Matriz de estados, horario de servicio y mapa por fecha |
 | `ProxyReservaServiceTest`, `ProxyCalendarizacionServiceTest` (7), `ProxyProgramacionActividadesServiceTest` (6) | Proxy con servidor TCP simulado: operación y datos enviados, conversión de DTO, errores |
 
