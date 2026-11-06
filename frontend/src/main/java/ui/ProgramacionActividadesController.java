@@ -38,8 +38,21 @@ public class ProgramacionActividadesController {
     private LocalDate fechaFinSemana;
     private final Map<String, Map<String, String>> actividadesPorFecha = new HashMap<>();
     private final PdfController pdfController = new PdfController();
-    private final IProgramacionActividadesService programacionActividadesService =
-            new ProxyProgramacionActividadesService();
+    private final IProgramacionActividadesService programacionActividadesService;
+    private long numeroConsulta;
+    private boolean consultaEnCurso;
+
+    public ProgramacionActividadesController() {
+        this(new ProxyProgramacionActividadesService());
+    }
+
+    ProgramacionActividadesController(
+            IProgramacionActividadesService programacionActividadesService
+    ) {
+        this.programacionActividadesService = Objects.requireNonNull(
+                programacionActividadesService
+        );
+    }
 
     @FXML
     private void initialize() {
@@ -50,6 +63,8 @@ public class ProgramacionActividadesController {
         btnCargar.setOnAction(evento -> cargarProgramacion());
         btnLimpiar.setOnAction(evento -> limpiarProgramacion());
         btnGenerarPdf.setOnAction(evento -> generarPdf());
+        dpFechaReferencia.valueProperty().addListener((observable, anterior, actual) ->
+                invalidarConsultaPorCambioFecha());
         lblRangoSemana.setText("Semana no seleccionada");
         lblEstado.setText("Seleccione una fecha para cargar la programación semanal.");
     }
@@ -85,31 +100,102 @@ public class ProgramacionActividadesController {
         colDomingo.setText("Domingo\n" + fechaInicioSemana.plusDays(6).format(formatoCorto));
     }
     private void cargarProgramacion() {
-        if (dpFechaReferencia.getValue() == null) {
+        LocalDate fechaReferencia = dpFechaReferencia.getValue();
+        if (fechaReferencia == null) {
             lblEstado.setText("Debe seleccionar una fecha de referencia.");
             return;
         }
-        calcularRangoSemana(dpFechaReferencia.getValue());
+
+        calcularRangoSemana(fechaReferencia);
         actividadesPorFecha.clear();
+        tvActividades.getItems().clear();
         LocalDate desde = fechaInicioSemana;
         LocalDate hasta = fechaFinSemana;
+        long consultaActual = ++numeroConsulta;
+        consultaEnCurso = true;
+        lblEstado.setText("Cargando programación semanal...");
+
         TareaRed.ejecutar(
                 () -> programacionActividadesService.consultar(desde, hasta),
-                dto -> {
-                    // si cambió la semana cargada mientras tanto, se descarta esta respuesta
-                    if (!Objects.equals(desde, fechaInicioSemana)) return;
-                    aplicarProgramacion(dto);
-                    tvActividades.refresh();
-                    lblEstado.setText("Programación semanal cargada correctamente.");
-                },
-                error -> {
-                    actividadesPorFecha.clear();
-                    tvActividades.getItems().clear();
-                    lblEstado.setText(error instanceof IllegalArgumentException
-                            ? "No se pudo cargar la programación: " + error.getMessage()
-                            : "No se pudo comunicar con el servidor. Intente de nuevo.");
-                }
+                dto -> completarConsulta(
+                        consultaActual,
+                        fechaReferencia,
+                        desde,
+                        hasta,
+                        dto
+                ),
+                error -> mostrarErrorConsulta(
+                        consultaActual,
+                        fechaReferencia,
+                        desde,
+                        error
+                )
         );
+    }
+    private void completarConsulta(
+            long consulta,
+            LocalDate fechaReferencia,
+            LocalDate desde,
+            LocalDate hasta,
+            ProgramacionActividadesDTO dto
+    ) {
+        if (consulta != numeroConsulta) return;
+        consultaEnCurso = false;
+
+        if (!filtrosCoinciden(fechaReferencia, desde)) {
+            reiniciarProgramacion();
+            lblEstado.setText("La fecha cambió. Presione \"Cargar\" nuevamente.");
+            return;
+        }
+
+        fechaInicioSemana = desde;
+        fechaFinSemana = hasta;
+        aplicarProgramacion(dto);
+        tvActividades.refresh();
+        lblEstado.setText("Programación semanal cargada correctamente.");
+    }
+    private void mostrarErrorConsulta(
+            long consulta,
+            LocalDate fechaReferencia,
+            LocalDate desde,
+            Throwable error
+    ) {
+        if (consulta != numeroConsulta) return;
+        consultaEnCurso = false;
+
+        actividadesPorFecha.clear();
+        tvActividades.getItems().clear();
+        if (!filtrosCoinciden(fechaReferencia, desde)) {
+            reiniciarProgramacion();
+            lblEstado.setText("La fecha cambió. Presione \"Cargar\" nuevamente.");
+            return;
+        }
+
+        lblEstado.setText(error instanceof IllegalArgumentException
+                ? "No se pudo cargar la programación: " + error.getMessage()
+                : "No se pudo comunicar con el servidor. Intente de nuevo.");
+    }
+    private boolean filtrosCoinciden(
+            LocalDate fechaReferencia,
+            LocalDate inicioSemana
+    ) {
+        LocalDate fechaActual = dpFechaReferencia.getValue();
+        return Objects.equals(fechaReferencia, fechaActual)
+                && fechaActual != null
+                && Objects.equals(
+                        inicioSemana,
+                        fechaActual.with(
+                                TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)
+                        )
+                );
+    }
+    private void invalidarConsultaPorCambioFecha() {
+        numeroConsulta++;
+        if (!consultaEnCurso) return;
+
+        consultaEnCurso = false;
+        reiniciarProgramacion();
+        lblEstado.setText("La fecha cambió. Presione \"Cargar\" nuevamente.");
     }
     private void aplicarProgramacion(ProgramacionActividadesDTO dto) {
         actividadesPorFecha.clear();
@@ -119,14 +205,19 @@ public class ProgramacionActividadesController {
         tvActividades.getItems().setAll(dto.getHoras());
     }
     private void limpiarProgramacion() {
+        numeroConsulta++;
+        consultaEnCurso = false;
         dpFechaReferencia.setValue(null);
+        reiniciarProgramacion();
+        lblEstado.setText("Seleccione una fecha para cargar la programación semanal.");
+    }
+    private void reiniciarProgramacion() {
         fechaInicioSemana = null;
         fechaFinSemana = null;
         actividadesPorFecha.clear();
         tvActividades.getItems().clear();
         restablecerEncabezadosSemana();
         lblRangoSemana.setText("Semana no seleccionada");
-        lblEstado.setText("Seleccione una fecha para cargar la programación semanal.");
     }
     private void restablecerEncabezadosSemana() {
         colLunes.setText("Lunes");

@@ -8,6 +8,7 @@ import Sistema.Service.ICategoriaService;
 import Sistema.Service.Red.ProxyRecursoService;
 import Sistema.Service.Red.ProxyCategoriaService;
 import Sistema.Red.TareaRed;
+import Sistema.util.SessionManager;
 
 // imports necesarios para el reporte de PDF
 import Sistema.DTO.ReportConfigDTO;
@@ -15,7 +16,7 @@ import Sistema.Logica.Exception.ReportExceptionLogica;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.concurrent.Callable;
 
 import javafx.fxml.FXML;
 import javafx.collections.FXCollections;
@@ -34,8 +35,6 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.Region;
 
 // Usa ProxyRecursoService (REC_*) y ProxyCategoriaService (CAT_LISTAR, para los combos).
-// La carga inicial y cargarCategorias() van en TareaRed; buscar, guardar, borrar y
-// generarNuevoId son directos (decision 13 del equipo).
 public class RecursoViewController {
 
     static final String MENSAJE_SIN_CONEXION_CARGAR =
@@ -52,6 +51,9 @@ public class RecursoViewController {
                     + "Intente de nuevo y, si sigue, reinicie la aplicación.";
     static final String MENSAJE_SIN_CONEXION_BORRAR =
             "No hay comunicación con el servidor; no se pudo confirmar si se borró el recurso. "
+                    + "Intente de nuevo y, si sigue, reinicie la aplicación.";
+    static final String MENSAJE_SIN_CONEXION_ID =
+            "No hay comunicación con el servidor; no se pudo obtener un nuevo ID para el recurso. "
                     + "Intente de nuevo y, si sigue, reinicie la aplicación.";
 
     private final IRecursoService recursoService;
@@ -76,6 +78,16 @@ public class RecursoViewController {
     @FXML private TableColumn<RecursoDTO, String> colDescripcionListadoRecursos;
 
     private ObservableList<RecursoDTO> listaRecursos = FXCollections.observableArrayList();
+    private RecursoDTO recursoSeleccionado;
+    private long numeroConsultaRecursos;
+    private long numeroCargaCategorias;
+    private long numeroGeneracionId;
+    private long numeroOperacion;
+    private boolean consultaRecursosEnCurso;
+    private boolean cargaCategoriasEnCurso;
+    private boolean generacionIdEnCurso;
+    private boolean operacionEnCurso;
+    private boolean actualizandoCategorias;
 
     // Lo usa FXMLLoader por el fx:controller de RecursosView.fxml
     public RecursoViewController() {
@@ -105,43 +117,103 @@ public class RecursoViewController {
 
         tvwRecursos.setItems(listaRecursos);
 
-        tvwRecursos.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) mostrarDetalleRecurso(newValue);
-        });
+        tvwRecursos.getSelectionModel().selectedItemProperty().addListener(
+                (observable, anterior, actual) -> cambiarSeleccion(actual));
 
         btnGuardarRecursos.setOnAction(evento -> guardarRecurso());
         btnBorrarRecursos.setOnAction(evento -> borrarRecurso());
-        btnLimpiarRecursos.setOnAction(evento -> limpiarFormulario());
+        btnLimpiarRecursos.setOnAction(evento -> {
+            if (!operacionEnCurso && !generacionIdEnCurso) limpiarFormulario();
+        });
         btnFiltroBuscarRecursos.setOnAction(evento -> buscarRecursos());
         btnImprimirRecursos.setOnAction(evento -> generarPdf());
+        cbFiltroCategoriaRecursos.valueProperty().addListener((observable, anterior, actual) ->
+                invalidarConsultaPorCambioFiltros());
+        txtFiltroDescripcionRecursos.textProperty().addListener((observable, anterior, actual) ->
+                invalidarConsultaPorCambioFiltros());
 
         cargarCategorias();
         limpiarFormulario();
-        // carga inicial de la tabla en segundo plano; los callbacks vuelven al hilo de JavaFX
-        TareaRed.ejecutar(recursoService::listarRecursos, this::cargarTabla, this::mostrarErrorRecursos);
+        iniciarConsultaRecursos(recursoService::listarRecursos, false);
     }
 
     // La llaman initialize y MainController (cada vez que se entra a la pestana Recursos).
     // En segundo plano, para no congelar la ventana al cambiar de pestana.
     public void cargarCategorias() {
-        TareaRed.ejecutar(categoriaService::listarTodos, this::mostrarCategorias, this::mostrarErrorCategorias);
+        long cargaActual = ++numeroCargaCategorias;
+        cargaCategoriasEnCurso = true;
+        actualizarEstadoControles();
+        TareaRed.ejecutar(
+                categoriaService::listarTodos,
+                categorias -> {
+                    if (cargaActual != numeroCargaCategorias || !cargaCategoriasEnCurso) return;
+                    cargaCategoriasEnCurso = false;
+                    if (categorias == null) {
+                        actualizarEstadoControles();
+                        mostrarAlerta(
+                                AlertType.ERROR,
+                                "Error",
+                                "El servidor no devolvió una lista válida de categorías."
+                        );
+                        return;
+                    }
+                    mostrarCategorias(categorias);
+                    actualizarEstadoControles();
+                },
+                error -> {
+                    if (cargaActual != numeroCargaCategorias || !cargaCategoriasEnCurso) return;
+                    cargaCategoriasEnCurso = false;
+                    actualizarEstadoControles();
+                    mostrarErrorCategorias(error);
+                }
+        );
     }
 
     private void mostrarCategorias(List<CategoriaDTO> categorias) {
-        // Para el formulario de guardado
-        cbCategoriaRecurso.setItems(FXCollections.observableArrayList(categorias));
+        String idCategoriaFormulario = idCategoria(cbCategoriaRecurso.getValue());
+        String idCategoriaFiltro = idCategoria(cbFiltroCategoriaRecursos.getValue());
 
-        // Para el filtro: Agregamos la opción "Todas"
-        ObservableList<CategoriaDTO> opcionesFiltro = FXCollections.observableArrayList();
+        actualizandoCategorias = true;
+        try {
+            // Para el formulario de guardado
+            cbCategoriaRecurso.setItems(FXCollections.observableArrayList(categorias));
+            cbCategoriaRecurso.setValue(buscarCategoria(categorias, idCategoriaFormulario));
 
-        CategoriaDTO opcionTodas = new CategoriaDTO();
-        opcionTodas.setId(null);
-        opcionTodas.setDescripcion("-- Todas las categorías --");
+            // Para el filtro: Agregamos la opción "Todas"
+            ObservableList<CategoriaDTO> opcionesFiltro = FXCollections.observableArrayList();
 
-        opcionesFiltro.add(opcionTodas);
-        opcionesFiltro.addAll(categorias);
+            CategoriaDTO opcionTodas = new CategoriaDTO();
+            opcionTodas.setId(null);
+            opcionTodas.setDescripcion("-- Todas las categorías --");
 
-        cbFiltroCategoriaRecursos.setItems(opcionesFiltro);
+            opcionesFiltro.add(opcionTodas);
+            opcionesFiltro.addAll(categorias);
+
+            cbFiltroCategoriaRecursos.setItems(opcionesFiltro);
+            cbFiltroCategoriaRecursos.setValue(idCategoriaFiltro == null
+                    ? opcionTodas
+                    : buscarCategoria(categorias, idCategoriaFiltro));
+        } finally {
+            actualizandoCategorias = false;
+        }
+        if (!Objects.equals(idCategoriaFiltro, idCategoria(cbFiltroCategoriaRecursos.getValue()))) {
+            invalidarConsultaPorCambioFiltros();
+        }
+    }
+
+    private static String idCategoria(CategoriaDTO categoria) {
+        return categoria == null ? null : categoria.getId();
+    }
+
+    private static CategoriaDTO buscarCategoria(
+            List<CategoriaDTO> categorias,
+            String idCategoria
+    ) {
+        if (idCategoria == null) return null;
+        return categorias.stream()
+                .filter(categoria -> Objects.equals(idCategoria, categoria.getId()))
+                .findFirst()
+                .orElse(null);
     }
 
     // Antes era silencioso; con red un combo vacio sin explicacion confunde
@@ -157,18 +229,7 @@ public class RecursoViewController {
         }
     }
 
-    // Recarga directa, despues de guardar o borrar
-    private void cargarDatosDesdeSistema(){
-        try{
-            List<RecursoDTO> recursos = recursoService.listarRecursos();
-            cargarTabla(recursos);
-        } catch (RuntimeException error){
-            mostrarErrorRecursos(error);
-        }
-    }
-
     private void mostrarErrorRecursos(Throwable error) {
-        listaRecursos.clear();
         mostrarErrorCarga(error, MENSAJE_SIN_CONEXION_CARGAR);
     }
 
@@ -185,52 +246,112 @@ public class RecursoViewController {
 
     @FXML
     private void limpiarFormulario(){
-        try {
-            String nuevoID = recursoService.generarNuevoId();
-            txtIdRecurso.setText(nuevoID);
-        } catch (Exception error) {
-            txtIdRecurso.clear();
-        }
-
+        recursoSeleccionado = null;
+        tvwRecursos.getSelectionModel().clearSelection();
+        txtIdRecurso.clear();
         txtDescripcionRecurso.clear();
         cbCategoriaRecurso.setValue(null);
+        generarNuevoIdAsincrono();
+    }
 
-        tvwRecursos.getSelectionModel().clearSelection();
-        btnBorrarRecursos.setDisable(true);
+    private void generarNuevoIdAsincrono() {
+        long generacionActual = ++numeroGeneracionId;
+        txtIdRecurso.clear();
+
+        if (!SessionManager.getInstancia().esAdministrador()) {
+            generacionIdEnCurso = false;
+            actualizarEstadoControles();
+            return;
+        }
+
+        generacionIdEnCurso = true;
+        actualizarEstadoControles();
+
+        TareaRed.ejecutar(
+                recursoService::generarNuevoId,
+                id -> {
+                    if (generacionActual != numeroGeneracionId || !generacionIdEnCurso) return;
+                    generacionIdEnCurso = false;
+                    if (id == null || id.isBlank()) {
+                        txtIdRecurso.clear();
+                        actualizarEstadoControles();
+                        mostrarAlerta(
+                                AlertType.ERROR,
+                                "Error",
+                                "El servidor no devolvió un ID válido para el recurso."
+                        );
+                        return;
+                    }
+                    txtIdRecurso.setText(id);
+                    actualizarEstadoControles();
+                },
+                error -> {
+                    if (generacionActual != numeroGeneracionId || !generacionIdEnCurso) return;
+                    generacionIdEnCurso = false;
+                    txtIdRecurso.clear();
+                    actualizarEstadoControles();
+                    mostrarErrorCarga(error, MENSAJE_SIN_CONEXION_ID);
+                }
+        );
     }
 
     @FXML
     private void guardarRecurso(){
+        if (operacionEnCurso || btnGuardarRecursos.isDisabled()) return;
+
         String id = txtIdRecurso.getText().trim();
         String descripcion = txtDescripcionRecurso.getText().trim();
         CategoriaDTO categoria = cbCategoriaRecurso.getValue();
+        CategoriaDTO categoriaCapturada = categoria == null ? null
+                : new CategoriaDTO(categoria.getId(), categoria.getDescripcion());
+        RecursoDTO recurso = new RecursoDTO(id, descripcion, categoriaCapturada);
+        iniciarOperacionGuardado(recurso);
+    }
 
-        try {
-            RecursoDTO recurso = new RecursoDTO(id, descripcion, categoria);
-            boolean esModificacion = existeRecurso(id);
-            ResultadoOperacionDTO resultado = esModificacion
-                    ? recursoService.modificarRecurso(recurso)
-                    : recursoService.registrarRecurso(recurso);
+    private void iniciarOperacionGuardado(RecursoDTO recurso) {
+        long operacionActual = prepararOperacion();
+        TareaRed.ejecutar(
+                () -> {
+                    boolean esModificacion = existeRecurso(recurso.getId());
+                    ResultadoOperacionDTO resultado = esModificacion
+                            ? recursoService.modificarRecurso(recurso)
+                            : recursoService.registrarRecurso(recurso);
+                    return new ResultadoGuardado(resultado, esModificacion);
+                },
+                resultado -> completarGuardado(operacionActual, recurso, resultado),
+                error -> mostrarErrorOperacion(
+                        operacionActual,
+                        error,
+                        "Atención",
+                        MENSAJE_SIN_CONEXION_GUARDAR,
+                        "Ocurrió un error no esperado: "
+                )
+        );
+    }
 
-            // un fallo se muestra igual que antes la IllegalArgumentException
-            if (!resultado.isExito()) {
-                mostrarAlerta(AlertType.WARNING, "Atención", resultado.getMensaje());
-                return;
-            }
-            mostrarAlerta(AlertType.INFORMATION, "Éxito", esModificacion
-                    ? "El recurso fue modificado correctamente"
-                    : "El recurso fue registrado con el ID: " + id);
-
-            limpiarFormulario();
-            cargarDatosDesdeSistema();
-
-        } catch (IllegalArgumentException ex) {
-            mostrarAlerta(AlertType.WARNING, "Atención", ex.getMessage());
-        } catch (IllegalStateException ex) {
-            mostrarAlerta(AlertType.ERROR, "Error de conexión", MENSAJE_SIN_CONEXION_GUARDAR);
-        } catch (Exception ex) {
-            mostrarAlerta(AlertType.ERROR, "Error", "Ocurrió un error no esperado: " + ex.getMessage());
+    private void completarGuardado(
+            long operacion,
+            RecursoDTO recurso,
+            ResultadoGuardado guardado
+    ) {
+        if (!esOperacionVigente(operacion)) return;
+        if (guardado == null || guardado.resultado() == null) {
+            finalizarOperacion();
+            mostrarAlerta(AlertType.ERROR, "Error", "El servidor no devolvió un resultado válido.");
+            return;
         }
+        if (!guardado.resultado().isExito()) {
+            finalizarOperacion();
+            mostrarAlerta(AlertType.WARNING, "Atención", guardado.resultado().getMensaje());
+            return;
+        }
+
+        mostrarAlerta(AlertType.INFORMATION, "Éxito", guardado.esModificacion()
+                ? "El recurso fue modificado correctamente"
+                : "El recurso fue registrado con el ID: " + recurso.getId());
+        limpiarFormulario();
+        actualizarEstadoControles();
+        recargarDespuesOperacion(operacion);
     }
 
     /**
@@ -243,66 +364,211 @@ public class RecursoViewController {
         try {
             return recursoService.buscarRecursoID(id) != null;
         } catch (IllegalArgumentException e) {
-            return false;
+            if ("El recurso solicitado no fue encontrado".equals(e.getMessage())) return false;
+            throw e;
         }
     }
 
     @FXML
     private void borrarRecurso(){
-        String id = txtIdRecurso.getText().trim();
-
-        if (id.isEmpty()) {
+        if (operacionEnCurso) return;
+        if (recursoSeleccionado == null) {
             mostrarAlerta(AlertType.WARNING, "Selección requerida", "Seleccione un recurso de la tabla para eliminar");
             return;
         }
 
-        Alert confirmacion = new Alert(AlertType.CONFIRMATION, "¿Está seguro de eliminar el recurso con ID " + id + "?", ButtonType.YES, ButtonType.NO);
-        Optional<ButtonType> respuesta = confirmacion.showAndWait();
+        RecursoDTO recursoABorrar = recursoSeleccionado;
+        String idABorrar = recursoABorrar.getId();
+        if (!confirmarBorrado(recursoABorrar)) return;
 
-        if (respuesta.isPresent() && respuesta.get() == ButtonType.YES) {
-            try {
-                ResultadoOperacionDTO resultado = recursoService.eliminarRecurso(id);
-                if (resultado.isExito()) {
-                    mostrarAlerta(AlertType.INFORMATION, "Éxito", "Recurso eliminado correctamente");
-                    limpiarFormulario();
-                    cargarDatosDesdeSistema();
-                } else {
-                    // igual que antes la IllegalArgumentException
-                    mostrarAlerta(AlertType.WARNING, "No se puede eliminar", resultado.getMensaje());
-                }
-            } catch (IllegalArgumentException ex) {
-                mostrarAlerta(AlertType.WARNING, "No se puede eliminar", ex.getMessage());
-            } catch (IllegalStateException ex) {
-                mostrarAlerta(AlertType.ERROR, "Error de conexión", MENSAJE_SIN_CONEXION_BORRAR);
-            } catch (Exception ex) {
-                mostrarAlerta(AlertType.ERROR, "Error al eliminar", ex.getMessage());
-            }
+        long operacionActual = prepararOperacion();
+        TareaRed.ejecutar(
+                () -> recursoService.eliminarRecurso(idABorrar),
+                resultado -> completarBorrado(operacionActual, resultado),
+                error -> mostrarErrorOperacion(
+                        operacionActual,
+                        error,
+                        "No se puede eliminar",
+                        MENSAJE_SIN_CONEXION_BORRAR,
+                        "Error al eliminar: "
+                )
+        );
+    }
+
+    boolean confirmarBorrado(RecursoDTO recurso) {
+        Alert confirmacion = new Alert(
+                AlertType.CONFIRMATION,
+                "¿Está seguro de eliminar el recurso con ID " + recurso.getId() + "?",
+                ButtonType.YES,
+                ButtonType.NO
+        );
+        return confirmacion.showAndWait().orElse(ButtonType.NO) == ButtonType.YES;
+    }
+
+    private void completarBorrado(long operacion, ResultadoOperacionDTO resultado) {
+        if (!esOperacionVigente(operacion)) return;
+        if (resultado == null) {
+            finalizarOperacion();
+            mostrarAlerta(AlertType.ERROR, "Error al eliminar", "El servidor no devolvió un resultado válido.");
+            return;
         }
+        if (!resultado.isExito()) {
+            finalizarOperacion();
+            mostrarAlerta(AlertType.WARNING, "No se puede eliminar", resultado.getMensaje());
+            return;
+        }
+
+        mostrarAlerta(AlertType.INFORMATION, "Éxito", "Recurso eliminado correctamente");
+        limpiarFormulario();
+        actualizarEstadoControles();
+        recargarDespuesOperacion(operacion);
     }
 
     @FXML
     private void buscarRecursos(){
+        if (operacionEnCurso) return;
+
         CategoriaDTO categoriaSeleccionada = cbFiltroCategoriaRecursos.getValue();
         String textoDescripcion = txtFiltroDescripcionRecursos.getText();
 
         // Si la categoría seleccionada es la opción "Todas" (cuyo id es null) o no hay ninguna seleccionada
         String idCategoria = (categoriaSeleccionada != null) ? categoriaSeleccionada.getId() : null;
 
-        try {
-            List<RecursoDTO> resultados = recursoService.filtrarRecursos(idCategoria, textoDescripcion);
-            cargarTabla(resultados);
-
-            if (resultados.isEmpty())
-                mostrarAlerta(AlertType.INFORMATION, "Búsqueda", "No se encontraron recursos con los criterios especificados.");
-
-        } catch (IllegalArgumentException ex) {
-            mostrarAlerta(AlertType.WARNING, "Atención", ex.getMessage());
-        } catch (IllegalStateException ex) {
-            mostrarAlerta(AlertType.ERROR, "Error de conexión", MENSAJE_SIN_CONEXION_BUSCAR);
-        } catch (Exception ex) { mostrarAlerta(AlertType.ERROR, "Error en Búsqueda", ex.getMessage()); }
+        iniciarConsultaRecursos(
+                () -> recursoService.filtrarRecursos(idCategoria, textoDescripcion),
+                true
+        );
     }
 
-    private void mostrarAlerta(AlertType tipo, String titulo, String mensaje) {
+    private void iniciarConsultaRecursos(
+            Callable<List<RecursoDTO>> consulta,
+            boolean informarVacio
+    ) {
+        long consultaActual = ++numeroConsultaRecursos;
+        consultaRecursosEnCurso = true;
+        actualizarEstadoControles();
+        TareaRed.ejecutar(
+                consulta,
+                recursos -> {
+                    if (consultaActual != numeroConsultaRecursos || !consultaRecursosEnCurso) return;
+                    consultaRecursosEnCurso = false;
+                    actualizarEstadoControles();
+                    if (recursos == null) {
+                        mostrarAlerta(AlertType.ERROR, "Error", "El servidor no devolvió una lista válida de recursos.");
+                        return;
+                    }
+                    cargarTabla(recursos);
+                    if (informarVacio && recursos.isEmpty()) {
+                        mostrarAlerta(
+                                AlertType.INFORMATION,
+                                "Búsqueda",
+                                "No se encontraron recursos con los criterios especificados."
+                        );
+                    }
+                },
+                error -> {
+                    if (consultaActual != numeroConsultaRecursos || !consultaRecursosEnCurso) return;
+                    consultaRecursosEnCurso = false;
+                    actualizarEstadoControles();
+                    mostrarErrorCarga(error, informarVacio
+                            ? MENSAJE_SIN_CONEXION_BUSCAR
+                            : MENSAJE_SIN_CONEXION_CARGAR);
+                }
+        );
+    }
+
+    private long prepararOperacion() {
+        long operacionActual = ++numeroOperacion;
+        numeroConsultaRecursos++;
+        consultaRecursosEnCurso = false;
+        operacionEnCurso = true;
+        actualizarEstadoControles();
+        return operacionActual;
+    }
+
+    private boolean esOperacionVigente(long operacion) {
+        return operacion == numeroOperacion && operacionEnCurso;
+    }
+
+    private void recargarDespuesOperacion(long operacion) {
+        TareaRed.ejecutar(
+                recursoService::listarRecursos,
+                recursos -> {
+                    if (!esOperacionVigente(operacion)) return;
+                    if (recursos == null) {
+                        finalizarOperacion();
+                        mostrarAlerta(AlertType.ERROR, "Error", "El servidor no devolvió una lista válida de recursos.");
+                        return;
+                    }
+                    cargarTabla(recursos);
+                    finalizarOperacion();
+                },
+                error -> {
+                    if (!esOperacionVigente(operacion)) return;
+                    finalizarOperacion();
+                    mostrarErrorRecursos(error);
+                }
+        );
+    }
+
+    private void mostrarErrorOperacion(
+            long operacion,
+            Throwable error,
+            String tituloValidacion,
+            String mensajeConexion,
+            String prefijoInesperado
+    ) {
+        if (!esOperacionVigente(operacion)) return;
+        finalizarOperacion();
+        if (error instanceof IllegalArgumentException) {
+            mostrarAlerta(AlertType.WARNING, tituloValidacion, error.getMessage());
+        } else if (error instanceof IllegalStateException) {
+            mostrarAlerta(AlertType.ERROR, "Error de conexión", mensajeConexion);
+        } else {
+            mostrarAlerta(AlertType.ERROR, "Error", prefijoInesperado + error.getMessage());
+        }
+    }
+
+    private void finalizarOperacion() {
+        operacionEnCurso = false;
+        actualizarEstadoControles();
+    }
+
+    private void invalidarConsultaPorCambioFiltros() {
+        if (actualizandoCategorias) return;
+        numeroConsultaRecursos++;
+        if (!consultaRecursosEnCurso || operacionEnCurso) return;
+        consultaRecursosEnCurso = false;
+        actualizarEstadoControles();
+    }
+
+    private void actualizarEstadoControles() {
+        boolean bloquearPorOperacion = operacionEnCurso;
+        cbFiltroCategoriaRecursos.setDisable(bloquearPorOperacion || cargaCategoriasEnCurso);
+        txtFiltroDescripcionRecursos.setDisable(bloquearPorOperacion);
+        btnFiltroBuscarRecursos.setDisable(bloquearPorOperacion);
+        btnFiltroBuscarRecursos.setText(consultaRecursosEnCurso ? "Buscando..." : "Buscar");
+        btnImprimirRecursos.setDisable(bloquearPorOperacion || consultaRecursosEnCurso);
+        txtIdRecurso.setDisable(true);
+        txtIdRecurso.setPromptText(generacionIdEnCurso ? "Generando ID..." : "");
+        cbCategoriaRecurso.setDisable(bloquearPorOperacion || cargaCategoriasEnCurso);
+        txtDescripcionRecurso.setDisable(bloquearPorOperacion);
+        btnGuardarRecursos.setDisable(
+                bloquearPorOperacion
+                        || cargaCategoriasEnCurso
+                        || generacionIdEnCurso
+                        || cbCategoriaRecurso.getItems() == null
+                        || cbCategoriaRecurso.getItems().isEmpty()
+                        || txtIdRecurso.getText() == null
+                        || txtIdRecurso.getText().isBlank()
+        );
+        btnGuardarRecursos.setText(bloquearPorOperacion ? "Procesando..." : "Guardar");
+        btnBorrarRecursos.setDisable(bloquearPorOperacion || recursoSeleccionado == null);
+        btnLimpiarRecursos.setDisable(bloquearPorOperacion || generacionIdEnCurso);
+        tvwRecursos.setDisable(bloquearPorOperacion || consultaRecursosEnCurso);
+    }
+
+    void mostrarAlerta(AlertType tipo, String titulo, String mensaje) {
         Alert alert = new Alert(tipo);
         alert.setTitle(titulo);
         alert.setHeaderText(null);
@@ -314,13 +580,31 @@ public class RecursoViewController {
 
     public void mostrarDetalleRecurso(RecursoDTO recurso){
         if (recurso != null) {
+            recursoSeleccionado = recurso;
+            numeroGeneracionId++;
+            generacionIdEnCurso = false;
             txtIdRecurso.setText(recurso.getId());
             txtIdRecurso.setDisable(true);
 
             txtDescripcionRecurso.setText(recurso.getDescripcion());
             cbCategoriaRecurso.setValue(recurso.getCategoria());
-            btnBorrarRecursos.setDisable(false);
+            actualizarEstadoControles();
         }
+    }
+
+    private void cambiarSeleccion(RecursoDTO recurso) {
+        if (recurso == null) {
+            recursoSeleccionado = null;
+            actualizarEstadoControles();
+            return;
+        }
+        mostrarDetalleRecurso(recurso);
+    }
+
+    private record ResultadoGuardado(
+            ResultadoOperacionDTO resultado,
+            boolean esModificacion
+    ) {
     }
 
     // metodos para generar el reporte de PDF

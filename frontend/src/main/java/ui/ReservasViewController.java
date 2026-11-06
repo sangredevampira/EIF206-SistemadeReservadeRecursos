@@ -17,6 +17,7 @@ import java.util.List;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ResourceBundle;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import Sistema.DTO.ReportConfigDTO;
@@ -50,10 +51,31 @@ import javafx.concurrent.Task;
 public class ReservasViewController implements Initializable {
 
     private static final String MENSAJE_ERROR_RED = "No se pudo comunicar con el servidor. Intente de nuevo.";
+    private static final String MENSAJE_SIN_RESERVAS = "El usuario no tiene reservas registradas";
 
-    private IReservaService reservaService;
-    private ICategoriaService categoriaService;
+    private final IReservaService reservaService;
+    private final ICategoriaService categoriaService;
     private final PdfController pdfController = new PdfController();
+    private long numeroCargaCategorias;
+    private long numeroCargaReservas;
+    private long numeroOperacion;
+    private boolean cargaCategoriasEnCurso;
+    private boolean cargaReservasEnCurso;
+    private boolean operacionEnCurso;
+    private boolean iaEnCurso;
+    private ReservaDTO reservaSeleccionada;
+
+    public ReservasViewController() {
+        this(new ProxyReservaService(), new ProxyCategoriaService());
+    }
+
+    ReservasViewController(
+            IReservaService reservaService,
+            ICategoriaService categoriaService
+    ) {
+        this.reservaService = Objects.requireNonNull(reservaService);
+        this.categoriaService = Objects.requireNonNull(categoriaService);
+    }
 
     @FXML private TextField txtFrase;
     @FXML private Button btnExtraerAI;
@@ -83,10 +105,6 @@ public class ReservasViewController implements Initializable {
 
     @FXML
     public void initialize(URL location, ResourceBundle resources){
-
-        this.reservaService = new ProxyReservaService();
-        this.categoriaService = new ProxyCategoriaService();
-
         // 1. deshabilitamos inicialmente la acción de cancelar si no hay nada seleccionado
         btnCancelarReserva.setDisable(true);
 
@@ -120,7 +138,8 @@ public class ReservasViewController implements Initializable {
 
         // 3. evento de seleccion: al hacer clic en una fila, activa el boton de cancelar
         tvMisReservas.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            btnCancelarReserva.setDisable(newValue == null);
+            reservaSeleccionada = newValue;
+            actualizarEstadoControles();
         });
 
         // 4. configuracion de controles y eventos a los botones
@@ -129,13 +148,16 @@ public class ReservasViewController implements Initializable {
 
         btnReservar.setOnAction(evento -> guardarReserva());
         btnCancelarReserva.setOnAction(evento -> cancelarReserva());
-        btnLimpiar.setOnAction(evento -> limpiarFormulario());
+        btnLimpiar.setOnAction(evento -> {
+            if (!operacionEnCurso && !iaEnCurso) limpiarFormulario();
+        });
         btnExtraerAI.setOnAction(evento -> onAutocompletarIA());
         btnImprimirReservas.setOnAction(evento -> generarPdf());
 
-        cargarCategorias();
+        ContextoCarga contextoInicial = new ContextoCarga();
+        cargarCategorias(contextoInicial);
         limpiarFormulario();
-        cargarDatosDesdeSistema();
+        cargarDatosDesdeSistema(contextoInicial);
     }
 
     private void configurarHorarios() {
@@ -167,12 +189,36 @@ public class ReservasViewController implements Initializable {
         });
     }
 
-    private void cargarCategorias() {
-        // Si falla, la lista queda vacía (manejo silencioso, como antes)
+    private void cargarCategorias(ContextoCarga contexto) {
+        long cargaActual = ++numeroCargaCategorias;
+        cargaCategoriasEnCurso = true;
+        actualizarEstadoControles();
         TareaRed.ejecutar(
                 () -> categoriaService.listarTodos(),
-                categorias -> lvCategorias.setItems(FXCollections.observableArrayList(categorias)),
-                error -> { }
+                categorias -> {
+                    if (cargaActual != numeroCargaCategorias || !cargaCategoriasEnCurso) return;
+                    cargaCategoriasEnCurso = false;
+                    actualizarEstadoControles();
+                    if (categorias == null) {
+                        mostrarErrorCarga(
+                                contexto,
+                                "No se pudieron cargar las categorías",
+                                new IllegalStateException("El servidor no devolvió una lista válida de categorías.")
+                        );
+                        return;
+                    }
+                    lvCategorias.setItems(FXCollections.observableArrayList(categorias));
+                },
+                error -> {
+                    if (cargaActual != numeroCargaCategorias || !cargaCategoriasEnCurso) return;
+                    cargaCategoriasEnCurso = false;
+                    actualizarEstadoControles();
+                    mostrarErrorCarga(
+                            contexto,
+                            "No se pudieron cargar las categorías",
+                            error
+                    );
+                }
         );
     }
 
@@ -185,19 +231,86 @@ public class ReservasViewController implements Initializable {
         }
     }
 
-    private void cargarDatosDesdeSistema() {
+    void cargarDatosDesdeSistema() {
+        if (operacionEnCurso) return;
+        cargarDatosDesdeSistema(new ContextoCarga());
+    }
+
+    private void cargarDatosDesdeSistema(ContextoCarga contexto) {
+        long cargaActual = ++numeroCargaReservas;
+        cargaReservasEnCurso = true;
+        actualizarEstadoControles();
         String idUsuario = SessionManager.getInstancia().getIdUsuario();
         if (idUsuario == null || idUsuario.isBlank()) {
+            cargaReservasEnCurso = false;
             listaReservas.clear();
+            actualizarEstadoControles();
             return;
         }
 
-        // Si falla (o no hay reservas) la tabla queda vacía, sin alerta
         TareaRed.ejecutar(
                 () -> reservaService.buscarPorFuncionario(idUsuario),
-                this::cargarTabla,
-                error -> listaReservas.clear()
+                reservas -> {
+                    if (cargaActual != numeroCargaReservas || !cargaReservasEnCurso) return;
+                    cargaReservasEnCurso = false;
+                    actualizarEstadoControles();
+                    if (reservas == null) {
+                        mostrarErrorCarga(
+                                contexto,
+                                "No se pudieron cargar las reservas",
+                                new IllegalStateException("El servidor no devolvió una lista válida de reservas.")
+                        );
+                        return;
+                    }
+                    cargarTabla(reservas);
+                },
+                error -> {
+                    if (cargaActual != numeroCargaReservas || !cargaReservasEnCurso) return;
+                    cargaReservasEnCurso = false;
+                    actualizarEstadoControles();
+                    if (esResultadoSinReservas(error)) {
+                        cargarTabla(List.of());
+                        return;
+                    }
+                    mostrarErrorCarga(
+                            contexto,
+                            "No se pudieron cargar las reservas",
+                            error
+                    );
+                }
         );
+    }
+
+    private static boolean esResultadoSinReservas(Throwable error) {
+        return error instanceof IllegalArgumentException
+                && MENSAJE_SIN_RESERVAS.equals(error.getMessage());
+    }
+
+    private void mostrarErrorCarga(
+            ContextoCarga contexto,
+            String tituloServidor,
+            Throwable error
+    ) {
+        if (contexto.errorMostrado) return;
+        contexto.errorMostrado = true;
+
+        if (error instanceof IllegalArgumentException) {
+            String mensaje = error.getMessage();
+            mostrarAlerta(
+                    AlertType.ERROR,
+                    tituloServidor,
+                    mensaje == null || mensaje.isBlank()
+                            ? "El servidor rechazó la consulta."
+                            : mensaje
+            );
+            return;
+        }
+
+        mostrarAlerta(AlertType.ERROR, "Error de conexión", MENSAJE_ERROR_RED);
+    }
+
+    private static final class ContextoCarga {
+        private boolean errorMostrado;
     }
 
     @FXML
@@ -214,6 +327,8 @@ public class ReservasViewController implements Initializable {
 
     @FXML
     private void guardarReserva() {
+        if (operacionEnCurso || iaEnCurso || cargaCategoriasEnCurso) return;
+
         String idUsuario = SessionManager.getInstancia().getIdUsuario();
         Funcionario funcionario = SessionManager.getInstancia().getFuncionarioAsociado();
 
@@ -228,62 +343,194 @@ public class ReservasViewController implements Initializable {
         LocalTime horaInicio = cbHoraInicio.getValue();
         LocalTime horaFin = cbHoraFin.getValue();
 
-        List<CategoriaDTO> seleccionadas = lvCategorias.getSelectionModel().getSelectedItems();
-        List<String> idsCategorias = seleccionadas.stream()
+        List<String> idsCategorias = lvCategorias.getSelectionModel().getSelectedItems().stream()
                 .map(CategoriaDTO::getId)
-                .collect(Collectors.toList());
+                .collect(Collectors.toUnmodifiableList());
 
-        try {
-            reservaService.registrarReserva(
-                    idUsuario,
-                    nombreFuncionario,
-                    actividad,
-                    fecha,
-                    horaInicio,
-                    horaFin,
-                    idsCategorias
-            );
-
-            mostrarAlerta(AlertType.INFORMATION, "Éxito", "La reserva fue registrada correctamente");
-            limpiarFormulario();
-            cargarDatosDesdeSistema();
-
-        } catch (IllegalArgumentException ex) {
-            mostrarAlerta(AlertType.WARNING, "Atención", ex.getMessage());
-        } catch (IllegalStateException ex) {
-            mostrarAlerta(AlertType.ERROR, "Error", MENSAJE_ERROR_RED);
-        } catch (Exception ex) {
-            mostrarAlerta(AlertType.ERROR, "Error", "Ocurrió un error no esperado: " + ex.getMessage());
-        }
+        long operacionActual = prepararOperacion();
+        TareaRed.ejecutar(
+                () -> reservaService.registrarReserva(
+                        idUsuario,
+                        nombreFuncionario,
+                        actividad,
+                        fecha,
+                        horaInicio,
+                        horaFin,
+                        idsCategorias
+                ),
+                reserva -> completarRegistro(operacionActual, idUsuario, reserva),
+                error -> mostrarErrorOperacion(
+                        operacionActual,
+                        error,
+                        "Atención",
+                        "Error"
+                )
+        );
     }
 
     @FXML
     private void cancelarReserva() {
-        ReservaDTO seleccionada = tvMisReservas.getSelectionModel().getSelectedItem();
+        if (operacionEnCurso) return;
+
+        ReservaDTO seleccionada = reservaSeleccionada;
 
         if (seleccionada == null) {
             mostrarAlerta(AlertType.WARNING, "Selección requerida", "Seleccione una reserva de la tabla para cancelar");
             return;
         }
 
-        try {
-            boolean cancelada = reservaService.cancelarReserva(seleccionada.getIdReserva());
-            if (cancelada) {
-                mostrarAlerta(AlertType.INFORMATION, "Éxito", "Reserva cancelada correctamente");
-                limpiarFormulario();
-                cargarDatosDesdeSistema();
-            }
-        } catch (IllegalArgumentException ex) {
-            mostrarAlerta(AlertType.WARNING, "No se puede cancelar", ex.getMessage());
-        } catch (IllegalStateException ex) {
-            mostrarAlerta(AlertType.ERROR, "Error al cancelar", MENSAJE_ERROR_RED);
-        } catch (Exception ex) {
-            mostrarAlerta(AlertType.ERROR, "Error al cancelar", ex.getMessage());
+        String idReserva = seleccionada.getIdReserva();
+        String idUsuario = SessionManager.getInstancia().getIdUsuario();
+        long operacionActual = prepararOperacion();
+        TareaRed.ejecutar(
+                () -> reservaService.cancelarReserva(idReserva),
+                cancelada -> completarCancelacion(operacionActual, idUsuario, cancelada),
+                error -> mostrarErrorOperacion(
+                        operacionActual,
+                        error,
+                        "No se puede cancelar",
+                        "Error al cancelar"
+                )
+        );
+    }
+
+    private long prepararOperacion() {
+        long operacionActual = ++numeroOperacion;
+        numeroCargaReservas++;
+        cargaReservasEnCurso = false;
+        operacionEnCurso = true;
+        actualizarEstadoControles();
+        return operacionActual;
+    }
+
+    private boolean esOperacionVigente(long operacion) {
+        return operacion == numeroOperacion && operacionEnCurso;
+    }
+
+    private void completarRegistro(
+            long operacion,
+            String idUsuario,
+            ReservaDTO reserva
+    ) {
+        if (!esOperacionVigente(operacion)) return;
+        if (reserva == null) {
+            finalizarOperacion();
+            mostrarAlerta(
+                    AlertType.ERROR,
+                    "Error",
+                    "El servidor no devolvió la reserva registrada."
+            );
+            return;
+        }
+
+        mostrarAlerta(AlertType.INFORMATION, "Éxito", "La reserva fue registrada correctamente");
+        limpiarFormulario();
+        actualizarEstadoControles();
+        recargarDespuesOperacion(operacion, idUsuario);
+    }
+
+    private void completarCancelacion(
+            long operacion,
+            String idUsuario,
+            Boolean cancelada
+    ) {
+        if (!esOperacionVigente(operacion)) return;
+        if (!Boolean.TRUE.equals(cancelada)) {
+            finalizarOperacion();
+            mostrarAlerta(
+                    AlertType.WARNING,
+                    "No se puede cancelar",
+                    "El servidor no confirmó la cancelación de la reserva."
+            );
+            return;
+        }
+
+        mostrarAlerta(AlertType.INFORMATION, "Éxito", "Reserva cancelada correctamente");
+        limpiarFormulario();
+        actualizarEstadoControles();
+        recargarDespuesOperacion(operacion, idUsuario);
+    }
+
+    private void recargarDespuesOperacion(long operacion, String idUsuario) {
+        TareaRed.ejecutar(
+                () -> reservaService.buscarPorFuncionario(idUsuario),
+                reservas -> {
+                    if (!esOperacionVigente(operacion)) return;
+                    if (reservas == null) {
+                        finalizarOperacion();
+                        mostrarErrorCarga(
+                                new ContextoCarga(),
+                                "No se pudieron cargar las reservas",
+                                new IllegalStateException("El servidor no devolvió una lista válida de reservas.")
+                        );
+                        return;
+                    }
+                    cargarTabla(reservas);
+                    finalizarOperacion();
+                },
+                error -> {
+                    if (!esOperacionVigente(operacion)) return;
+                    if (esResultadoSinReservas(error)) {
+                        cargarTabla(List.of());
+                        finalizarOperacion();
+                        return;
+                    }
+                    finalizarOperacion();
+                    mostrarErrorCarga(
+                            new ContextoCarga(),
+                            "No se pudieron cargar las reservas",
+                            error
+                    );
+                }
+        );
+    }
+
+    private void mostrarErrorOperacion(
+            long operacion,
+            Throwable error,
+            String tituloValidacion,
+            String tituloError
+    ) {
+        if (!esOperacionVigente(operacion)) return;
+        finalizarOperacion();
+        if (error instanceof IllegalArgumentException) {
+            mostrarAlerta(AlertType.WARNING, tituloValidacion, error.getMessage());
+        } else if (error instanceof IllegalStateException) {
+            mostrarAlerta(AlertType.ERROR, tituloError, MENSAJE_ERROR_RED);
+        } else {
+            mostrarAlerta(
+                    AlertType.ERROR,
+                    tituloError,
+                    "Ocurrió un error no esperado: " + error.getMessage()
+            );
         }
     }
 
+    private void finalizarOperacion() {
+        operacionEnCurso = false;
+        actualizarEstadoControles();
+    }
+
+    private void actualizarEstadoControles() {
+        boolean bloquearFormulario = operacionEnCurso || iaEnCurso;
+        txtFrase.setDisable(operacionEnCurso);
+        btnExtraerAI.setDisable(operacionEnCurso || iaEnCurso || cargaCategoriasEnCurso);
+        txtActividad.setDisable(bloquearFormulario);
+        dpFecha.setDisable(bloquearFormulario);
+        cbHoraInicio.setDisable(bloquearFormulario);
+        cbHoraFin.setDisable(bloquearFormulario);
+        lvCategorias.setDisable(bloquearFormulario || cargaCategoriasEnCurso);
+        btnReservar.setDisable(bloquearFormulario || cargaCategoriasEnCurso);
+        btnLimpiar.setDisable(bloquearFormulario);
+        tvMisReservas.setDisable(operacionEnCurso || cargaReservasEnCurso);
+        btnCancelarReserva.setDisable(
+                operacionEnCurso || cargaReservasEnCurso || reservaSeleccionada == null
+        );
+        btnImprimirReservas.setDisable(operacionEnCurso || cargaReservasEnCurso);
+    }
+
     // metodo auxiliar para construir alertas estándar
-    private void mostrarAlerta(AlertType tipo, String titulo, String mensaje) {
+    void mostrarAlerta(AlertType tipo, String titulo, String mensaje) {
         Alert alert = new Alert(tipo);
         alert.setTitle(titulo);
         alert.setHeaderText(null);
@@ -293,6 +540,8 @@ public class ReservasViewController implements Initializable {
 
     // metodos necesarios para el autocompletado con IA
     private void onAutocompletarIA() {
+        if (operacionEnCurso || iaEnCurso || cargaCategoriasEnCurso) return;
+
         String frase = txtFrase.getText();
 
         if (frase == null || frase.isBlank()) {
@@ -313,19 +562,19 @@ public class ReservasViewController implements Initializable {
 
         tarea.setOnSucceeded(event -> {
             llenarFormularioConDatosIA(tarea.getValue());
-            btnExtraerAI.setDisable(false);
-            establecerCamposFormularioDisponibles(true);
+            iaEnCurso = false;
+            actualizarEstadoControles();
         });
 
         tarea.setOnFailed(event -> {
-            btnExtraerAI.setDisable(false);
-            establecerCamposFormularioDisponibles(true);
+            iaEnCurso = false;
+            actualizarEstadoControles();
             mostrarAlerta(AlertType.ERROR, "Error de IA",
                     "No se pudo interpretar la frase: " + tarea.getException().getMessage());
         });
 
-        btnExtraerAI.setDisable(true);
-        establecerCamposFormularioDisponibles(false);
+        iaEnCurso = true;
+        actualizarEstadoControles();
         Thread hilo = new Thread(tarea);
         hilo.setDaemon(true);
         hilo.start();
@@ -343,18 +592,6 @@ public class ReservasViewController implements Initializable {
                     .anyMatch(txt -> txt.trim().equalsIgnoreCase(categoria.getDescripcion()));
             if (sugerida) lvCategorias.getSelectionModel().select(categoria);
         }
-    }
-
-    // metodo extra para bloquear los campos del formulario al usar el autocompletado de la IA
-    private void establecerCamposFormularioDisponibles(boolean disponible){
-        txtActividad.setDisable(!disponible);
-        txtActividad.setDisable(!disponible);
-        dpFecha.setDisable(!disponible);
-        cbHoraInicio.setDisable(!disponible);
-        cbHoraFin.setDisable(!disponible);
-        lvCategorias.setDisable(!disponible);
-        btnReservar.setDisable(!disponible);
-        btnLimpiar.setDisable(!disponible);
     }
 
     private LocalTime horaMasCercana(List<LocalTime> opciones, LocalTime horaIA) {

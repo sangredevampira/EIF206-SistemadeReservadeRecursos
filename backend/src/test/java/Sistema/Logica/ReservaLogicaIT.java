@@ -1,6 +1,7 @@
 package Sistema.Logica;
 
 import Sistema.DTO.ReservaDTO;
+import Sistema.DTO.EstadoReserva;
 import Sistema.Datos.ConexionBD;
 import Sistema.Datos.ReservaDatos;
 import org.junit.jupiter.api.AfterEach;
@@ -166,6 +167,65 @@ public class ReservaLogicaIT {
         assertEquals(0, contarReservasDelFuncionario(ID_FUNCIONARIO));
     }
 
+    @Test
+    void dosCancelacionesConcurrentesSoloConfirmanUnaTransicion() throws Exception {
+        ReservaDTO creada = new ReservaLogica().registrarReserva(
+                ID_FUNCIONARIO,
+                "Ignorado",
+                "Cancelación concurrente",
+                LocalDate.now().plusDays(1),
+                LocalTime.of(8, 0),
+                LocalTime.of(10, 0),
+                List.of(ID_CATEGORIA)
+        );
+        ReservaDatos datos = new DatosConLecturasSincronizadas();
+        ExecutorService hilos = Executors.newFixedThreadPool(2);
+        CountDownLatch salida = new CountDownLatch(1);
+        List<Future<Object>> resultados = new ArrayList<>();
+
+        try {
+            for (int i = 0; i < 2; i++) {
+                resultados.add(hilos.submit(() -> {
+                    salida.await();
+                    try {
+                        return new ReservaLogica(datos, null, null)
+                                .cancelarReserva(creada.getIdReserva());
+                    } catch (IllegalArgumentException e) {
+                        return e;
+                    }
+                }));
+            }
+            salida.countDown();
+
+            int exitos = 0;
+            int rechazos = 0;
+            for (Future<Object> resultado : resultados) {
+                Object valor = resultado.get(30, TimeUnit.SECONDS);
+                if (Boolean.TRUE.equals(valor)) {
+                    exitos++;
+                } else {
+                    rechazos++;
+                    assertEquals(
+                            "Esta reserva ya se encuentra cancelada",
+                            ((IllegalArgumentException) valor).getMessage()
+                    );
+                }
+            }
+
+            assertEquals(1, exitos, "Solo una solicitud debe cambiar ACTIVA a CANCELADA.");
+            assertEquals(1, rechazos);
+        } finally {
+            hilos.shutdownNow();
+        }
+
+        ReservaDTO guardada = new ReservaDatos().buscarReservaID(creada.getIdReserva());
+        assertNotNull(guardada);
+        assertEquals(EstadoReserva.CANCELADA, guardada.getEstado());
+        assertEquals(1, guardada.getRecursosReservados().size());
+        assertEquals(ID_RECURSO, guardada.getRecursosReservados().get(0).getId());
+        assertEquals(1, contarRelacionesDeReserva(creada.getIdReserva()));
+    }
+
     // --- apoyo ---
 
     private static String baseActual(Connection conexion) throws SQLException {
@@ -194,6 +254,37 @@ public class ReservaLogicaIT {
             try (ResultSet resultado = sentencia.executeQuery()) {
                 resultado.next();
                 return resultado.getInt(1);
+            }
+        }
+    }
+
+    private static int contarRelacionesDeReserva(String idReserva) throws SQLException {
+        try (Connection conexion = ConexionBD.obtenerConexion();
+             PreparedStatement sentencia = conexion.prepareStatement(
+                     "SELECT COUNT(*) FROM reserva_recurso WHERE id_reserva = ?")) {
+            sentencia.setString(1, idReserva);
+            try (ResultSet resultado = sentencia.executeQuery()) {
+                resultado.next();
+                return resultado.getInt(1);
+            }
+        }
+    }
+
+    private static final class DatosConLecturasSincronizadas extends ReservaDatos {
+        private final CountDownLatch lecturas = new CountDownLatch(2);
+
+        @Override
+        public ReservaDTO buscarReservaID(String id) {
+            ReservaDTO reserva = super.buscarReservaID(id);
+            lecturas.countDown();
+            try {
+                if (!lecturas.await(10, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("Las dos cancelaciones no alcanzaron la lectura inicial.");
+                }
+                return reserva;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("La prueba de cancelación fue interrumpida.", e);
             }
         }
     }

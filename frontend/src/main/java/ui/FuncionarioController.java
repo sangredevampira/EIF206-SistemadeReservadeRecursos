@@ -23,9 +23,9 @@ import javafx.scene.paint.Color;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 
 // Conecta la pantalla de funcionarios con el servidor por medio de ProxyFuncionarioService (FUNC_*).
-// La carga inicial va en TareaRed; buscar, guardar y borrar son directos (decision 13 del equipo).
 public class FuncionarioController {
 
     static final String MENSAJE_SIN_CONEXION_CARGAR =
@@ -66,6 +66,10 @@ public class FuncionarioController {
     // Funcionario actualmente seleccionado en el listado.
     // null = el formulario esta en modo "nuevo funcionario".
     private Funcionario funcionarioSeleccionado;
+    private long numeroConsulta;
+    private long numeroOperacion;
+    private boolean consultaEnCurso;
+    private boolean operacionEnCurso;
 
     // Lo usa MainController (loader.setController(new FuncionarioController()))
     public FuncionarioController() {
@@ -91,17 +95,79 @@ public class FuncionarioController {
         btnBorrar.setOnAction(evento -> borrar());
         btnLimpiar.setOnAction(evento -> limpiar());
         btnImprimir.setOnAction(evento -> imprimir());
+        campoBusquedaId.textProperty().addListener((observable, anterior, actual) ->
+                invalidarConsultaPorCambioFiltros());
+        campoBusquedaNombre.textProperty().addListener((observable, anterior, actual) ->
+                invalidarConsultaPorCambioFiltros());
 
-        // carga inicial en segundo plano; los callbacks vuelven al hilo de JavaFX
-        TareaRed.ejecutar(funcionarioService::listarTodos, this::mostrarListado, this::mostrarErrorCarga);
+        iniciarConsulta(
+                funcionarioService::listarTodos,
+                MENSAJE_SIN_CONEXION_CARGAR,
+                "No se pudo cargar el listado de funcionarios.",
+                "Cargando funcionarios..."
+        );
     }
 
-    // Recarga directa, despues de guardar o borrar
-    private void cargarListadoCompleto() {
-        try {
-            mostrarListado(funcionarioService.listarTodos());
-        } catch (RuntimeException e) {
-            mostrarErrorCarga(e);
+    private void iniciarConsulta(
+            Callable<List<Funcionario>> consulta,
+            String mensajeConexion,
+            String mensajeSistema,
+            String mensajeProcesando
+    ) {
+        long consultaActual = ++numeroConsulta;
+        consultaEnCurso = true;
+        actualizarEstadoControles();
+        lblMensaje.setTextFill(Color.web("#495057"));
+        lblMensaje.setText(mensajeProcesando);
+
+        TareaRed.ejecutar(
+                consulta,
+                funcionarios -> completarConsulta(
+                        consultaActual,
+                        funcionarios
+                ),
+                error -> mostrarErrorConsulta(
+                        consultaActual,
+                        error,
+                        mensajeConexion,
+                        mensajeSistema
+                )
+        );
+    }
+
+    private void completarConsulta(
+            long consulta,
+            List<Funcionario> funcionarios
+    ) {
+        if (consulta != numeroConsulta || !consultaEnCurso) return;
+
+        consultaEnCurso = false;
+        actualizarEstadoControles();
+        if (funcionarios == null) {
+            mostrarErrorSistema("El servidor no devolvió un listado válido de funcionarios.");
+            return;
+        }
+
+        mostrarListado(funcionarios);
+        limpiarMensaje();
+    }
+
+    private void mostrarErrorConsulta(
+            long consulta,
+            Throwable error,
+            String mensajeConexion,
+            String mensajeSistema
+    ) {
+        if (consulta != numeroConsulta || !consultaEnCurso) return;
+
+        consultaEnCurso = false;
+        actualizarEstadoControles();
+        if (error instanceof IllegalArgumentException) {
+            mostrarErrorValidacion(error.getMessage());
+        } else if (error instanceof IllegalStateException) {
+            mostrarErrorConexion(mensajeConexion);
+        } else {
+            mostrarErrorSistema(mensajeSistema + "\n" + error.getMessage());
         }
     }
 
@@ -109,7 +175,6 @@ public class FuncionarioController {
         tablaListado.setItems(FXCollections.observableArrayList(funcionarios));
     }
 
-    // Recibe un Throwable porque TareaRed entrega asi el error de la carga inicial
     private void mostrarErrorCarga(Throwable error) {
         if (error instanceof IllegalArgumentException) {
             mostrarErrorValidacion(error.getMessage());
@@ -121,20 +186,16 @@ public class FuncionarioController {
     }
 
     private void buscar() {
-        try {
-            String idParcial = campoBusquedaId.getText();
-            String nombreParcial = campoBusquedaNombre.getText();
-            List<Funcionario> resultado = funcionarioService.buscar(idParcial, nombreParcial);
-            tablaListado.setItems(FXCollections.observableArrayList(resultado));
-            limpiarMensaje();
-        } catch (IllegalArgumentException e) {
-            // el servidor respondio exito=false (por ejemplo, "No tiene permiso para esta operación.")
-            mostrarErrorValidacion(e.getMessage());
-        } catch (IllegalStateException e) {
-            mostrarErrorConexion(MENSAJE_SIN_CONEXION_BUSCAR);
-        } catch (RuntimeException e) {
-            mostrarErrorSistema("No se pudo realizar la busqueda.\n" + e.getMessage());
-        }
+        if (operacionEnCurso) return;
+
+        String idParcial = campoBusquedaId.getText();
+        String nombreParcial = campoBusquedaNombre.getText();
+        iniciarConsulta(
+                () -> funcionarioService.buscar(idParcial, nombreParcial),
+                MENSAJE_SIN_CONEXION_BUSCAR,
+                "No se pudo realizar la busqueda.",
+                "Buscando funcionarios..."
+        );
     }
 
     private void cargarEnFormulario(Funcionario funcionario) {
@@ -151,70 +212,176 @@ public class FuncionarioController {
     }
 
     private void guardar() {
+        if (operacionEnCurso) return;
+
         Funcionario funcionario = new Funcionario(
                 campoId.getText(), campoNombre.getText(), campoTelefono.getText());
 
         boolean esNuevo = (funcionarioSeleccionado == null);
-
-        try {
-            ResultadoOperacionDTO resultado = esNuevo
-                    ? funcionarioService.registrar(funcionario)
-                    : funcionarioService.modificar(funcionario);
-
-            if (resultado.isExito()) {
-                limpiar();
-                cargarListadoCompleto();
-                mostrarMensajeExito(esNuevo ? "Funcionario registrado correctamente."
-                        : "Funcionario modificado correctamente.");
-            } else {
-                mostrarErrorValidacion(resultado.getMensaje());
-            }
-        } catch (IllegalArgumentException e) {
-            mostrarErrorValidacion(e.getMessage());
-        } catch (IllegalStateException e) {
-            mostrarErrorConexion(MENSAJE_SIN_CONEXION_GUARDAR);
-        } catch (RuntimeException e) {
-            mostrarErrorSistema("No se pudo guardar el funcionario.\n" + e.getMessage());
-        }
+        iniciarOperacion(
+                () -> esNuevo
+                        ? funcionarioService.registrar(funcionario)
+                        : funcionarioService.modificar(funcionario),
+                esNuevo ? "Registrando funcionario..." : "Modificando funcionario...",
+                esNuevo ? "Funcionario registrado correctamente."
+                        : "Funcionario modificado correctamente.",
+                MENSAJE_SIN_CONEXION_GUARDAR,
+                "No se pudo guardar el funcionario."
+        );
     }
 
     private void borrar() {
+        if (operacionEnCurso) return;
+
         if (funcionarioSeleccionado == null) {
             mostrarErrorValidacion("Seleccione un funcionario del listado para borrar.");
             return;
         }
 
+        Funcionario funcionarioABorrar = funcionarioSeleccionado;
+        if (!confirmarBorrado(funcionarioABorrar)) return;
+
+        iniciarOperacion(
+                () -> funcionarioService.eliminar(funcionarioABorrar.getId()),
+                "Eliminando funcionario...",
+                "Funcionario eliminado correctamente.",
+                MENSAJE_SIN_CONEXION_BORRAR,
+                "No se pudo borrar el funcionario."
+        );
+    }
+
+    boolean confirmarBorrado(Funcionario funcionario) {
         Alert confirmacion = new Alert(
                 Alert.AlertType.CONFIRMATION,
                 "¿Está seguro de que desea borrar al funcionario \""
-                        + funcionarioSeleccionado.getNombre() + "\" (ID " + funcionarioSeleccionado.getId() + ")?",
+                        + funcionario.getNombre() + "\" (ID " + funcionario.getId() + ")?",
                 ButtonType.YES, ButtonType.NO);
         confirmacion.setTitle("Confirmar borrado");
         confirmacion.setHeaderText(null);
+        return confirmacion.showAndWait().orElse(ButtonType.NO) == ButtonType.YES;
+    }
 
-        confirmacion.showAndWait().ifPresent(respuesta -> {
-            if (respuesta != ButtonType.YES) {
-                return;
-            }
-            try {
-                ResultadoOperacionDTO resultado =
-                        funcionarioService.eliminar(funcionarioSeleccionado.getId());
+    private void iniciarOperacion(
+            Callable<ResultadoOperacionDTO> operacion,
+            String mensajeProcesando,
+            String mensajeExito,
+            String mensajeConexion,
+            String mensajeSistema
+    ) {
+        long operacionActual = ++numeroOperacion;
+        numeroConsulta++;
+        consultaEnCurso = false;
+        operacionEnCurso = true;
+        actualizarEstadoControles();
+        lblMensaje.setTextFill(Color.web("#495057"));
+        lblMensaje.setText(mensajeProcesando);
 
-                if (resultado.isExito()) {
-                    limpiar();
-                    cargarListadoCompleto();
-                    mostrarMensajeExito("Funcionario eliminado correctamente.");
-                } else {
-                    mostrarErrorValidacion(resultado.getMensaje());
+        TareaRed.ejecutar(
+                operacion,
+                resultado -> completarOperacion(
+                        operacionActual,
+                        resultado,
+                        mensajeExito
+                ),
+                error -> mostrarErrorOperacion(
+                        operacionActual,
+                        error,
+                        mensajeConexion,
+                        mensajeSistema
+                )
+        );
+    }
+
+    private void completarOperacion(
+            long operacion,
+            ResultadoOperacionDTO resultado,
+            String mensajeExito
+    ) {
+        if (operacion != numeroOperacion || !operacionEnCurso) return;
+
+        if (resultado == null) {
+            finalizarOperacion();
+            mostrarErrorSistema("El servidor no devolvió un resultado válido.");
+            return;
+        }
+        if (!resultado.isExito()) {
+            finalizarOperacion();
+            mostrarErrorValidacion(resultado.getMensaje());
+            return;
+        }
+
+        limpiar();
+        mostrarMensajeExito(mensajeExito);
+        actualizarEstadoControles();
+        recargarDespuesOperacion(operacion);
+    }
+
+    private void recargarDespuesOperacion(long operacion) {
+        TareaRed.ejecutar(
+                funcionarioService::listarTodos,
+                funcionarios -> {
+                    if (operacion != numeroOperacion || !operacionEnCurso) return;
+                    if (funcionarios == null) {
+                        finalizarOperacion();
+                        mostrarErrorSistema("El servidor no devolvió un listado válido de funcionarios.");
+                        return;
+                    }
+                    mostrarListado(funcionarios);
+                    finalizarOperacion();
+                },
+                error -> {
+                    if (operacion != numeroOperacion || !operacionEnCurso) return;
+                    finalizarOperacion();
+                    mostrarErrorCarga(error);
                 }
-            } catch (IllegalArgumentException e) {
-                mostrarErrorValidacion(e.getMessage());
-            } catch (IllegalStateException e) {
-                mostrarErrorConexion(MENSAJE_SIN_CONEXION_BORRAR);
-            } catch (RuntimeException e) {
-                mostrarErrorSistema("No se pudo borrar el funcionario.\n" + e.getMessage());
-            }
-        });
+        );
+    }
+
+    private void mostrarErrorOperacion(
+            long operacion,
+            Throwable error,
+            String mensajeConexion,
+            String mensajeSistema
+    ) {
+        if (operacion != numeroOperacion || !operacionEnCurso) return;
+
+        finalizarOperacion();
+        if (error instanceof IllegalArgumentException) {
+            mostrarErrorValidacion(error.getMessage());
+        } else if (error instanceof IllegalStateException) {
+            mostrarErrorConexion(mensajeConexion);
+        } else {
+            mostrarErrorSistema(mensajeSistema + "\n" + error.getMessage());
+        }
+    }
+
+    private void finalizarOperacion() {
+        operacionEnCurso = false;
+        actualizarEstadoControles();
+    }
+
+    private void invalidarConsultaPorCambioFiltros() {
+        numeroConsulta++;
+        if (!consultaEnCurso || operacionEnCurso) return;
+
+        consultaEnCurso = false;
+        actualizarEstadoControles();
+        mostrarErrorValidacion("Los filtros cambiaron. Presione Buscar nuevamente.");
+    }
+
+    private void actualizarEstadoControles() {
+        boolean bloquearPorOperacion = operacionEnCurso;
+        campoBusquedaId.setDisable(bloquearPorOperacion);
+        campoBusquedaNombre.setDisable(bloquearPorOperacion);
+        btnBuscar.setDisable(bloquearPorOperacion);
+        campoId.setDisable(bloquearPorOperacion || funcionarioSeleccionado != null);
+        campoNombre.setDisable(bloquearPorOperacion);
+        campoTelefono.setDisable(bloquearPorOperacion);
+        btnGuardar.setDisable(bloquearPorOperacion);
+        btnBorrar.setDisable(bloquearPorOperacion);
+        btnLimpiar.setDisable(bloquearPorOperacion);
+        tablaListado.setDisable(bloquearPorOperacion || consultaEnCurso);
+        btnImprimir.setDisable(bloquearPorOperacion || consultaEnCurso);
     }
 
     private void limpiar() {
@@ -275,7 +442,7 @@ public class FuncionarioController {
         mostrarAlertaError("Error de conexión", mensaje);
     }
 
-    private void mostrarAlertaError(String titulo, String mensaje) {
+    void mostrarAlertaError(String titulo, String mensaje) {
         Alert alerta = new Alert(Alert.AlertType.ERROR, mensaje);
         alerta.setTitle(titulo);
         alerta.setHeaderText(null);

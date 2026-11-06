@@ -1,12 +1,14 @@
 package ui;
 
 import Sistema.DTO.LoginResultadoDTO;
+import Sistema.Red.TareaRed;
 import Sistema.Service.IAuthService;
 import Sistema.Service.Red.ProxyAuthService;
 import Sistema.util.SessionManager;
 import Sistema.util.VentanaUtil;
 
 import javafx.application.Platform;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -23,7 +25,6 @@ import java.io.IOException;
 import java.util.Objects;
 
 // Conecta la pantalla de login con el servidor por medio de ProxyAuthService (AUTH_LOGIN).
-// La llamada es directa, sin TareaRed (decision 13 del equipo).
 
 public class LoginController {
 
@@ -40,6 +41,8 @@ public class LoginController {
     @FXML private Button btnCambiar;
 
     private final IAuthService authService;
+    private boolean inicioSesionEnCurso;
+    private long numeroIntento;
 
     // Lo usan Main y MainController (loader.setController(new LoginController()))
     public LoginController() {
@@ -54,7 +57,7 @@ public class LoginController {
     @FXML
     private void initialize() {
         btnIngresar.setOnAction(this::manejarIngresar);
-        btnCancelar.setOnAction(e -> Platform.exit());
+        btnCancelar.setOnAction(evento -> cancelarInicioSesion());
         btnCambiar.setOnAction(this::abrirCambiarClave);
     }
 
@@ -83,45 +86,88 @@ public class LoginController {
         }
     }
 
-    private void manejarIngresar(javafx.event.ActionEvent evento) {
-        String mensaje = iniciarSesion(campoId.getText(), campoClave.getText());
-        if (mensaje == null) {
-            lblMensaje.setText("");
-            abrirVentanaPrincipal(evento);
-        } else {
-            lblMensaje.setText(mensaje);
-        }
+    private void manejarIngresar(ActionEvent evento) {
+        if (inicioSesionEnCurso) return;
+
+        String id = campoId.getText();
+        String clave = campoClave.getText();
+        long intentoActual = ++numeroIntento;
+
+        establecerSolicitudEnCurso(true);
+        lblMensaje.setText("Verificando credenciales...");
+
+        TareaRed.ejecutar(
+                () -> authService.login(id, clave),
+                resultado -> completarInicioSesion(
+                        intentoActual,
+                        resultado,
+                        evento
+                ),
+                error -> mostrarErrorInicioSesion(intentoActual, error)
+        );
     }
 
-    /**
-     * Pide el login al servidor y, si sale bien, inicia la sesion local (SessionManager).
-     * No usa controles de JavaFX, para poder probarlo sin abrir ventanas.
-     *
-     * @return null si el login salio bien; si no, el mensaje que se muestra en lblMensaje
-     */
-    String iniciarSesion(String id, String clave) {
-        try {
-            LoginResultadoDTO resultado = authService.login(id, clave);
+    private void completarInicioSesion(
+            long intento,
+            LoginResultadoDTO resultado,
+            ActionEvent evento
+    ) {
+        if (intento != numeroIntento || !inicioSesionEnCurso) return;
 
+        try {
             // se guarda el ID que devuelve el servidor (como esta en la base), no el escrito
             SessionManager.getInstancia().iniciarSesion(
                     resultado.getIdUsuario(),
                     resultado.getRol().name(),
                     resultado.getFuncionario()
             );
-            return null;
-        } catch (IllegalArgumentException e) {
-            // el servidor respondio exito=false: regla de negocio ("ID o clave incorrectos.", etc.)
-            return e.getMessage();
-        } catch (IllegalStateException e) {
-            // problema de red o respuesta invalida: la clave no llego a revisarse
-            return MENSAJE_SIN_CONEXION;
-        } catch (RuntimeException e) {
-            return MENSAJE_ERROR_INESPERADO;
+            lblMensaje.setText("");
+
+            if (!abrirVentanaPrincipal(evento)) {
+                SessionManager.getInstancia().cerrarSesion();
+                establecerSolicitudEnCurso(false);
+            }
+        } catch (RuntimeException error) {
+            SessionManager.getInstancia().cerrarSesion();
+            lblMensaje.setText(MENSAJE_ERROR_INESPERADO);
+            establecerSolicitudEnCurso(false);
         }
     }
 
-    private void abrirVentanaPrincipal(javafx.event.ActionEvent evento) {
+    private void mostrarErrorInicioSesion(long intento, Throwable error) {
+        if (intento != numeroIntento || !inicioSesionEnCurso) return;
+
+        if (error instanceof IllegalArgumentException
+                && error.getMessage() != null
+                && !error.getMessage().isBlank()) {
+            lblMensaje.setText(error.getMessage());
+        } else if (error instanceof IllegalStateException) {
+            lblMensaje.setText(MENSAJE_SIN_CONEXION);
+        } else {
+            lblMensaje.setText(MENSAJE_ERROR_INESPERADO);
+        }
+        establecerSolicitudEnCurso(false);
+    }
+
+    private void establecerSolicitudEnCurso(boolean enCurso) {
+        inicioSesionEnCurso = enCurso;
+        campoId.setDisable(enCurso);
+        campoClave.setDisable(enCurso);
+        btnIngresar.setDisable(enCurso);
+        btnCambiar.setDisable(enCurso);
+    }
+
+    private void cancelarInicioSesion() {
+        numeroIntento++;
+        establecerSolicitudEnCurso(false);
+        salirAplicacion();
+    }
+
+    void salirAplicacion() {
+        Platform.exit();
+    }
+
+    boolean abrirVentanaPrincipal(ActionEvent evento) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sistema/view/MainView.fxml"));
             loader.setController(new MainController());
@@ -138,10 +184,11 @@ public class LoginController {
             // Tamaño fijo y centrado exacto en la pantalla
             VentanaUtil.fijarYCentrar(escenario);
             escenario.show();
+            return true;
 
         } catch (IOException e) {
-            e.printStackTrace();
             lblMensaje.setText("No se pudo abrir la ventana principal.");
+            return false;
         }
     }
 }

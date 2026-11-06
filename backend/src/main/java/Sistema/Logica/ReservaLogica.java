@@ -19,6 +19,8 @@ import java.util.List;
 
 public class ReservaLogica {
 
+    static final int MAX_CARACTERES_ACTIVIDAD = 200;
+
     // codigo de error de MySQL: la clave foranea no existe (aqui, el funcionario de la reserva)
     static final int ERROR_CLAVE_FORANEA = 1452;
 
@@ -148,8 +150,9 @@ public class ReservaLogica {
         if(reserva.getFecha().isBefore(LocalDate.now()))
             throw new IllegalArgumentException("No se puede cancelar una reserva que ya pasó");
 
-        reserva.setEstado(EstadoReserva.CANCELADA);
-        return reservaDatos.modificarReserva(reserva);
+        if (!reservaDatos.cancelarReservaActiva(idReserva))
+            throw new IllegalArgumentException("Esta reserva ya se encuentra cancelada");
+        return true;
     }
 
     public ReservaDTO buscarReservaID(String id){
@@ -195,6 +198,8 @@ public class ReservaLogica {
                                        List<String> idsCategoriasSolicitadas) {
         if (nombreActividad == null || nombreActividad.isBlank())
             throw new IllegalArgumentException("Debe describir la actividad a realizar.");
+        if (nombreActividad.length() > MAX_CARACTERES_ACTIVIDAD)
+            throw new IllegalArgumentException("La actividad no puede exceder los 200 caracteres.");
         if (fecha == null)
             throw new IllegalArgumentException("Debe indicar la fecha de la reserva.");
         if (fecha.isBefore(LocalDate.now()))
