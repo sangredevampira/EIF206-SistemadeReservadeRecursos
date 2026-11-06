@@ -161,6 +161,22 @@ public class ReservaDatos {
         return conNuevaConexion(conexion -> modificarReserva(conexion, reserva));
     }
 
+    // Transicion atomica ACTIVA -> CANCELADA. MySQL bloquea la fila durante el
+    // UPDATE y vuelve a comprobar el estado despues de esperar ese bloqueo, por
+    // lo que dos conexiones concurrentes no pueden cancelar la misma reserva.
+    public boolean cancelarReservaActiva(Connection conexion, String idReserva) throws SQLException {
+        try (PreparedStatement sentencia = conexion.prepareStatement(
+                "UPDATE reserva SET estado = 'CANCELADA'"
+                        + " WHERE id_reserva = ? AND estado = 'ACTIVA'")) {
+            sentencia.setString(1, idReserva);
+            return sentencia.executeUpdate() == 1;
+        }
+    }
+
+    public boolean cancelarReservaActiva(String idReserva) {
+        return conNuevaConexion(conexion -> cancelarReservaActiva(conexion, idReserva));
+    }
+
     // true si el funcionario existe y no esta dado de baja; usa la conexion recibida y no la cierra
     public boolean funcionarioActivo(Connection conexion, String idFuncionario) throws SQLException {
         try (PreparedStatement sentencia = conexion.prepareStatement(

@@ -30,9 +30,23 @@ public class CalendarizacionController {
     private LocalDate fechaCargada;
     private CategoriaDTO categoriaCargada;
     private CalendarizacionDTO calendarizacionCargada;
-    private final ICategoriaService categoriaService = new ProxyCategoriaService();
-    private final ICalendarizacionService calendarizacionService = new ProxyCalendarizacionService();
+    private final ICategoriaService categoriaService;
+    private final ICalendarizacionService calendarizacionService;
     private final PdfController pdfController = new PdfController();
+    private long numeroConsulta;
+    private boolean consultaEnCurso;
+
+    public CalendarizacionController() {
+        this(new ProxyCategoriaService(), new ProxyCalendarizacionService());
+    }
+
+    CalendarizacionController(
+            ICategoriaService categoriaService,
+            ICalendarizacionService calendarizacionService
+    ) {
+        this.categoriaService = Objects.requireNonNull(categoriaService);
+        this.calendarizacionService = Objects.requireNonNull(calendarizacionService);
+    }
 
     @FXML
     private void initialize() {
@@ -41,6 +55,10 @@ public class CalendarizacionController {
         btnCargar.setOnAction(evento -> cargarCalendarizacion());
         btnLimpiar.setOnAction(evento -> limpiarCalendarizacion());
         btnGenerarPdf.setOnAction(evento -> generarPdf());
+        dpFecha.valueProperty().addListener((observable, anterior, actual) ->
+                invalidarConsultaPorCambioFiltros());
+        cbCategoria.valueProperty().addListener((observable, anterior, actual) ->
+                invalidarConsultaPorCambioFiltros());
         cargarCategorias();
     }
     private void cargarCategorias() {
@@ -103,29 +121,93 @@ public class CalendarizacionController {
 
         LocalDate fecha = dpFecha.getValue();
         CategoriaDTO categoria = cbCategoria.getValue();
-        TareaRed.ejecutar(
-                () -> calendarizacionService.consultar(categoria.getId(), fecha),
-                dto -> {
-                    if (dto.getRecursos() == null || dto.getRecursos().isEmpty()) {
-                        reiniciarTabla();
-                        lblEstado.setText("No existen recursos registrados para la categoría seleccionada.");
-                        return;
-                    }
-                    calendarizacionCargada = dto;
-                    fechaCargada = fecha;
-                    categoriaCargada = categoria;
-                    crearColumnasRecursos();
-                    cargarHorasDelDia();
-                    tvCalendarizacion.refresh();
-                    lblEstado.setText("Calendarización cargada correctamente.");
-                },
-                error -> {
-                    reiniciarTabla();
-                    lblEstado.setText(error instanceof IllegalArgumentException
-                            ? "No se pudo cargar la calendarización: " + error.getMessage()
-                            : mensajeDeError(error));
-                }
+        String idCategoria = categoria.getId();
+        CategoriaDTO categoriaConsultada = new CategoriaDTO(
+                idCategoria,
+                categoria.getDescripcion()
         );
+        long consultaActual = ++numeroConsulta;
+        consultaEnCurso = true;
+        reiniciarTabla();
+        lblEstado.setText("Cargando calendarización...");
+
+        TareaRed.ejecutar(
+                () -> calendarizacionService.consultar(idCategoria, fecha),
+                dto -> completarConsulta(
+                        consultaActual,
+                        fecha,
+                        categoriaConsultada,
+                        dto
+                ),
+                error -> mostrarErrorConsulta(
+                        consultaActual,
+                        fecha,
+                        idCategoria,
+                        error
+                )
+        );
+    }
+    private void completarConsulta(
+            long consulta,
+            LocalDate fecha,
+            CategoriaDTO categoria,
+            CalendarizacionDTO dto
+    ) {
+        if (consulta != numeroConsulta) return;
+        consultaEnCurso = false;
+
+        if (!filtrosCoinciden(fecha, categoria.getId())) {
+            reiniciarTabla();
+            lblEstado.setText("Los filtros cambiaron. Presione \"Cargar\" nuevamente.");
+            return;
+        }
+
+        if (dto.getRecursos() == null || dto.getRecursos().isEmpty()) {
+            reiniciarTabla();
+            lblEstado.setText("No existen recursos registrados para la categoría seleccionada.");
+            return;
+        }
+
+        calendarizacionCargada = dto;
+        fechaCargada = fecha;
+        categoriaCargada = categoria;
+        crearColumnasRecursos();
+        cargarHorasDelDia();
+        tvCalendarizacion.refresh();
+        lblEstado.setText("Calendarización cargada correctamente.");
+    }
+    private void mostrarErrorConsulta(
+            long consulta,
+            LocalDate fecha,
+            String idCategoria,
+            Throwable error
+    ) {
+        if (consulta != numeroConsulta) return;
+        consultaEnCurso = false;
+
+        reiniciarTabla();
+        if (!filtrosCoinciden(fecha, idCategoria)) {
+            lblEstado.setText("Los filtros cambiaron. Presione \"Cargar\" nuevamente.");
+            return;
+        }
+
+        lblEstado.setText(error instanceof IllegalArgumentException
+                ? "No se pudo cargar la calendarización: " + error.getMessage()
+                : mensajeDeError(error));
+    }
+    private boolean filtrosCoinciden(LocalDate fecha, String idCategoria) {
+        CategoriaDTO categoriaActual = cbCategoria.getValue();
+        return Objects.equals(fecha, dpFecha.getValue())
+                && categoriaActual != null
+                && Objects.equals(idCategoria, categoriaActual.getId());
+    }
+    private void invalidarConsultaPorCambioFiltros() {
+        numeroConsulta++;
+        if (!consultaEnCurso) return;
+
+        consultaEnCurso = false;
+        reiniciarTabla();
+        lblEstado.setText("Los filtros cambiaron. Presione \"Cargar\" nuevamente.");
     }
     private void reiniciarTabla() {
         calendarizacionCargada = null;
@@ -135,6 +217,8 @@ public class CalendarizacionController {
         tvCalendarizacion.getColumns().setAll(colHora);
     }
     private void limpiarCalendarizacion() {
+        numeroConsulta++;
+        consultaEnCurso = false;
         dpFecha.setValue(null);
         cbCategoria.getSelectionModel().clearSelection();
         reiniciarTabla();

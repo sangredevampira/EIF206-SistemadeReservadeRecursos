@@ -91,6 +91,63 @@ class DisponibilidadServiceTest {
                 manana, horaInicio, horaFin, List.of("CAT-000001"));
     }
 
+    private ReservaDTO registrarActividad(String actividad) {
+        return reservaLogica.registrarReserva("FUNC-01", "Ana", actividad,
+                manana, LocalTime.of(8, 0), LocalTime.of(10, 0), List.of("CAT-000001"));
+    }
+
+    @Test
+    void nombreDeActividadValidoSeAcepta() {
+        ReservaDTO reserva = registrarActividad("Reunión de planificación");
+
+        assertEquals("Reunión de planificación", reserva.getNombreActividad());
+        assertTrue(reservaDatos.seLlamoAgregar);
+    }
+
+    @Test
+    void nombreDeActividadVacioSeRechaza() {
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> registrarActividad("")
+        );
+
+        assertEquals("Debe describir la actividad a realizar.", error.getMessage());
+        assertTrue(conexionFalsa.llamadas.isEmpty());
+    }
+
+    @Test
+    void nombreDeActividadDeDoscientosCaracteresSeAcepta() {
+        String actividad = "a".repeat(200);
+
+        ReservaDTO reserva = registrarActividad(actividad);
+
+        assertEquals(200, reserva.getNombreActividad().length());
+        assertTrue(reservaDatos.seLlamoAgregar);
+    }
+
+    @Test
+    void nombreDeActividadDeDoscientosUnCaracteresSeRechaza() {
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> registrarActividad("a".repeat(201))
+        );
+
+        assertEquals("La actividad no puede exceder los 200 caracteres.", error.getMessage());
+        assertTrue(conexionFalsa.llamadas.isEmpty());
+    }
+
+    @Test
+    void nombreDeActividadConEspaciosConservaLasReglasExistentes() {
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> registrarActividad("   ")
+        );
+        assertEquals("Debe describir la actividad a realizar.", error.getMessage());
+
+        ReservaDTO reserva = registrarActividad("  Reunión  ");
+        assertEquals("  Reunión  ", reserva.getNombreActividad());
+    }
+
     @Test
     void sinReservasPreviasElRecursoQuedaDisponibleYSeRegistra() {
         ReservaDTO reserva = registrar(LocalTime.of(8, 0), LocalTime.of(10, 0));

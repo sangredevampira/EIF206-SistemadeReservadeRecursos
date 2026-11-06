@@ -23,10 +23,9 @@ import javafx.scene.paint.Color;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 
-// Usa ProxyCategoriaService (CAT_*). La carga inicial va en TareaRed; buscar,
-// guardar y borrar son directos (decision 13 del equipo).
-//
+// Usa ProxyCategoriaService (CAT_*).
 // A diferencia de FuncionarioController (que se conecta por codigo desde
 // MainController), este usa fx:controller directo en CategoriasView.fxml
 // + <fx:include> desde MainView.fxml -- el patron que se acordo usar de
@@ -67,6 +66,10 @@ public class CategoriaController {
     private final PdfController pdfController = new PdfController();
 
     private CategoriaDTO categoriaSeleccionada;
+    private long numeroConsulta;
+    private long numeroOperacion;
+    private boolean consultaEnCurso;
+    private boolean operacionEnCurso;
 
     // Lo usa FXMLLoader por el fx:controller de CategoriasView.fxml
     public CategoriaController() {
@@ -91,19 +94,76 @@ public class CategoriaController {
         btnBorrar.setOnAction(evento -> borrar());
         btnLimpiar.setOnAction(evento -> limpiar());
         btnImprimir.setOnAction(evento -> imprimir());
+        campoBusquedaDescripcion.textProperty().addListener((observable, anterior, actual) ->
+                invalidarConsultaPorCambioFiltro());
 
         campoId.setDisable(true); // el ID siempre es autogenerado, nunca editable
 
-        // carga inicial en segundo plano; los callbacks vuelven al hilo de JavaFX
-        TareaRed.ejecutar(categoriaService::listarTodos, this::mostrarListado, this::mostrarErrorCarga);
+        iniciarConsulta(
+                categoriaService::listarTodos,
+                MENSAJE_SIN_CONEXION_CARGAR,
+                "No se pudo cargar el listado de categorias.",
+                "Cargando categorías..."
+        );
     }
 
-    // Recarga directa, despues de guardar o borrar
-    private void cargarListadoCompleto() {
-        try {
-            mostrarListado(categoriaService.listarTodos());
-        } catch (RuntimeException e) {
-            mostrarErrorCarga(e);
+    private void iniciarConsulta(
+            Callable<List<CategoriaDTO>> consulta,
+            String mensajeConexion,
+            String mensajeSistema,
+            String mensajeProcesando
+    ) {
+        long consultaActual = ++numeroConsulta;
+        consultaEnCurso = true;
+        actualizarEstadoControles();
+        lblMensaje.setTextFill(Color.web("#495057"));
+        lblMensaje.setText(mensajeProcesando);
+
+        TareaRed.ejecutar(
+                consulta,
+                categorias -> completarConsulta(consultaActual, categorias),
+                error -> mostrarErrorConsulta(
+                        consultaActual,
+                        error,
+                        mensajeConexion,
+                        mensajeSistema
+                )
+        );
+    }
+
+    private void completarConsulta(
+            long consulta,
+            List<CategoriaDTO> categorias
+    ) {
+        if (consulta != numeroConsulta || !consultaEnCurso) return;
+
+        consultaEnCurso = false;
+        actualizarEstadoControles();
+        if (categorias == null) {
+            mostrarErrorSistema("El servidor no devolvió un listado válido de categorías.");
+            return;
+        }
+
+        mostrarListado(categorias);
+        limpiarMensaje();
+    }
+
+    private void mostrarErrorConsulta(
+            long consulta,
+            Throwable error,
+            String mensajeConexion,
+            String mensajeSistema
+    ) {
+        if (consulta != numeroConsulta || !consultaEnCurso) return;
+
+        consultaEnCurso = false;
+        actualizarEstadoControles();
+        if (error instanceof IllegalArgumentException) {
+            mostrarErrorValidacion(error.getMessage());
+        } else if (error instanceof IllegalStateException) {
+            mostrarErrorConexion(mensajeConexion);
+        } else {
+            mostrarErrorSistema(mensajeSistema + "\n" + error.getMessage());
         }
     }
 
@@ -111,7 +171,6 @@ public class CategoriaController {
         tablaListado.setItems(FXCollections.observableArrayList(categorias));
     }
 
-    // Recibe un Throwable porque TareaRed entrega asi el error de la carga inicial
     private void mostrarErrorCarga(Throwable error) {
         if (error instanceof IllegalArgumentException) {
             mostrarErrorValidacion(error.getMessage());
@@ -123,18 +182,15 @@ public class CategoriaController {
     }
 
     private void buscar() {
-        try {
-            List<CategoriaDTO> resultado = categoriaService.buscar(campoBusquedaDescripcion.getText());
-            tablaListado.setItems(FXCollections.observableArrayList(resultado));
-            limpiarMensaje();
-        } catch (IllegalArgumentException e) {
-            // el servidor respondio exito=false (por ejemplo, "No tiene permiso para esta operación.")
-            mostrarErrorValidacion(e.getMessage());
-        } catch (IllegalStateException e) {
-            mostrarErrorConexion(MENSAJE_SIN_CONEXION_BUSCAR);
-        } catch (RuntimeException e) {
-            mostrarErrorSistema("No se pudo realizar la busqueda.\n" + e.getMessage());
-        }
+        if (operacionEnCurso) return;
+
+        String descripcion = campoBusquedaDescripcion.getText();
+        iniciarConsulta(
+                () -> categoriaService.buscar(descripcion),
+                MENSAJE_SIN_CONEXION_BUSCAR,
+                "No se pudo realizar la busqueda.",
+                "Buscando categorías..."
+        );
     }
 
     private void cargarEnFormulario(CategoriaDTO categoria) {
@@ -149,73 +205,175 @@ public class CategoriaController {
     }
 
     private void guardar() {
+        if (operacionEnCurso) return;
+
         boolean esNueva = (categoriaSeleccionada == null);
 
         CategoriaDTO categoria = esNueva
                 ? new CategoriaDTO(null, campoDescripcion.getText())
                 : new CategoriaDTO(categoriaSeleccionada.getId(), campoDescripcion.getText());
-
-        try {
-            ResultadoOperacionDTO resultado = esNueva
-                    ? categoriaService.registrar(categoria)
-                    : categoriaService.modificar(categoria);
-
-            if (resultado.isExito()) {
-                limpiar();
-                cargarListadoCompleto();
-                mostrarMensajeExito(esNueva ? "Categoria registrada correctamente."
-                        : "Categoria modificada correctamente.");
-            } else {
-                mostrarErrorValidacion(resultado.getMensaje());
-            }
-        } catch (IllegalArgumentException e) {
-            mostrarErrorValidacion(e.getMessage());
-        } catch (IllegalStateException e) {
-            mostrarErrorConexion(MENSAJE_SIN_CONEXION_GUARDAR);
-        } catch (RuntimeException e) {
-            mostrarErrorSistema("No se pudo guardar la categoria.\n" + e.getMessage());
-        }
+        iniciarOperacion(
+                () -> esNueva
+                        ? categoriaService.registrar(categoria)
+                        : categoriaService.modificar(categoria),
+                esNueva ? "Registrando categoría..." : "Modificando categoría...",
+                esNueva ? "Categoria registrada correctamente."
+                        : "Categoria modificada correctamente.",
+                MENSAJE_SIN_CONEXION_GUARDAR,
+                "No se pudo guardar la categoria."
+        );
     }
 
     private void borrar() {
+        if (operacionEnCurso) return;
+
         if (categoriaSeleccionada == null) {
             mostrarErrorValidacion("Seleccione una categoria del listado para borrar.");
             return;
         }
 
+        CategoriaDTO categoriaABorrar = categoriaSeleccionada;
+        if (!confirmarBorrado(categoriaABorrar)) return;
+
+        iniciarOperacion(
+                () -> categoriaService.eliminar(categoriaABorrar.getId()),
+                "Eliminando categoría...",
+                "Categoria eliminada correctamente.",
+                MENSAJE_SIN_CONEXION_BORRAR,
+                "No se pudo borrar la categoria."
+        );
+    }
+
+    boolean confirmarBorrado(CategoriaDTO categoria) {
         Alert confirmacion = new Alert(
                 Alert.AlertType.CONFIRMATION,
                 "¿Está seguro de que desea borrar la categoria \""
-                        + categoriaSeleccionada.getDescripcion() + "\"?",
+                        + categoria.getDescripcion() + "\"?",
                 ButtonType.YES, ButtonType.NO);
         confirmacion.setTitle("Confirmar borrado");
         confirmacion.setHeaderText(null);
+        return confirmacion.showAndWait().orElse(ButtonType.NO) == ButtonType.YES;
+    }
 
-        confirmacion.showAndWait().ifPresent(respuesta -> {
-            if (respuesta != ButtonType.YES) {
-                return;
-            }
-            try {
-                ResultadoOperacionDTO resultado =
-                        categoriaService.eliminar(categoriaSeleccionada.getId());
+    private void iniciarOperacion(
+            Callable<ResultadoOperacionDTO> operacion,
+            String mensajeProcesando,
+            String mensajeExito,
+            String mensajeConexion,
+            String mensajeSistema
+    ) {
+        long operacionActual = ++numeroOperacion;
+        numeroConsulta++;
+        consultaEnCurso = false;
+        operacionEnCurso = true;
+        actualizarEstadoControles();
+        lblMensaje.setTextFill(Color.web("#495057"));
+        lblMensaje.setText(mensajeProcesando);
 
-                if (resultado.isExito()) {
-                    limpiar();
-                    cargarListadoCompleto();
-                    mostrarMensajeExito("Categoria eliminada correctamente.");
-                } else {
-                    // Aca cae, por ejemplo, "tiene recursos asociados" --
-                    // error de regla de negocio, no de sistema.
-                    mostrarErrorValidacion(resultado.getMensaje());
+        TareaRed.ejecutar(
+                operacion,
+                resultado -> completarOperacion(
+                        operacionActual,
+                        resultado,
+                        mensajeExito
+                ),
+                error -> mostrarErrorOperacion(
+                        operacionActual,
+                        error,
+                        mensajeConexion,
+                        mensajeSistema
+                )
+        );
+    }
+
+    private void completarOperacion(
+            long operacion,
+            ResultadoOperacionDTO resultado,
+            String mensajeExito
+    ) {
+        if (operacion != numeroOperacion || !operacionEnCurso) return;
+
+        if (resultado == null) {
+            finalizarOperacion();
+            mostrarErrorSistema("El servidor no devolvió un resultado válido.");
+            return;
+        }
+        if (!resultado.isExito()) {
+            finalizarOperacion();
+            mostrarErrorValidacion(resultado.getMensaje());
+            return;
+        }
+
+        limpiar();
+        mostrarMensajeExito(mensajeExito);
+        actualizarEstadoControles();
+        recargarDespuesOperacion(operacion);
+    }
+
+    private void recargarDespuesOperacion(long operacion) {
+        TareaRed.ejecutar(
+                categoriaService::listarTodos,
+                categorias -> {
+                    if (operacion != numeroOperacion || !operacionEnCurso) return;
+                    if (categorias == null) {
+                        finalizarOperacion();
+                        mostrarErrorSistema("El servidor no devolvió un listado válido de categorías.");
+                        return;
+                    }
+                    mostrarListado(categorias);
+                    finalizarOperacion();
+                },
+                error -> {
+                    if (operacion != numeroOperacion || !operacionEnCurso) return;
+                    finalizarOperacion();
+                    mostrarErrorCarga(error);
                 }
-            } catch (IllegalArgumentException e) {
-                mostrarErrorValidacion(e.getMessage());
-            } catch (IllegalStateException e) {
-                mostrarErrorConexion(MENSAJE_SIN_CONEXION_BORRAR);
-            } catch (RuntimeException e) {
-                mostrarErrorSistema("No se pudo borrar la categoria.\n" + e.getMessage());
-            }
-        });
+        );
+    }
+
+    private void mostrarErrorOperacion(
+            long operacion,
+            Throwable error,
+            String mensajeConexion,
+            String mensajeSistema
+    ) {
+        if (operacion != numeroOperacion || !operacionEnCurso) return;
+
+        finalizarOperacion();
+        if (error instanceof IllegalArgumentException) {
+            mostrarErrorValidacion(error.getMessage());
+        } else if (error instanceof IllegalStateException) {
+            mostrarErrorConexion(mensajeConexion);
+        } else {
+            mostrarErrorSistema(mensajeSistema + "\n" + error.getMessage());
+        }
+    }
+
+    private void finalizarOperacion() {
+        operacionEnCurso = false;
+        actualizarEstadoControles();
+    }
+
+    private void invalidarConsultaPorCambioFiltro() {
+        numeroConsulta++;
+        if (!consultaEnCurso || operacionEnCurso) return;
+
+        consultaEnCurso = false;
+        actualizarEstadoControles();
+        mostrarErrorValidacion("El filtro cambió. Presione Buscar nuevamente.");
+    }
+
+    private void actualizarEstadoControles() {
+        boolean bloquearPorOperacion = operacionEnCurso;
+        campoBusquedaDescripcion.setDisable(bloquearPorOperacion);
+        btnBuscar.setDisable(bloquearPorOperacion);
+        campoId.setDisable(true);
+        campoDescripcion.setDisable(bloquearPorOperacion);
+        btnGuardar.setDisable(bloquearPorOperacion);
+        btnBorrar.setDisable(bloquearPorOperacion);
+        btnLimpiar.setDisable(bloquearPorOperacion);
+        tablaListado.setDisable(bloquearPorOperacion || consultaEnCurso);
+        btnImprimir.setDisable(bloquearPorOperacion || consultaEnCurso);
     }
 
     private void limpiar() {
@@ -268,7 +426,7 @@ public class CategoriaController {
         mostrarAlertaError("Error de conexión", mensaje);
     }
 
-    private void mostrarAlertaError(String titulo, String mensaje) {
+    void mostrarAlertaError(String titulo, String mensaje) {
         Alert alerta = new Alert(Alert.AlertType.ERROR, mensaje);
         alerta.setTitle(titulo);
         alerta.setHeaderText(null);
