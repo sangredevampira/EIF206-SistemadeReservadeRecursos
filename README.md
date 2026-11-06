@@ -281,3 +281,4 @@ la app.
 | `File > Run SQL Script` falla en Workbench | Usar `File > Open SQL Script…` y el rayo (sección 3) |
 | El servidor no arranca porque el puerto está ocupado | Ya hay otro `ServidorMain` abierto: detenerlo, o cambiar `puerto` en `servidor.properties` y `servidor.puerto` en `config.properties` |
 | "Error de IA: El servicio de IA no respondió después de 3 intentos" | El servicio de Gemini respondió 503 (saturado) o tardó más de 30 s en cada intento. No es un error del proyecto: intentar de nuevo en unos minutos |
+| "Error de IA" con `Error de la API Gemini (429)` y `RESOURCE_EXHAUSTED` | Se agotó la cuota diaria gratuita de la clave de Gemini; el mensaje dice cuándo se renueva. Si Gemini responde 503, cada clic en **Extraer AI** gasta hasta 3 solicitudes. No es un error del proyecto |
